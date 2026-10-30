@@ -22,6 +22,7 @@ import {
   bukaKembaliPengukuran,
   daftarIsian,
   kembalikanPengukuran,
+  pengukuranDikembalikan,
   simpanPengukuran,
   statusPengukuranBulan,
   unitPengisi,
@@ -268,7 +269,7 @@ describe("isi dan ajukan Pengukuran", () => {
   });
 
   it("Indikator nonaktif dan Unit nonaktif hilang dari isian dan tidak bisa diisi", async () => {
-    const { unit, indikatorId, komite, petugas } = await siapkan();
+    const { unit, indikatorId, komite, unitPelaporId, petugas } = await siapkan();
     const kunci = { indikatorId, unitId: unit.id, bulan: "2026-09" };
     await simpanPengukuran(petugas, { ...kunci, n: 1, d: 2 });
 
@@ -277,7 +278,9 @@ describe("isi dan ajukan Pengukuran", () => {
     assert.deepEqual(await daftarIsian(petugas, { unitId: unit.id, bulan: "2026-09" }), []);
     await aturAktifIndikator(komite, indikatorId, true);
 
-    await aturAktifUnit(admin, unit.id, false);
+    // Unit hanya bisa dinonaktifkan setelah periode Unit Pelapor-nya berakhir sebelum bulan berjalan.
+    await akhiriUnitPelapor(komite, unitPelaporId, "2026-09");
+    await aturAktifUnit(admin, unit.id, false, new Date("2026-10-15T12:00:00+08:00"));
     const unitNonaktif = { status: 400, message: `Unit ${unit.nama} nonaktif, jadi tidak bisa mengisi Pengukuran.` };
     // Unit masih ada di sesi Petugas (unitIds), tetapi tidak lagi di pilihan Unit.
     await assert.rejects(ajukanPengukuran(petugas, { ...kunci, n: 2, d: 2 }), unitNonaktif);
@@ -349,6 +352,25 @@ describe("isi dan ajukan Pengukuran", () => {
     await akhiriUnitPelapor(komite, unitPelaporId, "2026-12");
     await hapusUnitPelapor(komite, periodeBaru);
   });
+
+  it("bulan berhenti Unit Pelapor tidak boleh lebih awal dari Pengukuran terakhir (status apa pun) dalam periodenya", async () => {
+    const { unit, indikatorId, komite, unitPelaporId, petugas } = await siapkan();
+    const sekarang = new Date("2026-10-15T12:00:00+08:00");
+    const kunci = { indikatorId, unitId: unit.id, n: 1, d: 2 };
+    await simpanPengukuran(petugas, { ...kunci, bulan: "2026-03" }, sekarang);
+    await ajukanPengukuran(petugas, { ...kunci, bulan: "2026-05" }, sekarang);
+
+    await assert.rejects(akhiriUnitPelapor(komite, unitPelaporId, "2026-04"), {
+      status: 409,
+      message: `Unit ${unit.nama} sudah punya Pengukuran Indikator ini pada Mei 2026, jadi bulan berhenti tidak boleh lebih awal dari Mei 2026.`,
+    });
+    await akhiriUnitPelapor(komite, unitPelaporId, "2026-05");
+
+    // Pengukuran di periode lain tidak menghalangi.
+    await tambahUnitPelapor(komite, indikatorId, { unitId: unit.id, bulanMulai: "2026-08" });
+    await simpanPengukuran(petugas, { ...kunci, bulan: "2026-09" }, sekarang);
+    await akhiriUnitPelapor(komite, unitPelaporId, "2026-06");
+  });
 });
 
 describe("Verifikasi Pengukuran", () => {
@@ -398,6 +420,38 @@ describe("Verifikasi Pengukuran", () => {
       ["draf", "diajukan", petugas.nama, null],
       ["diajukan", "terverifikasi", kepala.nama, null],
     ]);
+  });
+
+  it("Pengukuran yang dikembalikan tetap Draf, tetapi daftar isian dan daftar dikembalikan menyebut alasannya sampai diajukan lagi", async () => {
+    const { kepala, petugas, kunci, id } = await diajukan();
+    const isianBulan = { unitId: kunci.unitId, bulan: kunci.bulan };
+    await kembalikanPengukuran(kepala, id, "D harus jumlah pasien");
+    // Draf biasa (belum pernah diajukan) tidak disebut dikembalikan.
+    await simpanPengukuran(petugas, { ...kunci, bulan: "2026-04", n: 1, d: 1 });
+
+    const alasan = async () => (await daftarIsian(petugas, isianBulan)).map((i) => [i.status, i.alasanPengembalian]);
+    assert.deepEqual(await alasan(), [["draf", "D harus jumlah pasien"]]);
+    assert.deepEqual(
+      (await daftarIsian(petugas, { ...isianBulan, bulan: "2026-04" })).map((i) => [i.status, i.alasanPengembalian]),
+      [["draf", null]],
+    );
+    const dikembalikan = async (aktor: Pengguna) =>
+      (await pengukuranDikembalikan(aktor)).map((p) => [p.id, p.indikator.id, p.unit.id, p.bulan, p.alasan]);
+    const satu = [[id, kunci.indikatorId, kunci.unitId, kunci.bulan, "D harus jumlah pasien"]];
+    assert.deepEqual(await dikembalikan(petugas), satu);
+    assert.deepEqual(await dikembalikan(kepala), satu);
+
+    // Menyimpan perbaikan sebagai Draf belum menghapus tanda dikembalikan; mengajukan lagi menghapusnya.
+    await simpanPengukuran(petugas, { ...kunci, n: 9, d: 12 });
+    assert.deepEqual(await alasan(), [["draf", "D harus jumlah pasien"]]);
+    await ajukanPengukuran(petugas, { ...kunci, n: 9, d: 12 });
+    assert.deepEqual(await alasan(), [["diajukan", null]]);
+    assert.deepEqual(await dikembalikan(petugas), []);
+
+    const lain = await penggunaBaru("petugasInputData", [(await tambahUnit(admin, { nama: unik("IGD") })).id]);
+    await kembalikanPengukuran(kepala, id, "Masih salah");
+    assert.deepEqual(await dikembalikan(lain), []);
+    await assert.rejects(pengukuranDikembalikan(await penggunaBaru("komiteMutu")), { status: 403 });
   });
 
   it("Kepala Unit membuka kembali Pengukuran Terverifikasi menjadi Diajukan dengan alasan", async () => {

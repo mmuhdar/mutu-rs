@@ -21,6 +21,36 @@ export function geserBulan(bulan: string, jumlah: number) {
 /** Benar bila teks berbentuk bulan "YYYY-MM". */
 export const bulanValid = (bulan: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(bulan);
 
+/**
+ * Bulan dari alamat halaman (`?bulan=`) di halaman yang hanya menampilkan bulan yang sudah berjalan (Dashboard,
+ * Monitoring, Status Pengukuran). Kosong = tanpa `bulan` (halaman memakai bulan bawaannya). Tidak valid atau setelah
+ * bulan berjalan juga tanpa `bulan`, disertai pemberitahuan singkat untuk ditampilkan di halaman.
+ */
+export function bulanDariAlamat(
+  nilai: string | string[] | undefined,
+  sekarang = new Date(),
+): { bulan?: string; pemberitahuan?: string } {
+  if (!nilai) return {};
+  if (typeof nilai !== "string" || !bulanValid(nilai)) {
+    return { pemberitahuan: "Bulan pada alamat tidak valid, jadi yang ditampilkan bulan bawaan." };
+  }
+  if (nilai > bulanBerjalan(sekarang)) {
+    return { pemberitahuan: `${labelBulan(nilai)} belum berjalan, jadi yang ditampilkan bulan bawaan.` };
+  }
+  return { bulan: nilai };
+}
+
+/**
+ * Atribut `<input>` bulan. Browser tanpa pemilih bulan (mis. Firefox desktop) menampilkan kotak teks biasa, jadi diberi
+ * contoh dan pola "YYYY-MM"; browser dengan pemilih bulan mengabaikannya.
+ */
+export const INPUT_BULAN = {
+  type: "month",
+  placeholder: "YYYY-MM",
+  pattern: "\\d{4}-(0[1-9]|1[0-2])",
+  title: "Bulan dengan format YYYY-MM, mis. 2026-10",
+} as const;
+
 /** Kolom bulan di database = tanggal 1 bulan itu: "2026-10" ↔ "2026-10-01". */
 export const keTanggal = (bulan: string) => `${bulan}-01`;
 export const dariTanggal = (tanggal: string) => tanggal.slice(0, 7);

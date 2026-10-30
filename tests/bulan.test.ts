@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { bulanBerjalan, bulanLalu } from "@/lib/bulan";
+import { bulanBerjalan, bulanDariAlamat, bulanLalu } from "@/lib/bulan";
 
 // Tes dijalankan dengan zona waktu Asia/Makassar (WITA, UTC+8), lihat scripts/test.sh.
 describe("bulan berjalan", () => {
@@ -26,5 +26,27 @@ describe("bulan lalu", () => {
 
   it("bulan sebelumnya di tahun yang sama", () => {
     assert.equal(bulanLalu(new Date("2026-10-31T15:59:00Z")), "2026-09");
+  });
+});
+
+describe("bulan dari alamat halaman (?bulan=)", () => {
+  const sekarang = new Date("2026-10-15T12:00:00+08:00");
+
+  it("bulan berjalan dan sebelumnya dipakai; kosong = bulan bawaan tanpa pemberitahuan", () => {
+    assert.deepEqual(bulanDariAlamat("2026-10", sekarang), { bulan: "2026-10" });
+    assert.deepEqual(bulanDariAlamat("2025-03", sekarang), { bulan: "2025-03" });
+    assert.deepEqual(bulanDariAlamat(undefined, sekarang), {});
+    assert.deepEqual(bulanDariAlamat("", sekarang), {});
+  });
+
+  it("bulan setelah bulan berjalan dan bulan tidak valid diganti bulan bawaan dengan pemberitahuan", () => {
+    assert.deepEqual(bulanDariAlamat("2026-12", sekarang), {
+      pemberitahuan: "Desember 2026 belum berjalan, jadi yang ditampilkan bulan bawaan.",
+    });
+    for (const nilai of ["abc", "2026-13", ["2026-01", "2026-02"]]) {
+      assert.deepEqual(bulanDariAlamat(nilai, sekarang), {
+        pemberitahuan: "Bulan pada alamat tidak valid, jadi yang ditampilkan bulan bawaan.",
+      });
+    }
   });
 });

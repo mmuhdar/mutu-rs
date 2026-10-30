@@ -1,10 +1,12 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { unit } from "@/db/schema";
+import { indikator, unit, unitPelapor } from "@/db/schema";
+import { bulanBerjalan } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { apakahUuid } from "@/lib/uuid";
 import { type Pengguna, wajibPengguna, wajibPeran } from "@/modules/auth/service";
+import { bersinggungan } from "@/modules/indikator/service";
 
 const HANYA_ADMIN = "Hanya Admin Sistem yang boleh mengelola Unit.";
 
@@ -61,8 +63,32 @@ export async function gantiNamaUnit(aktor: Pengguna | null, id: string, input: {
   return simpanNama(nama, () => ubahUnit(id, { nama }));
 }
 
-/** Menonaktifkan (aktif = false) atau mengaktifkan kembali Unit. Tidak ada hapus: riwayat datanya tetap ada. */
-export async function aturAktifUnit(aktor: Pengguna | null, id: string, aktif: boolean) {
+/**
+ * Menonaktifkan (aktif = false) atau mengaktifkan kembali Unit. Tidak ada hapus: riwayat datanya tetap ada. Unit yang
+ * masih menjadi Unit Pelapor pada bulan berjalan atau sesudahnya tidak bisa dinonaktifkan, karena isian dan pemantauan
+ * mengabaikan Unit nonaktif sehingga Kelengkapan-nya tidak akan pernah lengkap. Baris Unit dikunci `for update`, jadi
+ * penambahan Unit Pelapor (menguncinya `for share`) diperiksa bergiliran.
+ */
+export async function aturAktifUnit(aktor: Pengguna | null, id: string, aktif: boolean, sekarang = new Date()) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
-  return ubahUnit(id, { aktif });
+  return db.transaction(async (tx) => {
+    const [u] = apakahUuid(id) ? await tx.select(kolom).from(unit).where(eq(unit.id, id)).for("update") : [];
+    if (!u) throw new ServiceError(404, "Unit tidak ditemukan.");
+    if (!aktif) {
+      const masihMelapor = await tx
+        .selectDistinct({ kode: indikator.kode })
+        .from(unitPelapor)
+        .innerJoin(indikator, eq(indikator.id, unitPelapor.indikatorId))
+        .where(and(eq(unitPelapor.unitId, id), bersinggungan(bulanBerjalan(sekarang), null)))
+        .orderBy(asc(indikator.kode));
+      if (masihMelapor.length > 0) {
+        throw new ServiceError(
+          409,
+          `Unit ${u.nama} masih menjadi Unit Pelapor ${masihMelapor.map((i) => i.kode).join(", ")} pada bulan berjalan atau sesudahnya. Akhiri dulu periode Unit Pelapor itu di halaman Indikator, lalu nonaktifkan Unit ini.`,
+        );
+      }
+    }
+    const [hasil] = await tx.update(unit).set({ aktif }).where(eq(unit.id, id)).returning(kolom);
+    return hasil;
+  });
 }

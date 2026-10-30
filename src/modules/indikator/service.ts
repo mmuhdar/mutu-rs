@@ -1,8 +1,8 @@
-import { and, asc, eq, gte, isNull, lte, ne, or } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lte, max, ne, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
-import { bulanValid, dariTanggal, keTanggal, labelPeriode } from "@/lib/bulan";
+import { bulanValid, dariTanggal, keTanggal, labelBulan, labelPeriode } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, targetPadaBulan, type Kelompok } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
@@ -327,11 +327,12 @@ export async function tambahUnitPelapor(aktor: Pengguna | null, indikatorId: str
   if (typeof mulai !== "string" || !bulanValid(mulai)) throw new ServiceError(400, "Pilih bulan mulai.");
   const berhenti = periksaBulanBerhenti(mulai, isian.bulanBerhenti);
   if (!apakahUuid(indikatorId)) throw tidakDitemukan();
-  const [u] = apakahUuid(isian.unitId) ? await db.select().from(unit).where(eq(unit.id, isian.unitId)) : [];
-  if (!u) throw new ServiceError(400, "Pilih Unit.");
-  if (!u.aktif) throw new ServiceError(400, `Unit ${u.nama} nonaktif, jadi tidak bisa menjadi Unit Pelapor.`);
 
   return db.transaction(async (tx) => {
+    // Dikunci `for share`: Unit yang sedang dinonaktifkan (menguncinya `for update`) selesai lebih dulu dan terperiksa.
+    const [u] = apakahUuid(isian.unitId) ? await tx.select().from(unit).where(eq(unit.id, isian.unitId)).for("share") : [];
+    if (!u) throw new ServiceError(400, "Pilih Unit.");
+    if (!u.aktif) throw new ServiceError(400, `Unit ${u.nama} nonaktif, jadi tidak bisa menjadi Unit Pelapor.`);
     await tolakTumpangTindih(tx, { indikatorId, unitId: u.id, mulai, berhenti });
     const [{ id }] = await tx
       .insert(unitPelapor)
@@ -348,7 +349,30 @@ async function ambilPeriode(id: string) {
   return periode;
 }
 
-/** Mengakhiri (atau mengubah akhir) periode Unit Pelapor: Unit tidak lagi wajib melapor setelah bulan berhenti. */
+/**
+ * Bulan Pengukuran terakhir ("YYYY-MM", status apa pun) Indikator + Unit periode ini di dalam periodenya; null = belum
+ * ada. Panggil setelah baris Indikator dikunci, supaya Pengukuran yang sedang disimpan (menguncinya `for share`) ikut.
+ */
+async function pengukuranTerakhir(tx: Transaksi, periode: typeof unitPelapor.$inferSelect) {
+  const [{ bulan }] = await tx
+    .select({ bulan: max(pengukuran.bulan) })
+    .from(pengukuran)
+    .where(
+      and(
+        eq(pengukuran.indikatorId, periode.indikatorId),
+        eq(pengukuran.unitId, periode.unitId),
+        gte(pengukuran.bulan, periode.bulanMulai),
+        periode.bulanBerhenti ? lte(pengukuran.bulan, periode.bulanBerhenti) : undefined,
+      ),
+    );
+  return bulan && dariTanggal(bulan);
+}
+
+/**
+ * Mengakhiri (atau mengubah akhir) periode Unit Pelapor: Unit tidak lagi wajib melapor setelah bulan berhenti. Bulan
+ * berhenti tidak boleh lebih awal dari Pengukuran terakhir dalam periode itu, supaya Pengukuran tidak tertinggal di
+ * luar periode Unit Pelapor-nya.
+ */
 export async function akhiriUnitPelapor(aktor: Pengguna | null, id: string, bulanBerhenti: string) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const periode = await ambilPeriode(id);
@@ -357,6 +381,14 @@ export async function akhiriUnitPelapor(aktor: Pengguna | null, id: string, bula
   if (!berhenti) throw new ServiceError(400, "Pilih bulan berhenti.");
   await db.transaction(async (tx) => {
     await tolakTumpangTindih(tx, { indikatorId: periode.indikatorId, unitId: periode.unitId, mulai, berhenti, kecualiId: id });
+    const terakhir = await pengukuranTerakhir(tx, periode);
+    if (terakhir && berhenti < terakhir) {
+      const [u] = await tx.select({ nama: unit.nama }).from(unit).where(eq(unit.id, periode.unitId));
+      throw new ServiceError(
+        409,
+        `Unit ${u.nama} sudah punya Pengukuran Indikator ini pada ${labelBulan(terakhir)}, jadi bulan berhenti tidak boleh lebih awal dari ${labelBulan(terakhir)}.`,
+      );
+    }
     await tx.update(unitPelapor).set({ bulanBerhenti: keTanggal(berhenti) }).where(eq(unitPelapor.id, id));
   });
 }
@@ -371,19 +403,7 @@ export async function hapusUnitPelapor(aktor: Pengguna | null, id: string) {
   const periode = await ambilPeriode(id);
   await db.transaction(async (tx) => {
     await tx.select({ id: indikator.id }).from(indikator).where(eq(indikator.id, periode.indikatorId)).for("update");
-    const [ada] = await tx
-      .select({ id: pengukuran.id })
-      .from(pengukuran)
-      .where(
-        and(
-          eq(pengukuran.indikatorId, periode.indikatorId),
-          eq(pengukuran.unitId, periode.unitId),
-          gte(pengukuran.bulan, periode.bulanMulai),
-          periode.bulanBerhenti ? lte(pengukuran.bulan, periode.bulanBerhenti) : undefined,
-        ),
-      )
-      .limit(1);
-    if (ada) {
+    if (await pengukuranTerakhir(tx, periode)) {
       throw new ServiceError(
         409,
         "Periode Unit Pelapor ini sudah punya Pengukuran, jadi tidak bisa dihapus. Akhiri periodenya bila Unit berhenti melapor.",

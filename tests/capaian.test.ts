@@ -8,7 +8,14 @@ import type { Arah, Frekuensi } from "@/lib/indikator";
 import { LABEL_PERAN, type Peran } from "@/lib/peran";
 import { masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
 import { ringkasanCapaian, trenCapaian } from "@/modules/capaian/service";
-import { aturAktifIndikator, tambahIndikator, tambahUnitPelapor, tetapkanTarget } from "@/modules/indikator/service";
+import {
+  akhiriUnitPelapor,
+  ambilIndikator,
+  aturAktifIndikator,
+  tambahIndikator,
+  tambahUnitPelapor,
+  tetapkanTarget,
+} from "@/modules/indikator/service";
 import {
   ajukanPengukuran,
   bukaKembaliPengukuran,
@@ -271,7 +278,10 @@ describe("Pembatasan dan riwayat", () => {
 
   it("Indikator dan Unit yang nonaktif tetap tampil dalam riwayat beserta Capaian-nya", async () => {
     const { indikatorId, hcu } = await tigaUnit();
-    await aturAktifUnit(admin, hcu.id, false);
+    // Unit hanya bisa dinonaktifkan setelah periode Unit Pelapor-nya berakhir sebelum bulan berjalan.
+    const periodeHcu = (await ambilIndikator(komite(), indikatorId)).unitPelapor.find((p) => p.unitId === hcu.id)!;
+    await akhiriUnitPelapor(komite(), periodeHcu.id, "2026-07");
+    await aturAktifUnit(admin, hcu.id, false, new Date("2026-10-15T12:00:00+08:00"));
     await aturAktifIndikator(komite(), indikatorId, false);
 
     const tren = await trenCapaian(komite(), indikatorId, "2026-07");
@@ -379,8 +389,50 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
     assert.equal((await ringkasanCapaian(direktur, "2025-03", new Date("2026-10-31T16:30:00Z"))).bulan, "2025-03");
   });
 
-  it("tanpa sesi dan bulan tidak valid ditolak", async () => {
+  it("Tercapai dan Belum Tercapai menyebut berapa di antaranya yang belum lengkap (Capaian RS sementara)", async () => {
+    const icu = await tambahUnit(admin, { nama: unik("ICU") });
+    const ri = await tambahUnit(admin, { nama: unik("Rawat Inap") });
+    const [tercapaiLengkap, tercapaiSementara, belumTercapaiSementara] = [
+      await indikatorBaru(),
+      await indikatorBaru(),
+      await indikatorBaru(),
+    ];
+    for (const indikatorId of [tercapaiLengkap, tercapaiSementara, belumTercapaiSementara]) {
+      for (const unitId of [icu.id, ri.id]) {
+        await tambahUnitPelapor(komite(), indikatorId, { unitId, bulanMulai: "2022-01", bulanBerhenti: "2022-06" });
+      }
+    }
+    // Target 80 %: ICU dan Rawat Inap 9/10 = Tercapai lengkap; hanya ICU 9/10 = Tercapai, hanya ICU 1/10 = Belum Tercapai.
+    await terverifikasi(tercapaiLengkap, icu.id, "2022-06", 9, 10);
+    await terverifikasi(tercapaiLengkap, ri.id, "2022-06", 9, 10);
+    await terverifikasi(tercapaiSementara, icu.id, "2022-06", 9, 10);
+    await terverifikasi(belumTercapaiSementara, icu.id, "2022-06", 1, 10);
+
+    const r = await ringkasanCapaian({ ...admin, peran: "direktur" }, "2022-06");
+    assert.deepEqual(r.jumlah, { dinilai: 3, tercapai: 2, belumTercapai: 1, kosong: 0 });
+    assert.deepEqual(r.jumlahBelumLengkap, { tercapai: 1, belumTercapai: 1 });
+
+    // Capaian Unit selalu dari satu Pengukuran Terverifikasi, jadi tidak pernah belum lengkap.
+    const kepala = await ringkasanCapaian(kepalaUnit(icu.id, ri.id), "2022-06");
+    assert.deepEqual(kepala.jumlah, { dinilai: 6, tercapai: 3, belumTercapai: 1, kosong: 2 });
+    assert.deepEqual(kepala.jumlahBelumLengkap, { tercapai: 0, belumTercapai: 0 });
+  });
+
+  it("tanpa sesi, bulan tidak valid, dan bulan setelah bulan berjalan ditolak", async () => {
+    const sekarang = new Date("2026-10-15T12:00:00+08:00");
     await assert.rejects(ringkasanCapaian(null, "2024-06"), { status: 401 });
     await assert.rejects(ringkasanCapaian(komite(), "Juni"), { status: 400 });
+    await assert.rejects(ringkasanCapaian(komite(), "2026-11", sekarang), {
+      status: 400,
+      message: "November 2026 belum berjalan.",
+    });
+    assert.equal((await ringkasanCapaian(komite(), "2026-10", sekarang)).bulan, "2026-10");
+
+    const indikatorId = await indikatorBaru();
+    await assert.rejects(trenCapaian(komite(), indikatorId, "2026-11", sekarang), {
+      status: 400,
+      message: "November 2026 belum berjalan.",
+    });
+    assert.equal((await trenCapaian(komite(), indikatorId, "2026-10", sekarang)).bulan.at(-1), "2026-10");
   });
 });

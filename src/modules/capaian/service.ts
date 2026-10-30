@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
-import { bulanLalu, bulanValid, dariTanggal, geserBulan, keTanggal } from "@/lib/bulan";
+import { bulanBerjalan, bulanLalu, bulanValid, dariTanggal, geserBulan, keTanggal, labelBulan } from "@/lib/bulan";
 import { nilaiCapaian } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan, targetPadaBulan } from "@/lib/indikator";
@@ -62,6 +62,12 @@ const unitPelaporBulan = (bulan: string, saring: SQL | undefined) =>
     .where(and(bersinggungan(bulan, bulan), saring))
     .orderBy(asc(indikator.kode), asc(unit.nama));
 
+/** Bulan "YYYY-MM" yang boleh dilihat: valid dan tidak setelah bulan berjalan (bulan depan belum punya Pengukuran). */
+function periksaBulan(bulan: unknown, sekarang: Date): asserts bulan is string {
+  if (typeof bulan !== "string" || !bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
+  if (bulan > bulanBerjalan(sekarang)) throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan.`);
+}
+
 /** Riwayat Target beberapa Indikator dibaca sekali; hasilnya = Target yang berlaku untuk Indikator pada suatu bulan. */
 async function targetUntuk(indikatorIds: string[]) {
   const riwayat = (
@@ -84,11 +90,11 @@ async function targetUntuk(indikatorIds: string[]) {
  * - `rs`: Capaian RS + Kelengkapan; null untuk Petugas Input Data dan Kepala Unit.
  * - `unit`: Capaian per Unit yang menjadi Unit Pelapor dalam rentang itu (Petugas dan Kepala Unit: hanya Unit-nya);
  *   titik dengan `kelengkapan.wajib` 0 = Unit itu bukan Unit Pelapor pada bulan tersebut.
- * Indikator dan Unit nonaktif tetap tampil. Semua peran boleh membaca.
+ * Indikator dan Unit nonaktif tetap tampil. Semua peran boleh membaca. Bulan setelah bulan berjalan ditolak.
  */
-export async function trenCapaian(aktor: Pengguna | null, indikatorId: string, bulanAkhir: string) {
+export async function trenCapaian(aktor: Pengguna | null, indikatorId: string, bulanAkhir: string, sekarang = new Date()) {
   wajibPengguna(aktor);
-  if (typeof bulanAkhir !== "string" || !bulanValid(bulanAkhir)) throw new ServiceError(400, "Bulan tidak valid.");
+  periksaBulan(bulanAkhir, sekarang);
   const [ind] = apakahUuid(indikatorId)
     ? await db.select(kolomIndikator).from(indikator).where(eq(indikator.id, indikatorId))
     : [];
@@ -122,13 +128,15 @@ export type TitikCapaian = TrenCapaian["unit"][number]["titik"][number];
  * Ringkasan Capaian satu bulan "YYYY-MM" untuk Dashboard: Indikator aktif yang dinilai bulan itu (punya Unit Pelapor
  * aktif; Semesteran hanya Juni dan Desember), urut kode. Komite Mutu, Direktur, dan Admin Sistem: satu baris per
  * Indikator dari Capaian RS (`unit` null). Petugas Input Data dan Kepala Unit: satu baris per Indikator + Unit-nya
- * dari Capaian Unit. `jumlah`, `kelengkapan` (keseluruhan), dan `belumTercapai` dihitung dari baris itu.
- * Tanpa bulan (kosong) = bulan lalu menurut zona waktu konfigurasi, bulan bawaan Dashboard.
+ * dari Capaian Unit. `jumlah`, `kelengkapan` (keseluruhan), dan `belumTercapai` dihitung dari baris itu;
+ * `jumlahBelumLengkap` = berapa baris Tercapai / Belum Tercapai yang Kelengkapan-nya belum penuh (Capaian RS sementara).
+ * Tanpa bulan (kosong) = bulan lalu menurut zona waktu konfigurasi, bulan bawaan Dashboard; bulan setelah bulan
+ * berjalan ditolak.
  */
 export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, sekarang = new Date()) {
   wajibPengguna(aktor);
   bulan ||= bulanLalu(sekarang);
-  if (typeof bulan !== "string" || !bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
+  periksaBulan(bulan, sekarang);
   const pelapor = (await unitPelaporBulan(bulan, and(eq(indikator.aktif, true), saringUnit(aktor)))).filter((p) =>
     diukurPadaBulan(p.indikator.frekuensi, bulan),
   );
@@ -145,7 +153,9 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
   )
     ? daftar.map((ind) => ({ ...nilai(ind, pelapor.filter((p) => p.indikator.id === ind.id)), unit: null }))
     : pelapor.map((p) => ({ ...nilai(p.indikator, [p]), unit: p.unit }));
-  const jumlahStatus = (status: (typeof baris)[number]["status"]) => baris.filter((b) => b.status === status).length;
+  const jumlahStatus = (status: (typeof baris)[number]["status"], daftar = baris) =>
+    daftar.filter((b) => b.status === status).length;
+  const belumLengkap = baris.filter((b) => b.kelengkapan.terverifikasi < b.kelengkapan.wajib);
   return {
     bulan,
     baris,
@@ -154,6 +164,10 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
       tercapai: jumlahStatus("tercapai"),
       belumTercapai: jumlahStatus("belumTercapai"),
       kosong: jumlahStatus(null),
+    },
+    jumlahBelumLengkap: {
+      tercapai: jumlahStatus("tercapai", belumLengkap),
+      belumTercapai: jumlahStatus("belumTercapai", belumLengkap),
     },
     kelengkapan: {
       terverifikasi: baris.reduce((total, b) => total + b.kelengkapan.terverifikasi, 0),

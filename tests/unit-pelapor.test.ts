@@ -108,11 +108,36 @@ describe("Unit Pelapor", () => {
     });
 
     const igd = await unitBaru("IGD");
-    await tambahUnitPelapor(admin, indikatorId, { unitId: igd.id, bulanMulai: "2026-01" });
-    await aturAktifUnit(admin, igd.id, false);
+    await tambahUnitPelapor(admin, indikatorId, { unitId: igd.id, bulanMulai: "2026-01", bulanBerhenti: "2026-06" });
+    await aturAktifUnit(admin, igd.id, false, new Date("2026-10-15T12:00:00+08:00"));
     assert.deepEqual(await unitPelaporAktif(admin, indikatorId, "2026-02"), [
       { unitId: igd.id, nama: igd.nama, unitAktif: false },
     ]);
+  });
+
+  it("Unit yang masih menjadi Unit Pelapor pada bulan berjalan atau sesudahnya tidak bisa dinonaktifkan sebelum periodenya diakhiri", async () => {
+    const admin = await adminSistem();
+    const sekarang = new Date("2026-10-15T12:00:00+08:00");
+    const igd = await unitBaru("IGD");
+    const [berlangsung, berhentiBulanIni, berhentiBulanLalu] = [await indikatorBaru(), await indikatorBaru(), await indikatorBaru()];
+    const p1 = await tambahUnitPelapor(admin, berlangsung, { unitId: igd.id, bulanMulai: "2026-01" });
+    const p2 = await tambahUnitPelapor(admin, berhentiBulanIni, { unitId: igd.id, bulanMulai: "2026-01", bulanBerhenti: "2026-10" });
+    // Dua periode yang belum berakhir untuk Indikator yang sama: kodenya disebut sekali.
+    const p3 = await tambahUnitPelapor(admin, berhentiBulanIni, { unitId: igd.id, bulanMulai: "2027-03", bulanBerhenti: "2027-04" });
+    await tambahUnitPelapor(admin, berhentiBulanLalu, { unitId: igd.id, bulanMulai: "2026-01", bulanBerhenti: "2026-09" });
+    const kode = async (id: string) => (await ambilIndikator(admin, id)).kode;
+    const masihMelapor = [await kode(berlangsung), await kode(berhentiBulanIni)].sort().join(", ");
+
+    await assert.rejects(aturAktifUnit(admin, igd.id, false, sekarang), {
+      status: 409,
+      message: `Unit ${igd.nama} masih menjadi Unit Pelapor ${masihMelapor} pada bulan berjalan atau sesudahnya. Akhiri dulu periode Unit Pelapor itu di halaman Indikator, lalu nonaktifkan Unit ini.`,
+    });
+    assert.equal((await ambilIndikator(admin, berlangsung)).unitPelapor[0].unitAktif, true);
+
+    await hapusUnitPelapor(admin, p3);
+    await akhiriUnitPelapor(admin, p1, "2026-09");
+    await akhiriUnitPelapor(admin, p2, "2026-09");
+    assert.equal((await aturAktifUnit(admin, igd.id, false, sekarang)).aktif, false);
   });
 
   it("periode yang tumpang tindih untuk Indikator dan Unit yang sama ditolak; periode bersambung dan Unit lain boleh", async () => {

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
@@ -30,6 +30,17 @@ type Kueri = Pick<typeof db, "select">;
 /** Pengukuran milik Indikator + Unit (id atau kolom) + bulan "YYYY-MM". */
 const pengukuranUntuk = (indikatorId: string | AnyPgColumn, unitId: string | AnyPgColumn, bulan: string) =>
   and(eq(pengukuran.indikatorId, indikatorId), eq(pengukuran.unitId, unitId), eq(pengukuran.bulan, keTanggal(bulan)));
+
+/**
+ * Alasan pengembalian bila Pengukuran Draf ini dikembalikan Kepala Unit dan belum diajukan lagi; selain itu null.
+ * Riwayat Status terakhir sebuah Draf adalah simpan pertama (tanpa alasan) atau pengembalian (alasan wajib); menyimpan
+ * ulang Draf tidak menulis Riwayat Status. Status tetap Draf (glosarium); ini hanya penanda untuk tampilan.
+ */
+const alasanPengembalian = sql<string | null>`(
+  select ${riwayatStatusPengukuran.alasan} from ${riwayatStatusPengukuran}
+  where ${riwayatStatusPengukuran.pengukuranId} = ${pengukuran.id} and ${pengukuran.status} = 'draf'
+  order by ${riwayatStatusPengukuran.waktu} desc limit 1
+)`;
 
 function wajibPengisiUnit(aktor: Pengguna | null, unitId: string): asserts aktor is Pengguna {
   wajibPeran(aktor, PENGISI, HANYA_PENGISI);
@@ -108,7 +119,8 @@ export async function unitPengisi(aktor: Pengguna | null) {
 
 /**
  * Daftar isian Unit pada bulan "YYYY-MM": Indikator aktif yang Unit-nya menjadi Unit Pelapor bulan itu (Semesteran
- * hanya Juni dan Desember), urut kode, beserta status Pengukurannya (null = belum diisi).
+ * hanya Juni dan Desember), urut kode, beserta status Pengukurannya (null = belum diisi) dan alasan pengembalian bila
+ * Draf itu dikembalikan Kepala Unit.
  */
 export async function daftarIsian(aktor: Pengguna | null, k: { unitId: string; bulan: string }, sekarang = new Date()) {
   wajibPengisiUnit(aktor, k.unitId);
@@ -118,6 +130,7 @@ export async function daftarIsian(aktor: Pengguna | null, k: { unitId: string; b
     .select({
       indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama, frekuensi: indikator.frekuensi },
       status: pengukuran.status,
+      alasanPengembalian,
     })
     .from(indikator)
     .innerJoin(
@@ -264,6 +277,29 @@ export async function antreanVerifikasi(aktor: Pengguna | null) {
   if (aktor.unitIds.length === 0) return [];
   const baris = await pilihPengukuran()
     .where(and(eq(pengukuran.status, "diajukan"), inArray(pengukuran.unitId, aktor.unitIds)))
+    .orderBy(asc(pengukuran.bulan), asc(unit.nama), asc(indikator.kode));
+  return baris.map(bulanDariTanggal);
+}
+
+/**
+ * Pengukuran Draf dari Unit-Unit aktor yang dikembalikan Kepala Unit dan belum diajukan lagi, di bulan mana pun, beserta
+ * alasannya; terlama lebih dulu. Untuk Dashboard Petugas Input Data dan Kepala Unit.
+ */
+export async function pengukuranDikembalikan(aktor: Pengguna | null) {
+  wajibPeran(aktor, PENGISI, HANYA_PENGISI);
+  if (aktor.unitIds.length === 0) return [];
+  const baris = await db
+    .select({
+      id: pengukuran.id,
+      bulan: pengukuran.bulan,
+      indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama },
+      unit: { id: unit.id, nama: unit.nama },
+      alasan: sql<string>`${alasanPengembalian}`,
+    })
+    .from(pengukuran)
+    .innerJoin(indikator, eq(indikator.id, pengukuran.indikatorId))
+    .innerJoin(unit, eq(unit.id, pengukuran.unitId))
+    .where(and(inArray(pengukuran.unitId, aktor.unitIds), isNotNull(alasanPengembalian)))
     .orderBy(asc(pengukuran.bulan), asc(unit.nama), asc(indikator.kode));
   return baris.map(bulanDariTanggal);
 }
