@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { labelBulan } from "@/lib/bulan";
-import { config } from "@/lib/config";
-import { ServiceError } from "@/lib/errors";
-import { formatCapaian, hitungCapaian, LABEL_STATUS_PENGUKURAN } from "@/lib/pengukuran";
 import { ambilIsian } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
 import { FormPengukuran } from "../form-pengukuran";
-import { LabelStatus } from "../status";
+import { AlasanPengembalian, formatWaktu, kelasKartu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 
 export const metadata: Metadata = { title: "Isi Pengukuran" };
-
-const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
-
-const formatWaktu = (waktu: Date) =>
-  new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: config.zonaWaktu }).format(waktu);
 
 export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"/pengukuran/isi">) {
   const pengguna = await requireUser();
@@ -33,23 +26,19 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
   );
 
   // Hak akses dan aturan isian diperiksa di service; penolakannya ditampilkan sebagai pesan.
-  const isian = await ambilIsian(pengguna, kunci).catch((error) => {
-    if (error instanceof ServiceError) return error.message;
-    throw error;
-  });
+  const isian = await pesanAtau(ambilIsian(pengguna, kunci));
   if (typeof isian === "string") {
     return (
       <section className="grid gap-3">
         <div>{kembali}</div>
-        <p role="alert" className={`${kelasKartu} p-4`}>
-          {isian}
-        </p>
+        <Pesan>{isian}</Pesan>
       </section>
     );
   }
 
   const { indikator, unit, pengukuran, riwayat } = isian;
-  const bolehDiubah = !pengukuran || pengukuran.status === "draf";
+  // Hanya Draf yang bisa diubah; Pengukuran lain dibuka di detail Pengukuran (tempat Verifikasi).
+  if (pengukuran && pengukuran.status !== "draf") redirect(`/pengukuran/${pengukuran.id}`);
 
   return (
     <section className="grid gap-4">
@@ -70,6 +59,8 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
         )}
       </div>
 
+      {pengukuran && <AlasanPengembalian status={pengukuran.status} riwayat={riwayat} />}
+
       <dl className={`${kelasKartu} divide-y divide-border`}>
         <div className="grid gap-1 px-4 py-3">
           <dt className="text-[13px] font-medium text-muted-foreground">Sumber Data</dt>
@@ -83,68 +74,16 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
         </details>
       </dl>
 
-      {bolehDiubah ? (
-        <FormPengukuran
-          kunci={{ indikatorId: indikator.id, unitId: unit.id, bulan: isian.bulan }}
-          faktor={indikator.faktor}
-          satuan={indikator.satuan}
-          definisiNumerator={indikator.definisiNumerator}
-          definisiDenominator={indikator.definisiDenominator}
-          awal={pengukuran}
-        />
-      ) : (
-        <div className={kelasKartu}>
-          <p className="border-b border-border px-4 py-3 text-[13.5px]">
-            Pengukuran ini sudah {LABEL_STATUS_PENGUKURAN[pengukuran.status]}, jadi N dan D tidak bisa diubah.
-          </p>
-          <dl className="divide-y divide-border">
-            {(
-              [
-                ["Numerator (N)", indikator.definisiNumerator, pengukuran.n],
-                ["Denominator (D)", indikator.definisiDenominator, pengukuran.d],
-              ] as const
-            ).map(([label, definisi, nilai]) => (
-              <div key={label} className="grid grid-cols-[1fr_auto] gap-x-4 px-4 py-3">
-                <dt>
-                  <span className="font-semibold">{label}</span>
-                  <span className="block text-[13px] whitespace-pre-line text-muted-foreground">{definisi}</span>
-                </dt>
-                <dd className="text-lg font-semibold tabular-nums">{nilai}</dd>
-              </div>
-            ))}
-            <div className="grid grid-cols-[1fr_auto] gap-x-4 px-4 py-3">
-              <dt className="font-semibold">Capaian</dt>
-              <dd className="text-lg font-semibold tabular-nums">
-                {formatCapaian(hitungCapaian(pengukuran.n, pengukuran.d, indikator.faktor), indikator.satuan)}
-              </dd>
-            </div>
-            <div className="grid gap-1 px-4 py-3">
-              <dt className="font-semibold">Catatan</dt>
-              <dd className="whitespace-pre-line">{pengukuran.catatan || "–"}</dd>
-            </div>
-          </dl>
-        </div>
-      )}
+      <FormPengukuran
+        kunci={{ indikatorId: indikator.id, unitId: unit.id, bulan: isian.bulan }}
+        faktor={indikator.faktor}
+        satuan={indikator.satuan}
+        definisiNumerator={indikator.definisiNumerator}
+        definisiDenominator={indikator.definisiDenominator}
+        awal={pengukuran}
+      />
 
-      {riwayat.length > 0 && (
-        <div className={kelasKartu}>
-          <h2 className="border-b border-border px-4 py-3 text-[15px] font-semibold">Riwayat Status</h2>
-          <ol className="divide-y divide-border">
-            {riwayat.map((r, i) => (
-              <li key={i} className="px-4 py-3">
-                <span className="font-medium">
-                  {r.statusAsal ? LABEL_STATUS_PENGUKURAN[r.statusAsal] : "Belum diisi"} →{" "}
-                  {LABEL_STATUS_PENGUKURAN[r.statusTujuan]}
-                </span>
-                <span className="block text-[13px] text-muted-foreground">
-                  {r.oleh}, {formatWaktu(r.waktu)}
-                </span>
-                {r.alasan && <span className="mt-1 block whitespace-pre-line">Alasan: {r.alasan}</span>}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+      <RiwayatStatus riwayat={riwayat} />
     </section>
   );
 }

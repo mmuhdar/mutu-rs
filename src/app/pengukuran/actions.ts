@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ServiceError } from "@/lib/errors";
-import { ajukanPengukuran, simpanPengukuran } from "@/modules/pengukuran/service";
+import {
+  ajukanPengukuran,
+  bukaKembaliPengukuran,
+  kembalikanPengukuran,
+  simpanPengukuran,
+  verifikasiPengukuran,
+} from "@/modules/pengukuran/service";
 import { getSessionUser } from "@/server/sesi";
 
 export type StatePengukuran = { error?: string };
@@ -35,4 +41,26 @@ export async function simpanPengukuranAction(_prev: StatePengukuran, formData: F
   }
   revalidatePath("/pengukuran", "layout");
   redirect(`/pengukuran?${new URLSearchParams({ unit: isian.unitId, bulan: isian.bulan })}`);
+}
+
+/** Verifikasi, kembalikan, atau buka kembali (tombol `aksi`); sukses kembali ke antrean Verifikasi. */
+export async function ubahStatusPengukuranAction(_prev: StatePengukuran, formData: FormData): Promise<StatePengukuran> {
+  const aksi = formData.get("aksi");
+  const jalankan =
+    aksi === "verifikasi"
+      ? verifikasiPengukuran
+      : aksi === "kembalikan"
+        ? kembalikanPengukuran
+        : aksi === "bukaKembali"
+          ? bukaKembaliPengukuran
+          : null;
+  if (!jalankan) return { error: "Aksi tidak dikenal." };
+  try {
+    await jalankan(await getSessionUser(), String(formData.get("id") ?? ""), String(formData.get("alasan") ?? ""));
+  } catch (error) {
+    if (error instanceof ServiceError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/pengukuran", "layout");
+  redirect("/pengukuran/verifikasi");
 }

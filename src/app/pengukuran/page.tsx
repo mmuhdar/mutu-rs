@@ -2,33 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { bulanBerjalan, bulanLalu, labelBulan } from "@/lib/bulan";
-import { ServiceError } from "@/lib/errors";
 import { LABEL_STATUS_PENGUKURAN, STATUS_PENGUKURAN } from "@/lib/pengukuran";
 import { daftarIsian, unitPengisi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { LabelStatus } from "./status";
+import { kelasInput, kelasKartu, LabelStatus, Pesan, pesanAtau } from "./status";
 
 export const metadata: Metadata = { title: "Isi Pengukuran" };
-
-const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
-const kelasInput =
-  "h-11 w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring";
-
-/** Penolakan service menjadi pesan di halaman, bukan halaman error. */
-const pesanAtau = <T,>(janji: Promise<T>) =>
-  janji.catch((error) => {
-    if (error instanceof ServiceError) return error.message;
-    throw error;
-  });
-
-function Pesan({ children }: { children: React.ReactNode }) {
-  return (
-    <p role="alert" className={`${kelasKartu} p-4`}>
-      {children}
-    </p>
-  );
-}
 
 export default async function HalamanIsian({ searchParams }: PageProps<"/pengukuran">) {
   const pengguna = await requireUser();

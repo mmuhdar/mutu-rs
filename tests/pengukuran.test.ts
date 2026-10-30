@@ -14,7 +14,19 @@ import {
   tambahUnitPelapor,
 } from "@/modules/indikator/service";
 import { tambahPengguna } from "@/modules/pengguna/service";
-import { ajukanPengukuran, ambilIsian, daftarIsian, simpanPengukuran, unitPengisi } from "@/modules/pengukuran/service";
+import {
+  ajukanPengukuran,
+  ambilIsian,
+  ambilPengukuran,
+  antreanVerifikasi,
+  bukaKembaliPengukuran,
+  daftarIsian,
+  kembalikanPengukuran,
+  simpanPengukuran,
+  statusPengukuranBulan,
+  unitPengisi,
+  verifikasiPengukuran,
+} from "@/modules/pengukuran/service";
 import { aturAktifUnit, tambahUnit } from "@/modules/unit/service";
 
 let admin: Pengguna;
@@ -336,5 +348,268 @@ describe("isi dan ajukan Pengukuran", () => {
     });
     await akhiriUnitPelapor(komite, unitPelaporId, "2026-12");
     await hapusUnitPelapor(komite, periodeBaru);
+  });
+});
+
+describe("Verifikasi Pengukuran", () => {
+  /** Pengukuran Diajukan di Unit baru, beserta Petugas dan Kepala Unit dari Unit itu. */
+  async function diajukan(bulan = "2026-03") {
+    const s = await siapkan();
+    const kepala = await penggunaBaru("kepalaUnit", [s.unit.id]);
+    const kunci = { indikatorId: s.indikatorId, unitId: s.unit.id, bulan };
+    const { id } = await ajukanPengukuran(s.petugas, { ...kunci, n: 9, d: 10 });
+    return { ...s, kepala, kunci, id };
+  }
+
+  /** Riwayat Status sebagai [asal, tujuan, oleh, alasan], dibaca lewat formulir isian. */
+  async function riwayat(aktor: Pengguna, kunci: { indikatorId: string; unitId: string; bulan: string }) {
+    return (await ambilIsian(aktor, kunci)).riwayat.map((r) => [r.statusAsal, r.statusTujuan, r.oleh, r.alasan]);
+  }
+
+  it("Kepala Unit dari Unit itu memverifikasi Pengukuran Diajukan; Riwayat Status mencatatnya tanpa alasan", async () => {
+    const { kepala, petugas, kunci, id } = await diajukan();
+    assert.deepEqual(await verifikasiPengukuran(kepala, id), { id, status: "terverifikasi" });
+
+    assert.equal((await ambilIsian(petugas, kunci)).pengukuran?.status, "terverifikasi");
+    assert.deepEqual((await riwayat(petugas, kunci)).at(-1), ["diajukan", "terverifikasi", kepala.nama, null]);
+  });
+
+  it("siklus dikembalikan → diperbaiki → diajukan → diverifikasi tercatat lengkap di Riwayat Status beserta alasannya", async () => {
+    const { kepala, petugas, kunci, id } = await diajukan();
+    assert.deepEqual(await kembalikanPengukuran(kepala, id, "  D harus jumlah pasien, bukan jumlah tindakan "), {
+      id,
+      status: "draf",
+    });
+
+    // Petugas melihat alasan pengembalian pada Pengukuran Draf, memperbaikinya, lalu mengajukannya lagi.
+    const isian = await ambilIsian(petugas, kunci);
+    assert.equal(isian.pengukuran?.status, "draf");
+    assert.equal(isian.riwayat.at(-1)?.alasan, "D harus jumlah pasien, bukan jumlah tindakan");
+    await simpanPengukuran(petugas, { ...kunci, n: 9, d: 12 });
+    await ajukanPengukuran(petugas, { ...kunci, n: 9, d: 12 });
+    await verifikasiPengukuran(kepala, id);
+
+    const { pengukuran } = await ambilIsian(petugas, kunci);
+    assert.deepEqual([pengukuran?.n, pengukuran?.d, pengukuran?.status], [9, 12, "terverifikasi"]);
+    assert.deepEqual(await riwayat(petugas, kunci), [
+      [null, "draf", petugas.nama, null],
+      ["draf", "diajukan", petugas.nama, null],
+      ["diajukan", "draf", kepala.nama, "D harus jumlah pasien, bukan jumlah tindakan"],
+      ["draf", "diajukan", petugas.nama, null],
+      ["diajukan", "terverifikasi", kepala.nama, null],
+    ]);
+  });
+
+  it("Kepala Unit membuka kembali Pengukuran Terverifikasi menjadi Diajukan dengan alasan", async () => {
+    const { kepala, petugas, kunci, id } = await diajukan();
+    await verifikasiPengukuran(kepala, id);
+    assert.deepEqual(await bukaKembaliPengukuran(kepala, id, "Ada laporan susulan"), { id, status: "diajukan" });
+
+    assert.equal((await ambilIsian(petugas, kunci)).pengukuran?.status, "diajukan");
+    assert.deepEqual((await riwayat(petugas, kunci)).at(-1), ["terverifikasi", "diajukan", kepala.nama, "Ada laporan susulan"]);
+  });
+
+  it("mengembalikan dan membuka kembali tanpa alasan ditolak, statusnya tidak berubah", async () => {
+    const { kepala, petugas, kunci, id } = await diajukan();
+    const tanpaAlasan = { status: 400, message: "Alasan wajib diisi." };
+    for (const alasan of ["", "   ", undefined as unknown as string]) {
+      await assert.rejects(kembalikanPengukuran(kepala, id, alasan), tanpaAlasan);
+    }
+    await verifikasiPengukuran(kepala, id);
+    await assert.rejects(bukaKembaliPengukuran(kepala, id, " "), tanpaAlasan);
+    await assert.rejects(bukaKembaliPengukuran(kepala, id, "x".repeat(1001)), {
+      status: 400,
+      message: "Alasan maksimal 1000 karakter.",
+    });
+
+    assert.equal((await ambilIsian(petugas, kunci)).pengukuran?.status, "terverifikasi");
+    assert.equal((await riwayat(petugas, kunci)).length, 3);
+  });
+
+  it("perpindahan selain Diajukan → Terverifikasi/Draf dan Terverifikasi → Diajukan ditolak", async () => {
+    const { kepala, petugas, kunci, id } = await diajukan();
+    const alasan = "cek ulang";
+    await assert.rejects(bukaKembaliPengukuran(kepala, id, alasan), {
+      status: 409,
+      message: "Pengukuran ini Diajukan; hanya Pengukuran Terverifikasi yang bisa dibuka kembali.",
+    });
+
+    await kembalikanPengukuran(kepala, id, alasan);
+    for (const pindah of [() => verifikasiPengukuran(kepala, id), () => kembalikanPengukuran(kepala, id, alasan)]) {
+      await assert.rejects(pindah, { status: 409, message: /^Pengukuran ini Draf; hanya Pengukuran Diajukan yang bisa/ });
+    }
+    await assert.rejects(bukaKembaliPengukuran(kepala, id, alasan), { status: 409 });
+
+    await ajukanPengukuran(petugas, { ...kunci, n: 9, d: 10 });
+    await verifikasiPengukuran(kepala, id);
+    await assert.rejects(verifikasiPengukuran(kepala, id), {
+      status: 409,
+      message: "Pengukuran ini Terverifikasi; hanya Pengukuran Diajukan yang bisa diverifikasi.",
+    });
+    await assert.rejects(kembalikanPengukuran(kepala, id, alasan), {
+      status: 409,
+      message: "Pengukuran ini Terverifikasi; hanya Pengukuran Diajukan yang bisa dikembalikan.",
+    });
+    // Terverifikasi juga tidak bisa diubah lewat isian.
+    await assert.rejects(simpanPengukuran(kepala, { ...kunci, n: 1, d: 10 }), { status: 409 });
+    assert.deepEqual(
+      (await riwayat(petugas, kunci)).map(([asal, tujuan]) => `${asal}→${tujuan}`),
+      ["null→draf", "draf→diajukan", "diajukan→draf", "draf→diajukan", "diajukan→terverifikasi"],
+    );
+  });
+
+  it("Petugas Input Data, Kepala Unit dari Unit lain, Komite Mutu, Direktur, dan Admin Sistem tidak bisa memverifikasi", async () => {
+    const { unit, petugas, kunci, id } = await diajukan();
+    const lain = await tambahUnit(admin, { nama: unik("IGD") });
+    const kepalaLain = await penggunaBaru("kepalaUnit", [lain.id]);
+    const alasan = "cek ulang";
+    const semua = (aktor: Pengguna | null) => [
+      () => verifikasiPengukuran(aktor, id),
+      () => kembalikanPengukuran(aktor, id, alasan),
+      () => bukaKembaliPengukuran(aktor, id, alasan),
+    ];
+
+    const bukanKepala = { status: 403, message: "Hanya Kepala Unit yang boleh memverifikasi Pengukuran." };
+    for (const peran of ["komiteMutu", "direktur", "adminSistem"] as const) {
+      // Unit di sesi tidak membuat peran ini berhak memverifikasi.
+      const aktor = { ...(await penggunaBaru(peran)), unitIds: [unit.id] };
+      for (const p of semua(aktor)) await assert.rejects(p, bukanKepala, peran);
+    }
+    for (const p of semua(petugas)) await assert.rejects(p, bukanKepala);
+    for (const p of semua(kepalaLain)) {
+      await assert.rejects(p, { status: 403, message: "Anda hanya bisa memverifikasi Pengukuran Unit Anda sendiri." });
+    }
+    for (const p of semua(null)) await assert.rejects(p, { status: 401 });
+
+    assert.equal((await ambilIsian(petugas, kunci)).pengukuran?.status, "diajukan");
+    assert.equal((await riwayat(petugas, kunci)).length, 2);
+    const kepala = await penggunaBaru("kepalaUnit", [unit.id]);
+    for (const tidakAda of [randomUUID(), "bukan-uuid"]) {
+      await assert.rejects(verifikasiPengukuran(kepala, tidakAda), { status: 404, message: "Pengukuran tidak ditemukan." });
+    }
+  });
+
+  it("Kepala Unit boleh mengisi, mengajukan, dan memverifikasi Pengukuran yang diisinya sendiri", async () => {
+    const { unit, indikatorId } = await siapkan();
+    const kepala = await penggunaBaru("kepalaUnit", [unit.id]);
+    const kunci = { indikatorId, unitId: unit.id, bulan: "2026-04" };
+    const { id } = await ajukanPengukuran(kepala, { ...kunci, n: 3, d: 4 });
+    await verifikasiPengukuran(kepala, id);
+    assert.deepEqual(await riwayat(kepala, kunci), [
+      [null, "draf", kepala.nama, null],
+      ["draf", "diajukan", kepala.nama, null],
+      ["diajukan", "terverifikasi", kepala.nama, null],
+    ]);
+  });
+
+  it("antrean Verifikasi berisi semua Pengukuran Diajukan dari Unit-Unit Kepala Unit, di bulan mana pun", async () => {
+    const icu = await siapkan();
+    const hcu = await siapkan();
+    const igd = await siapkan();
+    const kepala = await penggunaBaru("kepalaUnit", [icu.unit.id, hcu.unit.id]);
+    const isi = (s: typeof icu, bulan: string) =>
+      ajukanPengukuran(s.petugas, { indikatorId: s.indikatorId, unitId: s.unit.id, bulan, n: 9, d: 10 });
+
+    const icuMaret = await isi(icu, "2026-03");
+    const icuJanuari = await isi(icu, "2026-01");
+    const hcuFebruari = await isi(hcu, "2026-02");
+    await verifikasiPengukuran(kepala, (await isi(icu, "2026-04")).id);
+    await simpanPengukuran(icu.petugas, { indikatorId: icu.indikatorId, unitId: icu.unit.id, bulan: "2026-05", n: 1, d: 1 });
+    await isi(igd, "2026-03"); // Unit lain.
+
+    const antrean = await antreanVerifikasi(kepala);
+    assert.deepEqual(
+      antrean.map((p) => [p.id, p.unit.nama, p.bulan]),
+      [
+        [icuJanuari.id, icu.unit.nama, "2026-01"],
+        [hcuFebruari.id, hcu.unit.nama, "2026-02"],
+        [icuMaret.id, icu.unit.nama, "2026-03"],
+      ],
+    );
+    assert.deepEqual(
+      [antrean[0].indikator.id, antrean[0].n, antrean[0].d, antrean[0].indikator.faktor, antrean[0].pengisi],
+      [icu.indikatorId, 9, 10, 100, icu.petugas.nama],
+    );
+
+    // Pengukuran yang sudah diverifikasi keluar dari antrean.
+    await verifikasiPengukuran(kepala, icuJanuari.id);
+    assert.equal((await antreanVerifikasi(kepala)).length, 2);
+
+    for (const aktor of [icu.petugas, icu.komite, admin]) {
+      await assert.rejects(antreanVerifikasi(aktor), { status: 403, message: "Hanya Kepala Unit yang boleh memverifikasi Pengukuran." });
+    }
+  });
+
+  it("detail Pengukuran beserta Riwayat Status terbuka untuk Unit itu, Komite Mutu, dan Admin Sistem", async () => {
+    const { unit, indikatorId, komite, kepala, petugas, id } = await diajukan("2026-02");
+    await kembalikanPengukuran(kepala, id, "Periksa D");
+
+    for (const aktor of [petugas, kepala, komite, admin]) {
+      const detail = await ambilPengukuran(aktor, id);
+      assert.deepEqual(
+        [detail.indikator.id, detail.unit.id, detail.bulan, detail.n, detail.d, detail.status, detail.pengisi],
+        [indikatorId, unit.id, "2026-02", 9, 10, "draf", petugas.nama],
+      );
+      assert.deepEqual(
+        detail.riwayat.map((r) => [r.statusAsal, r.statusTujuan, r.oleh, r.alasan]),
+        [
+          [null, "draf", petugas.nama, null],
+          ["draf", "diajukan", petugas.nama, null],
+          ["diajukan", "draf", kepala.nama, "Periksa D"],
+        ],
+      );
+    }
+
+    const lain = await tambahUnit(admin, { nama: unik("IGD") });
+    for (const aktor of [await penggunaBaru("petugasInputData", [lain.id]), await penggunaBaru("kepalaUnit", [lain.id])]) {
+      await assert.rejects(ambilPengukuran(aktor, id), { status: 403, message: "Anda hanya bisa melihat Pengukuran Unit Anda sendiri." });
+    }
+    await assert.rejects(ambilPengukuran(await penggunaBaru("direktur"), id), { status: 403 });
+    await assert.rejects(ambilPengukuran(komite, "bukan-uuid"), { status: 404, message: "Pengukuran tidak ditemukan." });
+    await assert.rejects(ambilPengukuran(komite, randomUUID()), { status: 404 });
+  });
+
+  it("Komite Mutu dan Admin Sistem melihat status semua Pengukuran sebulan, termasuk Unit Pelapor yang belum mengisi", async () => {
+    const icu = await siapkan();
+    const { unit: hcu, komite } = await siapkan();
+    await tambahUnitPelapor(komite, icu.indikatorId, { unitId: hcu.id, bulanMulai: "2026-01" });
+    const kepalaIcu = await penggunaBaru("kepalaUnit", [icu.unit.id]);
+    const isi = (indikatorId: string, bulan = "2026-03") => ({ indikatorId, unitId: icu.unit.id, bulan, n: 1, d: 2 });
+
+    const diajukanIcu = await ajukanPengukuran(icu.petugas, isi(icu.indikatorId));
+    await verifikasiPengukuran(kepalaIcu, diajukanIcu.id);
+    // Semesteran tidak diharapkan pada Maret.
+    const { id: semesteran } = await indikatorBaru({ frekuensi: "semesteran" });
+    await tambahUnitPelapor(komite, semesteran, { unitId: icu.unit.id, bulanMulai: "2026-01" });
+    // Indikator yang kini nonaktif: Pengukurannya tetap tampil, tetapi tidak lagi ditagih.
+    const { id: lama } = await indikatorBaru();
+    const { id: lamaKosong } = await indikatorBaru();
+    for (const id of [lama, lamaKosong]) await tambahUnitPelapor(komite, id, { unitId: icu.unit.id, bulanMulai: "2026-01" });
+    const drafLama = await simpanPengukuran(icu.petugas, isi(lama));
+    for (const id of [lama, lamaKosong]) await aturAktifIndikator(komite, id, false);
+    // Unit Pelapor yang periodenya sudah berakhir tidak ditagih.
+    const { id: berakhir } = await indikatorBaru();
+    await akhiriUnitPelapor(komite, await tambahUnitPelapor(komite, berakhir, { unitId: icu.unit.id, bulanMulai: "2026-01" }), "2026-02");
+
+    const milikTes = new Set([icu.indikatorId, semesteran, lama, lamaKosong, berakhir]);
+    for (const aktor of [komite, admin]) {
+      const baris = (await statusPengukuranBulan(aktor, "2026-03")).filter((b) => milikTes.has(b.indikator.id));
+      assert.deepEqual(
+        baris.map((b) => [b.id, b.indikator.id, b.unit.nama, b.status]).sort((a, b) => String(a).localeCompare(String(b))),
+        [
+          [diajukanIcu.id, icu.indikatorId, icu.unit.nama, "terverifikasi"],
+          [drafLama.id, lama, icu.unit.nama, "draf"],
+          [null, icu.indikatorId, hcu.nama, null],
+        ].sort((a, b) => String(a).localeCompare(String(b))),
+      );
+    }
+
+    for (const aktor of [icu.petugas, kepalaIcu, await penggunaBaru("direktur")]) {
+      await assert.rejects(statusPengukuranBulan(aktor, "2026-03"), {
+        status: 403,
+        message: "Hanya Komite Mutu dan Admin Sistem yang boleh melihat status Pengukuran semua Unit.",
+      });
+    }
+    await assert.rejects(statusPengukuranBulan(komite, "2026-13"), { status: 400, message: "Pilih bulan." });
   });
 });
