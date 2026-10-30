@@ -3,10 +3,10 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { indikator, target } from "@/db/schema";
 import { bulanValid, dariTanggal, keTanggal } from "@/lib/bulan";
-import { isUniqueViolation, ServiceError } from "@/lib/errors";
+import { ServiceError } from "@/lib/errors";
 import { ARAH, FREKUENSI, type Kelompok } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
-import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
+import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
 
 import { INM, TARGET_INM_BERLAKU_MULAI } from "./inm";
 
@@ -35,16 +35,11 @@ export type IndikatorBaru = IsianIndikator & {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const tidakDitemukan = () => new ServiceError(404, "Indikator tidak ditemukan.");
 
-const PENGELOLA: readonly Peran[] = ["komiteMutu", "adminSistem"];
 /** Komite Mutu dan Admin Sistem mengelola Indikator; peran lain hanya melihat. */
+const PENGELOLA: readonly Peran[] = ["komiteMutu", "adminSistem"];
+const HANYA_PENGELOLA = "Hanya Komite Mutu dan Admin Sistem yang boleh mengelola Indikator.";
+/** Untuk tampilan (tombol kelola); hak akses tetap diperiksa di setiap fungsi service. */
 export const bolehKelolaIndikator = (aktor: Pengguna) => PENGELOLA.includes(aktor.peran);
-
-function wajibPengelola(aktor: Pengguna | null): asserts aktor is Pengguna {
-  wajibPengguna(aktor);
-  if (!bolehKelolaIndikator(aktor)) {
-    throw new ServiceError(403, "Hanya Komite Mutu dan Admin Sistem yang boleh mengelola Indikator.");
-  }
-}
 
 function teks(nilai: unknown, label: string, maks = Infinity, wajib = true) {
   const hasil = typeof nilai === "string" ? nilai.trim() : "";
@@ -118,7 +113,7 @@ export async function ambilIndikator(aktor: Pengguna | null, id: string) {
 
 /** Mengubah field Indikator (kode dan kelompok tidak bisa diubah). Target diubah lewat riwayat Target. */
 export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: IsianIndikator) {
-  wajibPengelola(aktor);
+  wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const data = periksaIsian(isian);
   const [baris] = UUID.test(id)
     ? await db.update(indikator).set(data).where(eq(indikator.id, id)).returning({ id: indikator.id })
@@ -128,7 +123,7 @@ export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: I
 
 /** Menonaktifkan atau mengaktifkan kembali Indikator. Tidak ada hapus, supaya riwayatnya tetap ada. */
 export async function aturAktifIndikator(aktor: Pengguna | null, id: string, aktif: boolean) {
-  wajibPengelola(aktor);
+  wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const [baris] = UUID.test(id)
     ? await db.update(indikator).set({ aktif }).where(eq(indikator.id, id)).returning({ id: indikator.id })
     : [];
@@ -137,7 +132,7 @@ export async function aturAktifIndikator(aktor: Pengguna | null, id: string, akt
 
 /** Menambah IMP-RS atau IMP-Unit beserta Target awalnya. Mengembalikan id Indikator baru. */
 export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBaru) {
-  wajibPengelola(aktor);
+  wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const kode = teks(baru.kode, "Kode", 32);
   if (baru.kelompok !== "IMP-RS" && baru.kelompok !== "IMP-Unit") {
     throw new ServiceError(400, "Pilih kelompok IMP-RS atau IMP-Unit. INM sudah tersedia sesuai PMK 30/2022.");
@@ -160,7 +155,8 @@ export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBar
       return id;
     });
   } catch (error) {
-    if (isUniqueViolation(error)) throw new ServiceError(409, `Kode ${kode} sudah dipakai Indikator lain.`);
+    const pg = ((error as { cause?: unknown }).cause ?? error) as { code?: string };
+    if (pg.code === "23505") throw new ServiceError(409, `Kode ${kode} sudah dipakai Indikator lain.`);
     throw error;
   }
 }
