@@ -6,4 +6,6 @@
 export const config = {
   namaRs: process.env.NAMA_RS?.trim() || "Rumah Sakit",
   zonaWaktu: process.env.APP_TIMEZONE?.trim() || "Asia/Makassar",
+  /** Admin Sistem awal, dibuat saat start hanya bila username-nya belum ada. */
+  adminAwal: { username: process.env.ADMIN_USERNAME?.trim() || "admin", sandi: process.env.ADMIN_PASSWORD ?? "" },
 };

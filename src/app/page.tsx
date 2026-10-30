@@ -1,6 +1,8 @@
 import { config } from "@/lib/config";
+import { requireUser } from "@/server/sesi";
 
-export default function Beranda() {
+export default async function Beranda() {
+  await requireUser();
   return (
     <section className="rounded-lg border border-border bg-surface p-5 shadow-xs">
       <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">Indikator Mutu {config.namaRs}</h1>

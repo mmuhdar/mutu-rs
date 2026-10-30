@@ -20,7 +20,8 @@ sql() {
 sql "CREATE DATABASE $db"
 trap 'sql "DROP DATABASE IF EXISTS $db WITH (FORCE)"' EXIT
 
-export DATABASE_URL="$server/$db" NODE_ENV=test APP_TIMEZONE=Asia/Makassar
+# Admin Sistem awal untuk tes: masuk dengan `config.adminAwal` untuk mendapat Pengguna berperan Admin Sistem.
+export DATABASE_URL="$server/$db" NODE_ENV=test APP_TIMEZONE=Asia/Makassar ADMIN_USERNAME=admin ADMIN_PASSWORD=sandi-admin-uji
 npx tsx scripts/bootstrap-db.ts
 if [ $# -eq 0 ]; then set -- "tests/*.test.ts"; fi
 npx tsx --test --test-concurrency=1 "$@"
