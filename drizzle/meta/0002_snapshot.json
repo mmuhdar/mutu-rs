@@ -1,0 +1,395 @@
+{
+  "id": "724e4d38-74d0-487e-8f5e-2e15286dec6e",
+  "prevId": "7bc8ef46-e35f-49ef-bdd0-44b92d116238",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.indikator": {
+      "name": "indikator",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kode": {
+          "name": "kode",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nama": {
+          "name": "nama",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kelompok": {
+          "name": "kelompok",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "definisi_operasional": {
+          "name": "definisi_operasional",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "definisi_numerator": {
+          "name": "definisi_numerator",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "definisi_denominator": {
+          "name": "definisi_denominator",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sumber_data": {
+          "name": "sumber_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "faktor": {
+          "name": "faktor",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "satuan": {
+          "name": "satuan",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "arah": {
+          "name": "arah",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "frekuensi": {
+          "name": "frekuensi",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pic": {
+          "name": "pic",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "aktif": {
+          "name": "aktif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "indikator_kode_unique": {
+          "name": "indikator_kode_unique",
+          "columns": [
+            {
+              "expression": "lower(\"kode\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "indikator_kelompok_check": {
+          "name": "indikator_kelompok_check",
+          "value": "\"indikator\".\"kelompok\" in ('INM', 'IMP-RS', 'IMP-Unit')"
+        },
+        "indikator_arah_check": {
+          "name": "indikator_arah_check",
+          "value": "\"indikator\".\"arah\" in ('makinTinggi', 'makinRendah')"
+        },
+        "indikator_frekuensi_check": {
+          "name": "indikator_frekuensi_check",
+          "value": "\"indikator\".\"frekuensi\" in ('bulanan', 'semesteran')"
+        },
+        "indikator_faktor_check": {
+          "name": "indikator_faktor_check",
+          "value": "\"indikator\".\"faktor\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.pengguna": {
+      "name": "pengguna",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nama": {
+          "name": "nama",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash_sandi": {
+          "name": "hash_sandi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "peran": {
+          "name": "peran",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "aktif": {
+          "name": "aktif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pengguna_username_unique": {
+          "name": "pengguna_username_unique",
+          "columns": [
+            {
+              "expression": "lower(\"username\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "pengguna_peran_check": {
+          "name": "pengguna_peran_check",
+          "value": "\"pengguna\".\"peran\" in ('petugasInputData', 'kepalaUnit', 'komiteMutu', 'direktur', 'adminSistem')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sesi": {
+      "name": "sesi",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pengguna_id": {
+          "name": "pengguna_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sesi_pengguna_id_pengguna_id_fk": {
+          "name": "sesi_pengguna_id_pengguna_id_fk",
+          "tableFrom": "sesi",
+          "tableTo": "pengguna",
+          "columnsFrom": [
+            "pengguna_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sesi_token_hash_unique": {
+          "name": "sesi_token_hash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "token_hash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.target": {
+      "name": "target",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "indikator_id": {
+          "name": "indikator_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nilai": {
+          "name": "nilai",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "berlaku_mulai": {
+          "name": "berlaku_mulai",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "target_indikator_bulan_unique": {
+          "name": "target_indikator_bulan_unique",
+          "columns": [
+            {
+              "expression": "indikator_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "berlaku_mulai",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "target_indikator_id_indikator_id_fk": {
+          "name": "target_indikator_id_indikator_id_fk",
+          "tableFrom": "target",
+          "tableTo": "indikator",
+          "columnsFrom": [
+            "indikator_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "target_berlaku_mulai_check": {
+          "name": "target_berlaku_mulai_check",
+          "value": "extract(day from \"target\".\"berlaku_mulai\") = 1"
+        },
+        "target_nilai_check": {
+          "name": "target_nilai_check",
+          "value": "\"target\".\"nilai\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

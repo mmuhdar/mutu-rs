@@ -7,3 +7,9 @@ export class ServiceError extends Error {
     super(message);
   }
 }
+
+/** Pelanggaran indeks unik PostgreSQL (kode 23505); drizzle membungkus error pg di `cause`. */
+export function isUniqueViolation(error: unknown) {
+  const asal = (error as { cause?: unknown } | null)?.cause ?? error;
+  return (asal as { code?: string } | null)?.code === "23505";
+}

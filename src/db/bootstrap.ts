@@ -4,6 +4,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 import { config } from "../lib/config";
 import { buatAdminAwal } from "../modules/auth/service";
+import { buatInmAwal } from "../modules/indikator/service";
 import { db } from "./index";
 
 /**
@@ -20,6 +21,7 @@ export async function bootstrapDatabase() {
     // Data awal ditambahkan di sini, setelah migrasi. Harus idempoten dan tidak menimpa data yang sudah ada.
     if (config.adminAwal.sandi) await buatAdminAwal(config.adminAwal);
     else console.warn("[db] ADMIN_PASSWORD kosong: Admin Sistem awal tidak dibuat.");
+    await buatInmAwal();
   } catch (error) {
     console.error("[db] Gagal menyiapkan database, proses dihentikan.", error);
     process.exit(1);
