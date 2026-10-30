@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  index,
   integer,
   numeric,
   pgTable,
@@ -114,5 +115,31 @@ export const target = pgTable(
     uniqueIndex("target_indikator_bulan_unique").on(t.indikatorId, t.berlakuMulai),
     check("target_berlaku_mulai_check", sql`extract(day from ${t.berlakuMulai}) = 1`),
     check("target_nilai_check", sql`${t.nilai} >= 0`),
+  ],
+);
+
+/**
+ * Unit Pelapor: Unit yang wajib mengukur sebuah Indikator dari bulan mulai sampai bulan berhenti (keduanya
+ * termasuk; tanpa bulan berhenti = masih berlangsung). Aturan tumpang tindih diperiksa di service.
+ */
+export const unitPelapor = pgTable(
+  "unit_pelapor",
+  {
+    id: id(),
+    indikatorId: uuid("indikator_id")
+      .notNull()
+      .references(() => indikator.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => unit.id),
+    bulanMulai: date("bulan_mulai", { mode: "string" }).notNull(),
+    bulanBerhenti: date("bulan_berhenti", { mode: "string" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("unit_pelapor_indikator_idx").on(t.indikatorId),
+    check("unit_pelapor_bulan_mulai_check", sql`extract(day from ${t.bulanMulai}) = 1`),
+    check("unit_pelapor_bulan_berhenti_check", sql`extract(day from ${t.bulanBerhenti}) = 1`),
+    check("unit_pelapor_periode_check", sql`${t.bulanBerhenti} >= ${t.bulanMulai}`),
   ],
 );

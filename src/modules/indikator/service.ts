@@ -1,8 +1,8 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lte, ne, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { indikator, target } from "@/db/schema";
-import { bulanValid, dariTanggal, keTanggal } from "@/lib/bulan";
+import { indikator, target, unit, unitPelapor } from "@/db/schema";
+import { bulanValid, dariTanggal, keTanggal, labelPeriode } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { ARAH, FREKUENSI, type Kelompok } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
@@ -98,7 +98,10 @@ export async function daftarIndikator(aktor: Pengguna | null) {
   return db.select().from(indikator).orderBy(asc(indikator.kode));
 }
 
-/** Detail Indikator beserta riwayat Target-nya (urut bulan mulai berlaku). Semua peran boleh melihat. */
+/**
+ * Detail Indikator beserta riwayat Target-nya (urut bulan mulai berlaku) dan semua periode Unit Pelapor-nya
+ * (urut nama Unit lalu bulan mulai; bulan berhenti null = masih berlangsung). Semua peran boleh melihat.
+ */
 export async function ambilIndikator(aktor: Pengguna | null, id: string) {
   wajibPengguna(aktor);
   const [baris] = UUID.test(id) ? await db.select().from(indikator).where(eq(indikator.id, id)) : [];
@@ -108,7 +111,28 @@ export async function ambilIndikator(aktor: Pengguna | null, id: string) {
     .from(target)
     .where(eq(target.indikatorId, id))
     .orderBy(asc(target.berlakuMulai));
-  return { ...baris, target: riwayat.map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) })) };
+  const periode = await db
+    .select({
+      id: unitPelapor.id,
+      unitId: unit.id,
+      namaUnit: unit.nama,
+      unitAktif: unit.aktif,
+      bulanMulai: unitPelapor.bulanMulai,
+      bulanBerhenti: unitPelapor.bulanBerhenti,
+    })
+    .from(unitPelapor)
+    .innerJoin(unit, eq(unit.id, unitPelapor.unitId))
+    .where(eq(unitPelapor.indikatorId, id))
+    .orderBy(asc(unit.nama), asc(unitPelapor.bulanMulai));
+  return {
+    ...baris,
+    target: riwayat.map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) })),
+    unitPelapor: periode.map((p) => ({
+      ...p,
+      bulanMulai: dariTanggal(p.bulanMulai),
+      bulanBerhenti: p.bulanBerhenti && dariTanggal(p.bulanBerhenti),
+    })),
+  };
 }
 
 /** Mengubah field Indikator (kode dan kelompok tidak bisa diubah). Target diubah lewat riwayat Target. */
@@ -159,4 +183,137 @@ export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBar
     if (pg.code === "23505") throw new ServiceError(409, `Kode ${kode} sudah dipakai Indikator lain.`);
     throw error;
   }
+}
+
+/** Periode Unit Pelapor baru; bulan "YYYY-MM", bulan berhenti kosong = masih berlangsung. */
+export type IsianUnitPelapor = { unitId: string; bulanMulai: string; bulanBerhenti?: string | null };
+
+/**
+ * Periode Unit Pelapor yang bersinggungan dengan bulan `mulai` s.d. `berhenti` (keduanya termasuk; null = tanpa
+ * akhir). Satu-satunya aturan periode: aktif pada bulan M = bersinggungan dengan M s.d. M.
+ */
+const bersinggungan = (mulai: string, berhenti: string | null) =>
+  and(
+    berhenti ? lte(unitPelapor.bulanMulai, keTanggal(berhenti)) : undefined,
+    or(isNull(unitPelapor.bulanBerhenti), gte(unitPelapor.bulanBerhenti, keTanggal(mulai))),
+  );
+
+type Transaksi = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Menolak periode yang tumpang tindih dengan periode lain untuk Indikator dan Unit yang sama, atau dengan periode
+ * Unit mana pun bila Indikatornya IMP-Unit (satu Unit Pelapor per bulan). Baris Indikator dikunci sampai transaksi
+ * selesai, jadi dua penyimpanan bersamaan untuk Indikator yang sama diperiksa bergiliran.
+ */
+async function tolakTumpangTindih(
+  tx: Transaksi,
+  p: { indikatorId: string; unitId: string; mulai: string; berhenti: string | null; kecualiId?: string },
+) {
+  const [ind] = await tx
+    .select({ kelompok: indikator.kelompok })
+    .from(indikator)
+    .where(eq(indikator.id, p.indikatorId))
+    .for("update");
+  if (!ind) throw tidakDitemukan();
+  const [bentrok] = await tx
+    .select({
+      unitId: unit.id,
+      nama: unit.nama,
+      bulanMulai: unitPelapor.bulanMulai,
+      bulanBerhenti: unitPelapor.bulanBerhenti,
+    })
+    .from(unitPelapor)
+    .innerJoin(unit, eq(unit.id, unitPelapor.unitId))
+    .where(
+      and(
+        eq(unitPelapor.indikatorId, p.indikatorId),
+        ind.kelompok === "IMP-Unit" ? undefined : eq(unitPelapor.unitId, p.unitId),
+        p.kecualiId ? ne(unitPelapor.id, p.kecualiId) : undefined,
+        bersinggungan(p.mulai, p.berhenti),
+      ),
+    )
+    .limit(1);
+  if (!bentrok) return;
+  const periode = labelPeriode(dariTanggal(bentrok.bulanMulai), bentrok.bulanBerhenti && dariTanggal(bentrok.bulanBerhenti));
+  throw new ServiceError(
+    409,
+    bentrok.unitId === p.unitId
+      ? `Unit ${bentrok.nama} sudah menjadi Unit Pelapor Indikator ini pada periode yang tumpang tindih (${periode}).`
+      : `IMP-Unit hanya boleh punya satu Unit Pelapor pada bulan yang sama; periode ini tumpang tindih dengan Unit ${bentrok.nama} (${periode}).`,
+  );
+}
+
+/** Bulan berhenti yang sudah diperiksa (null = masih berlangsung). */
+function periksaBulanBerhenti(mulai: string, berhenti: string | null | undefined) {
+  if (!berhenti) return null;
+  if (!bulanValid(berhenti)) throw new ServiceError(400, "Bulan berhenti tidak valid.");
+  if (berhenti < mulai) throw new ServiceError(400, "Bulan berhenti tidak boleh lebih awal dari bulan mulai.");
+  return berhenti;
+}
+
+/** Menetapkan Unit aktif sebagai Unit Pelapor Indikator mulai bulan tertentu. Mengembalikan id periode baru. */
+export async function tambahUnitPelapor(aktor: Pengguna | null, indikatorId: string, isian: IsianUnitPelapor) {
+  wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
+  const mulai = isian.bulanMulai;
+  if (typeof mulai !== "string" || !bulanValid(mulai)) throw new ServiceError(400, "Pilih bulan mulai.");
+  const berhenti = periksaBulanBerhenti(mulai, isian.bulanBerhenti);
+  if (!UUID.test(indikatorId)) throw tidakDitemukan();
+  const [u] = UUID.test(isian.unitId) ? await db.select().from(unit).where(eq(unit.id, isian.unitId)) : [];
+  if (!u) throw new ServiceError(400, "Pilih Unit.");
+  if (!u.aktif) throw new ServiceError(400, `Unit ${u.nama} nonaktif, jadi tidak bisa menjadi Unit Pelapor.`);
+
+  return db.transaction(async (tx) => {
+    await tolakTumpangTindih(tx, { indikatorId, unitId: u.id, mulai, berhenti });
+    const [{ id }] = await tx
+      .insert(unitPelapor)
+      .values({ indikatorId, unitId: u.id, bulanMulai: keTanggal(mulai), bulanBerhenti: berhenti && keTanggal(berhenti) })
+      .returning({ id: unitPelapor.id });
+    return id;
+  });
+}
+
+/** Periode Unit Pelapor menurut id; id yang bukan uuid dianggap tidak ada. */
+async function ambilPeriode(id: string) {
+  const [periode] = UUID.test(id) ? await db.select().from(unitPelapor).where(eq(unitPelapor.id, id)) : [];
+  if (!periode) throw new ServiceError(404, "Unit Pelapor tidak ditemukan.");
+  return periode;
+}
+
+/** Mengakhiri (atau mengubah akhir) periode Unit Pelapor: Unit tidak lagi wajib melapor setelah bulan berhenti. */
+export async function akhiriUnitPelapor(aktor: Pengguna | null, id: string, bulanBerhenti: string) {
+  wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
+  const periode = await ambilPeriode(id);
+  const mulai = dariTanggal(periode.bulanMulai);
+  const berhenti = periksaBulanBerhenti(mulai, bulanBerhenti);
+  if (!berhenti) throw new ServiceError(400, "Pilih bulan berhenti.");
+  await db.transaction(async (tx) => {
+    await tolakTumpangTindih(tx, { indikatorId: periode.indikatorId, unitId: periode.unitId, mulai, berhenti, kecualiId: id });
+    await tx.update(unitPelapor).set({ bulanBerhenti: keTanggal(berhenti) }).where(eq(unitPelapor.id, id));
+  });
+}
+
+/**
+ * Menghapus periode Unit Pelapor yang salah dimasukkan. Unit yang berhenti melapor diakhiri, bukan dihapus.
+ * Periode yang sudah punya Pengukuran tidak boleh dihapus; penjaganya ditambahkan bersama tabel Pengukuran.
+ */
+export async function hapusUnitPelapor(aktor: Pengguna | null, id: string) {
+  wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
+  await ambilPeriode(id);
+  await db.delete(unitPelapor).where(eq(unitPelapor.id, id));
+}
+
+/**
+ * Unit Pelapor yang aktif untuk Indikator pada bulan "YYYY-MM", urut nama Unit. Dipakai isian Pengukuran dan
+ * modul Capaian. Unit yang sudah nonaktif tetap terhitung selama periodenya berlangsung (`unitAktif` = false).
+ */
+export async function unitPelaporAktif(aktor: Pengguna | null, indikatorId: string, bulan: string) {
+  wajibPengguna(aktor);
+  if (!bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
+  if (!UUID.test(indikatorId)) throw tidakDitemukan();
+  return db
+    .select({ unitId: unit.id, nama: unit.nama, unitAktif: unit.aktif })
+    .from(unitPelapor)
+    .innerJoin(unit, eq(unit.id, unitPelapor.unitId))
+    .where(and(eq(unitPelapor.indikatorId, indikatorId), bersinggungan(bulan, bulan)))
+    .orderBy(asc(unit.nama));
 }

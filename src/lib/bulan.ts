@@ -15,6 +15,10 @@ export const bulanValid = (bulan: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(bula
 export const keTanggal = (bulan: string) => `${bulan}-01`;
 export const dariTanggal = (tanggal: string) => tanggal.slice(0, 7);
 
+/** Periode bulan (keduanya termasuk): "Maret 2026 – Juni 2026", atau "mulai Maret 2026" bila belum berhenti. */
+export const labelPeriode = (mulai: string, berhenti: string | null) =>
+  berhenti ? `${labelBulan(mulai)} – ${labelBulan(berhenti)}` : `mulai ${labelBulan(mulai)}`;
+
 /** "2026-10" → "Oktober 2026". */
 export const labelBulan = (bulan: string) =>
   new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(
