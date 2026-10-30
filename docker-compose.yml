@@ -1,7 +1,7 @@
 # Menjalankan MutuRS beserta PostgreSQL 17 di server RS:
 #   cp .env.example .env      (isi NAMA_RS, ganti POSTGRES_PASSWORD dan ADMIN_PASSWORD)
 #   docker compose up -d --build
-# Migrasi database berjalan otomatis saat aplikasi mulai.
+# Migrasi database berjalan otomatis saat aplikasi mulai. Petunjuk lengkap, termasuk backup dan pemulihan: INSTALASI.md.
 services:
   db:
     image: postgres:17-alpine
@@ -34,6 +34,24 @@ services:
       TZ: ${APP_TIMEZONE:-Asia/Makassar}
     ports:
       - "${APP_PORT:-3000}:3000"
+
+  # Dump database tiap hari pukul 01.00 waktu RS ke folder BACKUP_DIR, disimpan 30 hari (scripts/backup.sh).
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TZ: ${APP_TIMEZONE:-Asia/Makassar}
+      PGHOST: db
+      PGUSER: mutu
+      PGDATABASE: mutu
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${BACKUP_DIR:-./backup}:/backup
+      - ./scripts/backup.sh:/usr/local/bin/backup.sh:ro
+    entrypoint: ["sh", "-c", "echo '0 1 * * * /usr/local/bin/backup.sh' | crontab - && exec crond -f -d 8"]
 
 volumes:
   pgdata:

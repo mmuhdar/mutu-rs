@@ -14,6 +14,7 @@
 - Tampilan: Tailwind v4, token warna di `src/app/globals.css` (komponen memakai token, bukan hex). Responsif untuk browser HP; status selalu ditulis, bukan warna saja.
 - Cek sebelum selesai: `npm run check` (typecheck + lint + tes).
 - Dev: `cp .env.example .env`, database dev = container `mutu-rs-db` (127.0.0.1:55434, user/sandi/db `mutu`), lalu `npx next dev -p <port>` (port 3000 sering terpakai). Deploy: `docker compose up -d --build` (membaca `.env`).
+- Petunjuk untuk IT RS (pemasangan, backup harian, pemulihan) ada di `INSTALASI.md`; perbarui bila langkah deploy berubah (penjelasan variabel cukup di `.env.example`). Backup = layanan `backup` di docker-compose (`postgres:17-alpine` + `crond`, pukul 01.00 menurut `APP_TIMEZONE`) yang menjalankan `scripts/backup.sh` ke `BACKUP_DIR`, disimpan 30 hari; tabel baru otomatis ikut ter-backup.
 
 ## Agent skills
 
