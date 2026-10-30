@@ -7,3 +7,16 @@ export function bulanBerjalan(sekarang = new Date()): string {
   const ambil = (jenis: string) => bagian.find((b) => b.type === jenis)!.value;
   return `${ambil("year")}-${ambil("month")}`;
 }
+
+/** Benar bila teks berbentuk bulan "YYYY-MM". */
+export const bulanValid = (bulan: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(bulan);
+
+/** Kolom bulan di database = tanggal 1 bulan itu: "2026-10" ↔ "2026-10-01". */
+export const keTanggal = (bulan: string) => `${bulan}-01`;
+export const dariTanggal = (tanggal: string) => tanggal.slice(0, 7);
+
+/** "2026-10" → "Oktober 2026". */
+export const labelBulan = (bulan: string) =>
+  new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(`${keTanggal(bulan)}T00:00:00Z`),
+  );

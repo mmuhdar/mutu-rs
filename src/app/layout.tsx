@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 
 /** Menu utama, disaring per peran. Hanya tampilan: hak akses tetap diperiksa di service. */
 const MENU: { href: string; label: string; peran: readonly Peran[] }[] = [
+  { href: "/indikator", label: "Indikator", peran: PERAN },
   { href: "/unit", label: "Unit", peran: ["adminSistem"] },
   { href: "/pengguna", label: "Pengguna", peran: ["adminSistem"] },
   { href: "/sandi", label: "Ganti sandi", peran: PERAN },
