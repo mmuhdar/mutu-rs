@@ -133,6 +133,16 @@ export function wajibPengguna(aktor: Pengguna | null | undefined): asserts aktor
   if (!aktor) throw new ServiceError(401, "Sesi Anda telah berakhir. Silakan masuk kembali.");
 }
 
+/** Seperti `wajibPengguna`, ditambah peran Pengguna harus salah satu dari `peran`; selain itu ditolak dengan `pesan`. */
+export function wajibPeran(
+  aktor: Pengguna | null | undefined,
+  peran: readonly Peran[],
+  pesan: string,
+): asserts aktor is Pengguna {
+  wajibPengguna(aktor);
+  if (!peran.includes(aktor.peran)) throw new ServiceError(403, pesan);
+}
+
 /** Keluar: mengakhiri sesi yang sedang dipakai Pengguna. */
 export async function keluar(aktor: Pengguna | null) {
   wajibPengguna(aktor);

@@ -15,6 +15,13 @@
       "when": 1793379427596,
       "tag": "0001_pengguna_dan_sesi",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793380335328,
+      "tag": "0002_unit",
+      "breakpoints": true
     }
   ]
 }

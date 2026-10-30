@@ -25,6 +25,19 @@ export const pengguna = pgTable(
   ],
 );
 
+/** Daftar baku Unit. Tidak pernah dihapus, hanya dinonaktifkan, supaya riwayat datanya tetap ada. */
+export const unit = pgTable(
+  "unit",
+  {
+    id: id(),
+    nama: varchar("nama", { length: 80 }).notNull(),
+    aktif: boolean("aktif").notNull().default(true),
+    createdAt: createdAt(),
+  },
+  // Nama disimpan tanpa spasi di tepi (dirapikan di service), unik tanpa membedakan huruf besar/kecil.
+  (t) => [uniqueIndex("unit_nama_unique").on(sql`lower(${t.nama})`)],
+);
+
 /** Sesi masuk: cookie berisi token acak, database hanya menyimpan hash SHA-256-nya. */
 export const sesi = pgTable("sesi", {
   id: id(),
