@@ -1,5 +1,5 @@
 {
-  "id": "e66c7715-f2c8-4b51-8667-3bf9a5277898",
+  "id": "3d64b97c-c18c-451f-bdf1-2b7bf2ea1ad6",
   "prevId": "fc7ad0d4-619b-4c76-8742-d7f725ce7a44",
   "version": "7",
   "dialect": "postgresql",
@@ -223,6 +223,66 @@
       },
       "isRLSEnabled": false
     },
+    "public.pengguna_unit": {
+      "name": "pengguna_unit",
+      "schema": "",
+      "columns": {
+        "pengguna_id": {
+          "name": "pengguna_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_id": {
+          "name": "unit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pengguna_unit_pengguna_id_pengguna_id_fk": {
+          "name": "pengguna_unit_pengguna_id_pengguna_id_fk",
+          "tableFrom": "pengguna_unit",
+          "tableTo": "pengguna",
+          "columnsFrom": [
+            "pengguna_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "pengguna_unit_unit_id_unit_id_fk": {
+          "name": "pengguna_unit_unit_id_unit_id_fk",
+          "tableFrom": "pengguna_unit",
+          "tableTo": "unit",
+          "columnsFrom": [
+            "unit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pengguna_unit_pengguna_id_unit_id_pk": {
+          "name": "pengguna_unit_pengguna_id_unit_id_pk",
+          "columns": [
+            "pengguna_id",
+            "unit_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.sesi": {
       "name": "sesi",
       "schema": "",
@@ -434,113 +494,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.unit_pelapor": {
-      "name": "unit_pelapor",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "indikator_id": {
-          "name": "indikator_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_id": {
-          "name": "unit_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bulan_mulai": {
-          "name": "bulan_mulai",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bulan_berhenti": {
-          "name": "bulan_berhenti",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "unit_pelapor_indikator_idx": {
-          "name": "unit_pelapor_indikator_idx",
-          "columns": [
-            {
-              "expression": "indikator_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "unit_pelapor_indikator_id_indikator_id_fk": {
-          "name": "unit_pelapor_indikator_id_indikator_id_fk",
-          "tableFrom": "unit_pelapor",
-          "tableTo": "indikator",
-          "columnsFrom": [
-            "indikator_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "unit_pelapor_unit_id_unit_id_fk": {
-          "name": "unit_pelapor_unit_id_unit_id_fk",
-          "tableFrom": "unit_pelapor",
-          "tableTo": "unit",
-          "columnsFrom": [
-            "unit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "unit_pelapor_bulan_mulai_check": {
-          "name": "unit_pelapor_bulan_mulai_check",
-          "value": "extract(day from \"unit_pelapor\".\"bulan_mulai\") = 1"
-        },
-        "unit_pelapor_bulan_berhenti_check": {
-          "name": "unit_pelapor_bulan_berhenti_check",
-          "value": "extract(day from \"unit_pelapor\".\"bulan_berhenti\") = 1"
-        },
-        "unit_pelapor_periode_check": {
-          "name": "unit_pelapor_periode_check",
-          "value": "\"unit_pelapor\".\"bulan_berhenti\" >= \"unit_pelapor\".\"bulan_mulai\""
-        }
-      },
       "isRLSEnabled": false
     }
   },

@@ -22,7 +22,7 @@ async function adminSistem() {
   return pengguna;
 }
 
-/** Service Pengguna belum dipakai di sini: aktor peran lain = sesi Admin Sistem dengan peran itu. */
+/** Aktor peran lain = sesi Admin Sistem dengan peran itu (service Unit Pelapor hanya memeriksa peran). */
 async function sebagai(peran: Peran) {
   return { ...(await adminSistem()), peran };
 }
@@ -125,12 +125,13 @@ describe("Unit Pelapor", () => {
       status: 409,
       message: `Unit ${ranap.nama} sudah menjadi Unit Pelapor Indikator ini pada periode yang tumpang tindih (Maret 2026 – Juni 2026).`,
     };
-    for (const [bulanMulai, bulanBerhenti] of [
+    const periodeBentrok: [string, string | null][] = [
       ["2026-01", "2026-03"],
       ["2026-06", null],
       ["2026-04", "2026-05"],
       ["2026-01", null],
-    ]) {
+    ];
+    for (const [bulanMulai, bulanBerhenti] of periodeBentrok) {
       await assert.rejects(tambahUnitPelapor(komite, indikatorId, { unitId: ranap.id, bulanMulai, bulanBerhenti }), tumpangTindih);
     }
 

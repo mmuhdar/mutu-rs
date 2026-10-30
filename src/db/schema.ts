@@ -8,6 +8,7 @@ import {
   integer,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -54,6 +55,20 @@ export const unit = pgTable(
   },
   // Nama disimpan tanpa spasi di tepi (dirapikan di service), unik tanpa membedakan huruf besar/kecil.
   (t) => [uniqueIndex("unit_nama_unique").on(sql`lower(${t.nama})`)],
+);
+
+/** Unit milik Petugas Input Data dan Kepala Unit (peran lain tidak punya Unit). */
+export const penggunaUnit = pgTable(
+  "pengguna_unit",
+  {
+    penggunaId: uuid("pengguna_id")
+      .notNull()
+      .references(() => pengguna.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => unit.id),
+  },
+  (t) => [primaryKey({ columns: [t.penggunaId, t.unitId] })],
 );
 
 /** Sesi masuk: cookie berisi token acak, database hanya menyimpan hash SHA-256-nya. */

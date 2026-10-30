@@ -6,6 +6,7 @@ import { bulanValid, dariTanggal, keTanggal, labelPeriode } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { ARAH, FREKUENSI, type Kelompok } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
+import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
 
 import { INM, TARGET_INM_BERLAKU_MULAI } from "./inm";
@@ -32,7 +33,6 @@ export type IndikatorBaru = IsianIndikator & {
   target: { nilai: number; berlakuMulai: string };
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const tidakDitemukan = () => new ServiceError(404, "Indikator tidak ditemukan.");
 
 /** Komite Mutu dan Admin Sistem mengelola Indikator; peran lain hanya melihat. */
@@ -104,7 +104,7 @@ export async function daftarIndikator(aktor: Pengguna | null) {
  */
 export async function ambilIndikator(aktor: Pengguna | null, id: string) {
   wajibPengguna(aktor);
-  const [baris] = UUID.test(id) ? await db.select().from(indikator).where(eq(indikator.id, id)) : [];
+  const [baris] = apakahUuid(id) ? await db.select().from(indikator).where(eq(indikator.id, id)) : [];
   if (!baris) throw tidakDitemukan();
   const riwayat = await db
     .select({ nilai: target.nilai, berlakuMulai: target.berlakuMulai })
@@ -139,7 +139,7 @@ export async function ambilIndikator(aktor: Pengguna | null, id: string) {
 export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: IsianIndikator) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const data = periksaIsian(isian);
-  const [baris] = UUID.test(id)
+  const [baris] = apakahUuid(id)
     ? await db.update(indikator).set(data).where(eq(indikator.id, id)).returning({ id: indikator.id })
     : [];
   if (!baris) throw tidakDitemukan();
@@ -148,7 +148,7 @@ export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: I
 /** Menonaktifkan atau mengaktifkan kembali Indikator. Tidak ada hapus, supaya riwayatnya tetap ada. */
 export async function aturAktifIndikator(aktor: Pengguna | null, id: string, aktif: boolean) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
-  const [baris] = UUID.test(id)
+  const [baris] = apakahUuid(id)
     ? await db.update(indikator).set({ aktif }).where(eq(indikator.id, id)).returning({ id: indikator.id })
     : [];
   if (!baris) throw tidakDitemukan();
@@ -257,8 +257,8 @@ export async function tambahUnitPelapor(aktor: Pengguna | null, indikatorId: str
   const mulai = isian.bulanMulai;
   if (typeof mulai !== "string" || !bulanValid(mulai)) throw new ServiceError(400, "Pilih bulan mulai.");
   const berhenti = periksaBulanBerhenti(mulai, isian.bulanBerhenti);
-  if (!UUID.test(indikatorId)) throw tidakDitemukan();
-  const [u] = UUID.test(isian.unitId) ? await db.select().from(unit).where(eq(unit.id, isian.unitId)) : [];
+  if (!apakahUuid(indikatorId)) throw tidakDitemukan();
+  const [u] = apakahUuid(isian.unitId) ? await db.select().from(unit).where(eq(unit.id, isian.unitId)) : [];
   if (!u) throw new ServiceError(400, "Pilih Unit.");
   if (!u.aktif) throw new ServiceError(400, `Unit ${u.nama} nonaktif, jadi tidak bisa menjadi Unit Pelapor.`);
 
@@ -274,7 +274,7 @@ export async function tambahUnitPelapor(aktor: Pengguna | null, indikatorId: str
 
 /** Periode Unit Pelapor menurut id; id yang bukan uuid dianggap tidak ada. */
 async function ambilPeriode(id: string) {
-  const [periode] = UUID.test(id) ? await db.select().from(unitPelapor).where(eq(unitPelapor.id, id)) : [];
+  const [periode] = apakahUuid(id) ? await db.select().from(unitPelapor).where(eq(unitPelapor.id, id)) : [];
   if (!periode) throw new ServiceError(404, "Unit Pelapor tidak ditemukan.");
   return periode;
 }
@@ -309,7 +309,7 @@ export async function hapusUnitPelapor(aktor: Pengguna | null, id: string) {
 export async function unitPelaporAktif(aktor: Pengguna | null, indikatorId: string, bulan: string) {
   wajibPengguna(aktor);
   if (!bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
-  if (!UUID.test(indikatorId)) throw tidakDitemukan();
+  if (!apakahUuid(indikatorId)) throw tidakDitemukan();
   return db
     .select({ unitId: unit.id, nama: unit.nama, unitAktif: unit.aktif })
     .from(unitPelapor)

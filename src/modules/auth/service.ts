@@ -1,21 +1,30 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import bcrypt from "bcryptjs";
-import { and, eq, gt, lt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { pengguna, sesi } from "@/db/schema";
+import { pengguna, penggunaUnit, sesi } from "@/db/schema";
 import { ServiceError } from "@/lib/errors";
 import type { Peran } from "@/lib/peran";
 
-/** Pengguna yang sedang bertindak; diteruskan ke setiap fungsi service. */
-export type Pengguna = { id: string; username: string; nama: string; peran: Peran; sesiId: string };
+/**
+ * Pengguna yang sedang bertindak; diteruskan ke setiap fungsi service.
+ * `unitIds` = Unit milik Petugas Input Data dan Kepala Unit (kosong untuk peran lain).
+ */
+export type Pengguna = { id: string; username: string; nama: string; peran: Peran; unitIds: string[]; sesiId: string };
 
 /** Sesi berlaku 12 jam dan diperpanjang otomatis selama masih dipakai. */
 const SESI_MS = 12 * 60 * 60 * 1000;
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 const hashSandi = (sandi: string) => bcrypt.hash(sandi, 10);
+
+/** Aturan sandi baru (sandi awal, reset, dan ganti sandi), lalu hash-nya. */
+export function hashSandiBaru(sandi: string) {
+  if (sandi.length < 8) throw new ServiceError(400, "Sandi minimal 8 karakter.");
+  return hashSandi(sandi);
+}
 
 /**
  * Data awal: Admin Sistem dari konfigurasi, hanya bila username itu belum ada.
@@ -108,6 +117,8 @@ export async function penggunaDariToken(token: string, sekarang = new Date()): P
       username: pengguna.username,
       nama: pengguna.nama,
       peran: pengguna.peran,
+      unitIds: sql<string[]>`coalesce((select array_agg(${penggunaUnit.unitId}::text) from ${penggunaUnit}
+        where ${penggunaUnit.penggunaId} = ${pengguna.id}), '{}')`,
       sesiId: sesi.id,
       expiresAt: sesi.expiresAt,
     })
@@ -141,6 +152,18 @@ export function wajibPeran(
 ): asserts aktor is Pengguna {
   wajibPengguna(aktor);
   if (!peran.includes(aktor.peran)) throw new ServiceError(403, pesan);
+}
+
+/** Pengguna mengganti sandinya sendiri. Sesi lain miliknya diakhiri; sesi yang sedang dipakai tetap berjalan. */
+export async function gantiSandi(aktor: Pengguna | null, input: { sandiLama: string; sandiBaru: string }) {
+  wajibPengguna(aktor);
+  const hashBaru = await hashSandiBaru(input.sandiBaru);
+  const [akun] = await db.select({ hashSandi: pengguna.hashSandi }).from(pengguna).where(eq(pengguna.id, aktor.id));
+  if (!akun || !(await bcrypt.compare(input.sandiLama, akun.hashSandi))) {
+    throw new ServiceError(400, "Sandi lama salah.");
+  }
+  await db.update(pengguna).set({ hashSandi: hashBaru }).where(eq(pengguna.id, aktor.id));
+  await db.delete(sesi).where(and(eq(sesi.penggunaId, aktor.id), ne(sesi.id, aktor.sesiId)));
 }
 
 /** Keluar: mengakhiri sesi yang sedang dipakai Pengguna. */

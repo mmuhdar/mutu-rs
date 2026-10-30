@@ -20,6 +20,8 @@ export const metadata: Metadata = {
 const MENU: { href: string; label: string; peran: readonly Peran[] }[] = [
   { href: "/indikator", label: "Indikator", peran: PERAN },
   { href: "/unit", label: "Unit", peran: ["adminSistem"] },
+  { href: "/pengguna", label: "Pengguna", peran: ["adminSistem"] },
+  { href: "/sandi", label: "Ganti sandi", peran: PERAN },
 ];
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
