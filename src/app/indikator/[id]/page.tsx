@@ -6,7 +6,7 @@ import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { pilihanUnit } from "@/modules/unit/service";
 
-import { AksiUnitPelapor, FormUnitPelapor, TombolAktif } from "../form-indikator";
+import { AksiUnitPelapor, FormTarget, FormUnitPelapor, TombolAktif } from "../form-indikator";
 import { muatIndikator } from "./muat";
 
 export const metadata: Metadata = { title: "Detail Indikator" };
@@ -64,17 +64,30 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
       </dl>
 
       <div className="rounded-lg border border-border bg-surface shadow-xs">
-        <h2 className="border-b border-border px-4 py-3 text-[15px] font-semibold">Target</h2>
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-[15px] font-semibold">Target</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            Setiap bulan dinilai dengan Target yang berlaku mulai paling akhir sebelum atau pada bulan itu.
+          </p>
+        </div>
         <ul className="divide-y divide-border">
-          {indikator.target.map((t) => (
+          {indikator.target.map((t, i) => (
             <li key={t.berlakuMulai} className="flex flex-wrap gap-x-3 px-4 py-3">
               <span className="font-semibold">
                 {indikator.arah === "makinRendah" ? "≤" : "≥"} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
               </span>
-              <span className="text-muted-foreground">berlaku mulai {labelBulan(t.berlakuMulai)}</span>
+              <span className="text-muted-foreground">
+                berlaku mulai {labelBulan(t.berlakuMulai)}
+                {i === 0 && " (juga untuk bulan-bulan sebelumnya)"}
+              </span>
             </li>
           ))}
         </ul>
+        {bolehKelolaIndikator(pengguna) && (
+          <div className="border-t border-border p-4">
+            <FormTarget indikatorId={indikator.id} bulanIni={bulanBerjalan()} />
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-border bg-surface shadow-xs">

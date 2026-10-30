@@ -11,6 +11,7 @@ import {
   hapusUnitPelapor,
   tambahIndikator,
   tambahUnitPelapor,
+  tetapkanTarget,
   ubahIndikator,
   type IndikatorBaru,
   type IsianIndikator,
@@ -99,6 +100,15 @@ const isian = (formData: FormData, nama: string) => String(formData.get(nama) ??
 export async function aturAktifIndikatorAction(_prev: StateIndikator, formData: FormData) {
   return ubahDiDetail(formData, async () =>
     aturAktifIndikator(await getSessionUser(), isian(formData, "id"), formData.get("aktif") === "true"),
+  );
+}
+
+export async function tetapkanTargetAction(_prev: StateIndikator, formData: FormData) {
+  return ubahDiDetail(formData, async () =>
+    tetapkanTarget(await getSessionUser(), isian(formData, "indikatorId"), {
+      nilai: angka(isian(formData, "targetNilai")),
+      berlakuMulai: isian(formData, "targetBerlakuMulai"),
+    }),
   );
 }
 

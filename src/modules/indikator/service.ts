@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
 import { bulanValid, dariTanggal, keTanggal, labelPeriode } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
-import { ARAH, FREKUENSI, type Kelompok } from "@/lib/indikator";
+import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, targetPadaBulan, type Kelompok } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
@@ -126,6 +126,7 @@ export async function ambilIndikator(aktor: Pengguna | null, id: string) {
     .orderBy(asc(unit.nama), asc(unitPelapor.bulanMulai));
   return {
     ...baris,
+    terkunci: await punyaPengukuran(db, id),
     target: riwayat.map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) })),
     unitPelapor: periode.map((p) => ({
       ...p,
@@ -135,14 +136,36 @@ export async function ambilIndikator(aktor: Pengguna | null, id: string) {
   };
 }
 
-/** Mengubah field Indikator (kode dan kelompok tidak bisa diubah). Target diubah lewat riwayat Target. */
+/** Benar bila Indikator sudah punya Pengukuran dengan status apa pun (cara hitungnya terkunci). */
+async function punyaPengukuran(q: Pick<typeof db, "select">, id: string) {
+  const [ada] = await q.select({ id: pengukuran.id }).from(pengukuran).where(eq(pengukuran.indikatorId, id)).limit(1);
+  return Boolean(ada);
+}
+
+/**
+ * Mengubah field Indikator (kode dan kelompok tidak bisa diubah). Target diubah lewat riwayat Target. Setelah ada
+ * Pengukuran, field cara hitung (`FIELD_CARA_HITUNG`) tidak boleh berbeda dari nilai lamanya. Baris Indikator dikunci
+ * `for update`, jadi Pengukuran pertama yang sedang disimpan (menguncinya `for share`) selesai lebih dulu dan terhitung.
+ */
 export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: IsianIndikator) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const data = periksaIsian(isian);
-  const [baris] = apakahUuid(id)
-    ? await db.update(indikator).set(data).where(eq(indikator.id, id)).returning({ id: indikator.id })
-    : [];
-  if (!baris) throw tidakDitemukan();
+  if (!apakahUuid(id)) throw tidakDitemukan();
+  await db.transaction(async (tx) => {
+    const [lama] = await tx.select().from(indikator).where(eq(indikator.id, id)).for("update");
+    if (!lama) throw tidakDitemukan();
+    const berubah = (Object.keys(FIELD_CARA_HITUNG) as (keyof typeof FIELD_CARA_HITUNG)[])
+      .filter((field) => data[field] !== lama[field])
+      .map((field) => FIELD_CARA_HITUNG[field])
+      .join(", ");
+    if (berubah && (await punyaPengukuran(tx, id))) {
+      throw new ServiceError(
+        409,
+        `${berubah[0].toUpperCase()}${berubah.slice(1)} tidak bisa diubah karena Indikator ini sudah punya Pengukuran; tren tidak boleh mencampur dua cara hitung. Buat Indikator baru dengan cara hitung yang baru, lalu nonaktifkan Indikator ini.`,
+      );
+    }
+    await tx.update(indikator).set(data).where(eq(indikator.id, id));
+  });
 }
 
 /** Menonaktifkan atau mengaktifkan kembali Indikator. Tidak ada hapus, supaya riwayatnya tetap ada. */
@@ -162,13 +185,7 @@ export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBar
     throw new ServiceError(400, "Pilih kelompok IMP-RS atau IMP-Unit. INM sudah tersedia sesuai PMK 30/2022.");
   }
   const data = periksaIsian(baru);
-  const { nilai, berlakuMulai } = baru.target ?? {};
-  if (typeof nilai !== "number" || !Number.isFinite(nilai) || nilai < 0) {
-    throw new ServiceError(400, "Target harus berupa angka ≥ 0.");
-  }
-  if (typeof berlakuMulai !== "string" || !bulanValid(berlakuMulai)) {
-    throw new ServiceError(400, "Pilih bulan mulai berlaku Target.");
-  }
+  const { nilai, berlakuMulai } = periksaTarget(baru.target);
   try {
     return await db.transaction(async (tx) => {
       const [{ id }] = await tx
@@ -183,6 +200,57 @@ export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBar
     if (pg.code === "23505") throw new ServiceError(409, `Kode ${kode} sudah dipakai Indikator lain.`);
     throw error;
   }
+}
+
+/** Target dari form: nilai ≥ 0 dan bulan mulai berlaku "YYYY-MM". */
+function periksaTarget(isian: IndikatorBaru["target"] | undefined) {
+  const { nilai, berlakuMulai } = isian ?? {};
+  if (typeof nilai !== "number" || !Number.isFinite(nilai) || nilai < 0) {
+    throw new ServiceError(400, "Target harus berupa angka ≥ 0.");
+  }
+  if (typeof berlakuMulai !== "string" || !bulanValid(berlakuMulai)) {
+    throw new ServiceError(400, "Pilih bulan mulai berlaku Target.");
+  }
+  return { nilai, berlakuMulai };
+}
+
+/**
+ * Menetapkan Target yang berlaku mulai bulan tertentu; bulan sebelumnya tetap dinilai dengan Target lamanya. Bila
+ * bulan mulai itu sudah punya Target, nilainya diganti (koreksi salah ketik).
+ */
+export async function tetapkanTarget(aktor: Pengguna | null, indikatorId: string, isian: IndikatorBaru["target"]) {
+  wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
+  const { nilai, berlakuMulai } = periksaTarget(isian);
+  if (!apakahUuid(indikatorId)) throw tidakDitemukan();
+  try {
+    await db
+      .insert(target)
+      .values({ indikatorId, nilai, berlakuMulai: keTanggal(berlakuMulai) })
+      .onConflictDoUpdate({ target: [target.indikatorId, target.berlakuMulai], set: { nilai } });
+  } catch (error) {
+    const pg = ((error as { cause?: unknown }).cause ?? error) as { code?: string };
+    if (pg.code === "23503") throw tidakDitemukan();
+    throw error;
+  }
+}
+
+/**
+ * Target yang berlaku untuk Indikator pada bulan "YYYY-MM" (aturannya `targetPadaBulan` di `src/lib/indikator.ts`).
+ * Semua peran boleh membaca; dipakai modul Capaian.
+ */
+export async function targetBerlaku(aktor: Pengguna | null, indikatorId: string, bulan: string) {
+  wajibPengguna(aktor);
+  if (!bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
+  const riwayat = apakahUuid(indikatorId)
+    ? await db
+        .select({ nilai: target.nilai, berlakuMulai: target.berlakuMulai })
+        .from(target)
+        .where(eq(target.indikatorId, indikatorId))
+    : [];
+  const nilai = targetPadaBulan(riwayat.map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) })), bulan);
+  // Setiap Indikator punya Target sejak dibuat, jadi riwayat kosong = Indikator tidak ada.
+  if (nilai === undefined) throw tidakDitemukan();
+  return nilai;
 }
 
 /** Periode Unit Pelapor baru; bulan "YYYY-MM", bulan berhenti kosong = masih berlangsung. */
