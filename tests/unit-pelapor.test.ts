@@ -101,6 +101,26 @@ describe("Unit Pelapor", () => {
     assert.equal((await aturAktifUnit(admin, igd.id, false, sekarang)).aktif, false);
   });
 
+  it("periode Unit Pelapor dari Unit nonaktif tidak bisa diperpanjang sampai bulan berjalan atau sesudahnya, tetapi boleh diubah sebelum itu", async () => {
+    const admin = await adminSistem();
+    const sekarang = new Date("2026-10-15T12:00:00+08:00");
+    const igd = await unitBaru("IGD");
+    const indikatorId = await indikatorBaru();
+    const id = await tambahUnitPelapor(admin, indikatorId, { unitId: igd.id, bulanMulai: "2026-01", bulanBerhenti: "2026-06" });
+    await aturAktifUnit(admin, igd.id, false, sekarang);
+
+    // Memperpanjang sampai bulan berjalan atau sesudahnya membuat Kelengkapan-nya tidak akan pernah lengkap.
+    for (const bulanBerhenti of ["2026-10", "2027-03"]) {
+      await assert.rejects(akhiriUnitPelapor(admin, id, bulanBerhenti, sekarang), {
+        status: 409,
+        message: `Unit ${igd.nama} nonaktif, jadi bulan berhenti Unit Pelapor-nya harus sebelum Oktober 2026. Aktifkan kembali Unit itu lebih dulu bila masih wajib melapor.`,
+      });
+    }
+    await akhiriUnitPelapor(admin, id, "2026-09", sekarang);
+    await akhiriUnitPelapor(admin, id, "2026-03", sekarang);
+    assert.equal((await ambilIndikator(admin, indikatorId)).unitPelapor[0].bulanBerhenti, "2026-03");
+  });
+
   it("periode yang tumpang tindih untuk Indikator dan Unit yang sama ditolak; periode bersambung dan Unit lain boleh", async () => {
     const komite = await komiteMutu();
     const indikatorId = await indikatorBaru();
