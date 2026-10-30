@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { ARAH, FREKUENSI, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
+import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import type { Indikator } from "@/modules/indikator/service";
 
 import {
@@ -12,6 +12,7 @@ import {
   hapusUnitPelaporAction,
   tambahIndikatorAction,
   tambahUnitPelaporAction,
+  tetapkanTargetAction,
   ubahIndikatorAction,
 } from "./actions";
 
@@ -44,21 +45,71 @@ function Kolom({ label, htmlFor, petunjuk, children }: { label: string; htmlFor:
 
 /**
  * Formulir tambah IMP (tanpa `indikator`) atau ubah Indikator. Kode, kelompok, dan Target awal hanya diisi saat
- * menambah; setelah itu kode dan kelompok tetap. `bulanIni` = bulan bawaan Target awal.
+ * menambah; setelah itu kode dan kelompok tetap. `bulanIni` = bulan bawaan Target awal. `terkunci` = Indikator sudah
+ * punya Pengukuran: field cara hitung tampil terkunci (tetap dikirim dengan nilai lamanya).
  */
-export function FormIndikator({ indikator, bulanIni }: { indikator?: Indikator; bulanIni?: string }) {
+export function FormIndikator({
+  indikator,
+  bulanIni,
+  terkunci = false,
+}: {
+  indikator?: Indikator;
+  bulanIni?: string;
+  terkunci?: boolean;
+}) {
   const [state, action, pending] = useActionState(indikator ? ubahIndikatorAction : tambahIndikatorAction, {});
   const awal = (nama: keyof Indikator, bawaan = "") => state.nilai?.[nama] ?? String(indikator?.[nama] ?? bawaan);
+  const kunci = (nama: keyof Indikator) => terkunci && nama in FIELD_CARA_HITUNG;
+  const kelasKunci = (nama: keyof Indikator) => (kunci(nama) ? " bg-background text-muted-foreground" : "");
 
   const teks = (nama: keyof Indikator, label: string, petunjuk?: string) => (
     <Kolom label={label} htmlFor={nama} petunjuk={petunjuk}>
-      <textarea id={nama} name={nama} required rows={3} defaultValue={awal(nama)} className={`${kelasInput} py-2`} />
+      <textarea
+        id={nama}
+        name={nama}
+        required
+        rows={3}
+        readOnly={kunci(nama)}
+        defaultValue={awal(nama)}
+        className={`${kelasInput} py-2${kelasKunci(nama)}`}
+      />
     </Kolom>
+  );
+
+  /** Select tidak punya readOnly: saat terkunci dibuat disabled, nilainya dikirim lewat input tersembunyi. */
+  const pilihan = (nama: "arah" | "frekuensi", bawaan: string, opsi: readonly string[], label: Record<string, string>) => (
+    <>
+      <select
+        id={nama}
+        name={kunci(nama) ? undefined : nama}
+        disabled={kunci(nama)}
+        defaultValue={awal(nama, bawaan)}
+        className={`${kelasBaris}${kelasKunci(nama)}`}
+      >
+        {opsi.map((o) => (
+          <option key={o} value={o}>
+            {label[o]}
+          </option>
+        ))}
+      </select>
+      {kunci(nama) && <input type="hidden" name={nama} value={awal(nama)} />}
+    </>
   );
 
   return (
     <form action={action} className="grid gap-4">
       <PesanError pesan={state.error} />
+      {terkunci && (
+        <p className="rounded-md border border-border bg-background px-3 py-2.5 text-[13px]">
+          <strong className="font-semibold">Cara hitung terkunci.</strong> Indikator ini sudah punya Pengukuran, jadi
+          faktor, satuan, Arah, definisi N dan D, serta Frekuensi tidak bisa diubah supaya tren tidak mencampur dua cara
+          hitung. Untuk mengubahnya,{" "}
+          <Link href="/indikator/baru" className="font-medium text-primary hover:underline">
+            buat Indikator baru
+          </Link>{" "}
+          lalu nonaktifkan Indikator ini. Nama, definisi operasional, Sumber Data, dan PIC tetap bisa diubah.
+        </p>
+      )}
       {indikator ? (
         <input type="hidden" name="id" value={indikator.id} />
       ) : (
@@ -88,30 +139,27 @@ export function FormIndikator({ indikator, bulanIni }: { indikator?: Indikator; 
             name="faktor"
             required
             inputMode="numeric"
+            readOnly={kunci("faktor")}
             defaultValue={awal("faktor", "100")}
-            className={kelasBaris}
+            className={`${kelasBaris}${kelasKunci("faktor")}`}
           />
         </Kolom>
         <Kolom label="Satuan" htmlFor="satuan">
-          <input id="satuan" name="satuan" required maxLength={32} defaultValue={awal("satuan", "%")} className={kelasBaris} />
+          <input
+            id="satuan"
+            name="satuan"
+            required
+            maxLength={32}
+            readOnly={kunci("satuan")}
+            defaultValue={awal("satuan", "%")}
+            className={`${kelasBaris}${kelasKunci("satuan")}`}
+          />
         </Kolom>
         <Kolom label="Arah" htmlFor="arah">
-          <select id="arah" name="arah" defaultValue={awal("arah", "makinTinggi")} className={kelasBaris}>
-            {ARAH.map((a) => (
-              <option key={a} value={a}>
-                {LABEL_ARAH[a]}
-              </option>
-            ))}
-          </select>
+          {pilihan("arah", "makinTinggi", ARAH, LABEL_ARAH)}
         </Kolom>
         <Kolom label="Frekuensi" htmlFor="frekuensi" petunjuk="Semesteran diisi pada bulan Juni dan Desember.">
-          <select id="frekuensi" name="frekuensi" defaultValue={awal("frekuensi", "bulanan")} className={kelasBaris}>
-            {FREKUENSI.map((f) => (
-              <option key={f} value={f}>
-                {LABEL_FREKUENSI[f]}
-              </option>
-            ))}
-          </select>
+          {pilihan("frekuensi", "bulanan", FREKUENSI, LABEL_FREKUENSI)}
         </Kolom>
       </div>
       <Kolom label="PIC (opsional)" htmlFor="pic" petunjuk="Nama atau jabatan penanggung jawab Indikator.">
@@ -165,6 +213,46 @@ export function TombolAktif({ id, aktif }: { id: string; aktif: boolean }) {
         {aktif ? "Nonaktifkan" : "Aktifkan kembali"}
       </button>
       <PesanError pesan={state.error} />
+    </form>
+  );
+}
+
+/** Form tetapkan Target di detail Indikator. `bulanIni` = bulan mulai berlaku bawaan. */
+export function FormTarget({ indikatorId, bulanIni }: { indikatorId: string; bulanIni: string }) {
+  const [state, action, pending] = useActionState(tetapkanTargetAction, {});
+  return (
+    <form action={action} className="grid gap-3">
+      <input type="hidden" name="indikatorId" value={indikatorId} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Kolom label="Nilai Target" htmlFor="targetNilai" petunjuk="Angka desimal memakai koma, mis. 76,61.">
+          <input
+            id="targetNilai"
+            name="targetNilai"
+            required
+            inputMode="decimal"
+            defaultValue={state.nilai?.targetNilai}
+            className={kelasBaris}
+          />
+        </Kolom>
+        <Kolom
+          label="Berlaku mulai"
+          htmlFor="targetBerlakuMulai"
+          petunjuk="Bulan sebelumnya tetap memakai Target lama. Bila bulan ini sudah punya Target, nilainya diganti."
+        >
+          <input
+            id="targetBerlakuMulai"
+            name="targetBerlakuMulai"
+            type="month"
+            required
+            defaultValue={state.nilai?.targetBerlakuMulai ?? bulanIni}
+            className={kelasBaris}
+          />
+        </Kolom>
+      </div>
+      <PesanError pesan={state.error} />
+      <button type="submit" disabled={pending} className={`${tombolUtama} w-fit`}>
+        {pending ? "Menyimpan…" : "Tetapkan Target"}
+      </button>
     </form>
   );
 }

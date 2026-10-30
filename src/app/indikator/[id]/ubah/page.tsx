@@ -22,7 +22,7 @@ export default async function HalamanUbahIndikator({ params }: PageProps<"/indik
         </p>
       </div>
       <div className="rounded-lg border border-border bg-surface p-4 shadow-xs">
-        <FormIndikator indikator={indikator} />
+        <FormIndikator indikator={indikator} terkunci={indikator.terkunci} />
       </div>
     </section>
   );
