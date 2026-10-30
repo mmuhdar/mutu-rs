@@ -2,19 +2,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { before, describe, it } from "node:test";
 
-import { config } from "@/lib/config";
 import type { Frekuensi } from "@/lib/indikator";
 import type { AksiVerifikasi } from "@/lib/pengukuran";
-import { LABEL_PERAN, type Peran } from "@/lib/peran";
-import { masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
-import {
-  akhiriUnitPelapor,
-  aturAktifIndikator,
-  hapusUnitPelapor,
-  tambahIndikator,
-  tambahUnitPelapor,
-} from "@/modules/indikator/service";
-import { tambahPengguna } from "@/modules/pengguna/service";
+import { LABEL_PERAN } from "@/lib/peran";
+import type { Pengguna } from "@/modules/auth/service";
+import { akhiriUnitPelapor, aturAktifIndikator, hapusUnitPelapor, tambahUnitPelapor } from "@/modules/indikator/service";
 import {
   ajukanPengukuran,
   ambilIsian,
@@ -30,56 +22,29 @@ import {
   unitPengisi,
   verifikasiPengukuran,
 } from "@/modules/pengukuran/service";
-import { aturAktifUnit, tambahUnit } from "@/modules/unit/service";
+import { aturAktifUnit } from "@/modules/unit/service";
+
+import { adminSistem, indikatorBaru, komiteMutu, sebagai, unitBaru } from "./bantuan";
 
 let admin: Pengguna;
 before(async () => {
-  admin = (await penggunaDariToken(await masuk({ ...config.adminAwal, ip: "10.7.0.1" })))!;
+  admin = await adminSistem();
 });
 
-// Satu database untuk semua tes: nama Unit, kode Indikator, dan username dibuat unik.
-const unik = (awalan: string) => `${awalan}-${randomUUID().slice(0, 8)}`;
-const SANDI = "sandi-awal-1";
-
-async function penggunaBaru(peran: Peran, unitIds: string[] = []) {
-  const username = unik(peran);
-  await tambahPengguna(admin, { username, nama: `Nama ${username}`, sandi: SANDI, peran, unitIds });
-  return (await penggunaDariToken(await masuk({ username, sandi: SANDI, ip: "10.7.0.2" })))!;
-}
-
-async function indikatorBaru(ubah: { faktor?: number; frekuensi?: Frekuensi } = {}) {
-  const komite = await penggunaBaru("komiteMutu");
-  const id = await tambahIndikator(komite, {
-    kode: unik("IMP"),
-    kelompok: "IMP-RS",
-    nama: "Kepatuhan identifikasi pasien sebelum tindakan",
-    definisiOperasional: "Identifikasi dengan dua penanda sebelum setiap tindakan.",
-    definisiNumerator: "Jumlah tindakan dengan identifikasi benar",
-    definisiDenominator: "Jumlah tindakan yang diobservasi",
-    sumberData: "Lembar observasi",
-    faktor: ubah.faktor ?? 100,
-    satuan: "%",
-    arah: "makinTinggi",
-    frekuensi: ubah.frekuensi ?? "bulanan",
-    pic: "",
-    target: { nilai: 100, berlakuMulai: "2026-01" },
-  });
-  return { id, komite };
-}
-
 /** Unit baru yang menjadi Unit Pelapor Indikator baru mulai Januari 2026, beserta Petugas Input Data-nya. */
-async function siapkan(ubah: Parameters<typeof indikatorBaru>[0] = {}) {
-  const unit = await tambahUnit(admin, { nama: unik("ICU") });
-  const { id: indikatorId, komite } = await indikatorBaru(ubah);
+async function siapkan(ubah: { faktor?: number; frekuensi?: Frekuensi } = {}) {
+  const unit = await unitBaru("ICU");
+  const komite = await komiteMutu();
+  const indikatorId = await indikatorBaru(ubah);
   const unitPelaporId = await tambahUnitPelapor(komite, indikatorId, { unitId: unit.id, bulanMulai: "2026-01" });
-  const petugas = await penggunaBaru("petugasInputData", [unit.id]);
+  const petugas = await sebagai("petugasInputData", [unit.id]);
   return { unit, indikatorId, komite, unitPelaporId, petugas };
 }
 
 describe("isi dan ajukan Pengukuran", () => {
   it("Petugas menyimpan Draf; pengisi diambil dari sesi; daftar isian menampilkan statusnya", async () => {
     const { unit, indikatorId, petugas } = await siapkan();
-    const lain = await penggunaBaru("petugasInputData", [unit.id]);
+    const lain = await sebagai("petugasInputData", [unit.id]);
     const isian = { indikatorId, unitId: unit.id, bulan: "2026-03", n: 9, d: 10, catatan: " Observasi pagi " };
 
     const sebelum = await daftarIsian(petugas, { unitId: unit.id, bulan: "2026-03" });
@@ -141,7 +106,7 @@ describe("isi dan ajukan Pengukuran", () => {
 
   it("Riwayat Status mencatat simpan pertama dan pengajuan (siapa, kapan, dari dan ke status apa), bukan simpan ulang Draf", async () => {
     const { unit, indikatorId, petugas } = await siapkan();
-    const rekan = await penggunaBaru("petugasInputData", [unit.id]);
+    const rekan = await sebagai("petugasInputData", [unit.id]);
     const kunci = { indikatorId, unitId: unit.id, bulan: "2026-06" };
     const mulai = Date.now();
     await simpanPengukuran(petugas, { ...kunci, n: 1, d: 2 });
@@ -246,11 +211,11 @@ describe("isi dan ajukan Pengukuran", () => {
 
   it("Unit yang bukan Unit Pelapor pada bulan itu ditolak dan Indikatornya tidak muncul di daftar isian", async () => {
     const { unit, indikatorId, petugas } = await siapkan();
-    const hcu = await tambahUnit(admin, { nama: unik("HCU") });
-    const { komite } = await indikatorBaru();
+    const hcu = await unitBaru("HCU");
+    const komite = await komiteMutu();
     // HCU menjadi Unit Pelapor mulai Maret saja.
     await tambahUnitPelapor(komite, indikatorId, { unitId: hcu.id, bulanMulai: "2026-03" });
-    const petugasHcu = await penggunaBaru("petugasInputData", [hcu.id]);
+    const petugasHcu = await sebagai("petugasInputData", [hcu.id]);
     const isian = { indikatorId, unitId: hcu.id, n: 1, d: 1 };
 
     await assert.rejects(simpanPengukuran(petugasHcu, { ...isian, bulan: "2026-02" }), {
@@ -261,7 +226,7 @@ describe("isi dan ajukan Pengukuran", () => {
     await simpanPengukuran(petugasHcu, { ...isian, bulan: "2026-03" });
 
     // Unit Pelapor dari Indikator lain tidak membuat Unit ini menjadi Unit Pelapor Indikator ini.
-    const { id: lain } = await indikatorBaru();
+    const lain = await indikatorBaru();
     await assert.rejects(simpanPengukuran(petugas, { indikatorId: lain, unitId: unit.id, bulan: "2026-03", n: 1, d: 1 }), {
       status: 400,
     });
@@ -294,14 +259,14 @@ describe("isi dan ajukan Pengukuran", () => {
 
   it("Kepala Unit dari Unit itu boleh mengisi dan mengajukan; Petugas yang punya dua Unit memilih di antara keduanya", async () => {
     const { unit, indikatorId } = await siapkan();
-    const kepala = await penggunaBaru("kepalaUnit", [unit.id]);
+    const kepala = await sebagai("kepalaUnit", [unit.id]);
     const kunci = { indikatorId, unitId: unit.id, bulan: "2026-02" };
     await simpanPengukuran(kepala, { ...kunci, n: 4, d: 5 });
     assert.equal((await ajukanPengukuran(kepala, { ...kunci, n: 4, d: 5 })).status, "diajukan");
     assert.equal((await ambilIsian(kepala, kunci)).pengukuran?.pengisi, kepala.nama);
 
-    const hcu = await tambahUnit(admin, { nama: unik("HCU") });
-    const ganda = await penggunaBaru("petugasInputData", [unit.id, hcu.id]);
+    const hcu = await unitBaru("HCU");
+    const ganda = await sebagai("petugasInputData", [unit.id, hcu.id]);
     assert.deepEqual(
       (await unitPengisi(ganda)).map((u) => u.id).sort(),
       [unit.id, hcu.id].sort(),
@@ -310,9 +275,9 @@ describe("isi dan ajukan Pengukuran", () => {
 
   it("Petugas dari Unit lain ditolak saat mengisi, mengajukan, dan melihat daftar isian Unit itu", async () => {
     const { unit, indikatorId } = await siapkan();
-    const lain = await tambahUnit(admin, { nama: unik("IGD") });
-    const petugasLain = await penggunaBaru("petugasInputData", [lain.id]);
-    const kepalaLain = await penggunaBaru("kepalaUnit", [lain.id]);
+    const lain = await unitBaru("IGD");
+    const petugasLain = await sebagai("petugasInputData", [lain.id]);
+    const kepalaLain = await sebagai("kepalaUnit", [lain.id]);
     const isian = { indikatorId, unitId: unit.id, bulan: "2026-02", n: 1, d: 1 };
 
     const bukanUnitnya = { status: 403, message: "Anda hanya bisa mengisi Pengukuran untuk Unit Anda sendiri." };
@@ -328,7 +293,7 @@ describe("isi dan ajukan Pengukuran", () => {
     it(`${LABEL_PERAN[peran]} ditolak saat mengisi dan mengajukan Pengukuran`, async () => {
       const { unit, indikatorId } = await siapkan();
       // Unit dari isian maupun sesi tidak membuat peran ini berhak mengisi.
-      const aktor = { ...(await penggunaBaru(peran)), unitIds: [unit.id] };
+      const aktor = { ...(await sebagai(peran)), unitIds: [unit.id] };
       const isian = { indikatorId, unitId: unit.id, bulan: "2026-02", n: 1, d: 1 };
 
       const ditolak = { status: 403, message: "Hanya Petugas Input Data dan Kepala Unit yang boleh mengisi dan mengajukan Pengukuran." };
@@ -379,7 +344,7 @@ describe("Verifikasi Pengukuran", () => {
   /** Pengukuran Diajukan di Unit baru, beserta Petugas dan Kepala Unit dari Unit itu. */
   async function diajukan(bulan = "2026-03") {
     const s = await siapkan();
-    const kepala = await penggunaBaru("kepalaUnit", [s.unit.id]);
+    const kepala = await sebagai("kepalaUnit", [s.unit.id]);
     const kunci = { indikatorId: s.indikatorId, unitId: s.unit.id, bulan };
     const { id } = await ajukanPengukuran(s.petugas, { ...kunci, n: 9, d: 10 });
     return { ...s, kepala, kunci, id };
@@ -450,10 +415,10 @@ describe("Verifikasi Pengukuran", () => {
     assert.deepEqual(await alasan(), [["diajukan", null]]);
     assert.deepEqual(await dikembalikan(petugas), []);
 
-    const lain = await penggunaBaru("petugasInputData", [(await tambahUnit(admin, { nama: unik("IGD") })).id]);
+    const lain = await sebagai("petugasInputData");
     await kembalikanPengukuran(kepala, id, "Masih salah");
     assert.deepEqual(await dikembalikan(lain), []);
-    await assert.rejects(pengukuranDikembalikan(await penggunaBaru("komiteMutu")), { status: 403 });
+    await assert.rejects(pengukuranDikembalikan(await sebagai("komiteMutu")), { status: 403 });
   });
 
   it("Kepala Unit membuka kembali Pengukuran Terverifikasi menjadi Diajukan dengan alasan", async () => {
@@ -520,8 +485,8 @@ describe("Verifikasi Pengukuran", () => {
 
   it("Petugas Input Data, Kepala Unit dari Unit lain, Komite Mutu, Direktur, dan Admin Sistem tidak bisa memverifikasi", async () => {
     const { unit, petugas, kunci, id } = await diajukan();
-    const lain = await tambahUnit(admin, { nama: unik("IGD") });
-    const kepalaLain = await penggunaBaru("kepalaUnit", [lain.id]);
+    const lain = await unitBaru("IGD");
+    const kepalaLain = await sebagai("kepalaUnit", [lain.id]);
     const alasan = "cek ulang";
     const semua = (aktor: Pengguna | null) => [
       () => verifikasiPengukuran(aktor, id),
@@ -532,7 +497,7 @@ describe("Verifikasi Pengukuran", () => {
     const bukanKepala = { status: 403, message: "Hanya Kepala Unit yang boleh memverifikasi Pengukuran." };
     for (const peran of ["komiteMutu", "direktur", "adminSistem"] as const) {
       // Unit di sesi tidak membuat peran ini berhak memverifikasi.
-      const aktor = { ...(await penggunaBaru(peran)), unitIds: [unit.id] };
+      const aktor = { ...(await sebagai(peran)), unitIds: [unit.id] };
       for (const p of semua(aktor)) await assert.rejects(p, bukanKepala, peran);
     }
     for (const p of semua(petugas)) await assert.rejects(p, bukanKepala);
@@ -543,7 +508,7 @@ describe("Verifikasi Pengukuran", () => {
 
     assert.equal((await ambilIsian(petugas, kunci)).pengukuran?.status, "diajukan");
     assert.equal((await riwayat(petugas, kunci)).length, 2);
-    const kepala = await penggunaBaru("kepalaUnit", [unit.id]);
+    const kepala = await sebagai("kepalaUnit", [unit.id]);
     for (const tidakAda of [randomUUID(), "bukan-uuid"]) {
       await assert.rejects(verifikasiPengukuran(kepala, tidakAda), { status: 404, message: "Pengukuran tidak ditemukan." });
     }
@@ -551,7 +516,7 @@ describe("Verifikasi Pengukuran", () => {
 
   it("Kepala Unit boleh mengisi, mengajukan, dan memverifikasi Pengukuran yang diisinya sendiri", async () => {
     const { unit, indikatorId } = await siapkan();
-    const kepala = await penggunaBaru("kepalaUnit", [unit.id]);
+    const kepala = await sebagai("kepalaUnit", [unit.id]);
     const kunci = { indikatorId, unitId: unit.id, bulan: "2026-04" };
     const { id } = await ajukanPengukuran(kepala, { ...kunci, n: 3, d: 4 });
     await verifikasiPengukuran(kepala, id);
@@ -566,7 +531,7 @@ describe("Verifikasi Pengukuran", () => {
     const icu = await siapkan();
     const hcu = await siapkan();
     const igd = await siapkan();
-    const kepala = await penggunaBaru("kepalaUnit", [icu.unit.id, hcu.unit.id]);
+    const kepala = await sebagai("kepalaUnit", [icu.unit.id, hcu.unit.id]);
     const isi = (s: typeof icu, bulan: string) =>
       ajukanPengukuran(s.petugas, { indikatorId: s.indikatorId, unitId: s.unit.id, bulan, n: 9, d: 10 });
 
@@ -620,11 +585,11 @@ describe("Verifikasi Pengukuran", () => {
       );
     }
 
-    const lain = await tambahUnit(admin, { nama: unik("IGD") });
-    for (const aktor of [await penggunaBaru("petugasInputData", [lain.id]), await penggunaBaru("kepalaUnit", [lain.id])]) {
+    const lain = await unitBaru("IGD");
+    for (const aktor of [await sebagai("petugasInputData", [lain.id]), await sebagai("kepalaUnit", [lain.id])]) {
       await assert.rejects(ambilPengukuran(aktor, id), { status: 403, message: "Anda hanya bisa melihat Pengukuran Unit Anda sendiri." });
     }
-    await assert.rejects(ambilPengukuran(await penggunaBaru("direktur"), id), { status: 403 });
+    await assert.rejects(ambilPengukuran(await sebagai("direktur"), id), { status: 403 });
     await assert.rejects(ambilPengukuran(komite, "bukan-uuid"), { status: 404, message: "Pengukuran tidak ditemukan." });
     await assert.rejects(ambilPengukuran(komite, randomUUID()), { status: 404 });
   });
@@ -633,22 +598,22 @@ describe("Verifikasi Pengukuran", () => {
     const icu = await siapkan();
     const { unit: hcu, komite } = await siapkan();
     await tambahUnitPelapor(komite, icu.indikatorId, { unitId: hcu.id, bulanMulai: "2026-01" });
-    const kepalaIcu = await penggunaBaru("kepalaUnit", [icu.unit.id]);
+    const kepalaIcu = await sebagai("kepalaUnit", [icu.unit.id]);
     const isi = (indikatorId: string, bulan = "2026-03") => ({ indikatorId, unitId: icu.unit.id, bulan, n: 1, d: 2 });
 
     const diajukanIcu = await ajukanPengukuran(icu.petugas, isi(icu.indikatorId));
     await verifikasiPengukuran(kepalaIcu, diajukanIcu.id);
     // Semesteran tidak diharapkan pada Maret.
-    const { id: semesteran } = await indikatorBaru({ frekuensi: "semesteran" });
+    const semesteran = await indikatorBaru({ frekuensi: "semesteran" });
     await tambahUnitPelapor(komite, semesteran, { unitId: icu.unit.id, bulanMulai: "2026-01" });
     // Indikator yang kini nonaktif: Pengukurannya tetap tampil, tetapi tidak lagi ditagih.
-    const { id: lama } = await indikatorBaru();
-    const { id: lamaKosong } = await indikatorBaru();
+    const lama = await indikatorBaru();
+    const lamaKosong = await indikatorBaru();
     for (const id of [lama, lamaKosong]) await tambahUnitPelapor(komite, id, { unitId: icu.unit.id, bulanMulai: "2026-01" });
     const drafLama = await simpanPengukuran(icu.petugas, isi(lama));
     for (const id of [lama, lamaKosong]) await aturAktifIndikator(komite, id, false);
     // Unit Pelapor yang periodenya sudah berakhir tidak ditagih.
-    const { id: berakhir } = await indikatorBaru();
+    const berakhir = await indikatorBaru();
     await akhiriUnitPelapor(komite, await tambahUnitPelapor(komite, berakhir, { unitId: icu.unit.id, bulanMulai: "2026-01" }), "2026-02");
 
     const milikTes = new Set([icu.indikatorId, semesteran, lama, lamaKosong, berakhir]);
@@ -664,7 +629,7 @@ describe("Verifikasi Pengukuran", () => {
       );
     }
 
-    for (const aktor of [icu.petugas, kepalaIcu, await penggunaBaru("direktur")]) {
+    for (const aktor of [icu.petugas, kepalaIcu, await sebagai("direktur")]) {
       await assert.rejects(statusPengukuranBulan(aktor, "2026-03"), {
         status: 403,
         message: "Hanya Komite Mutu dan Admin Sistem yang boleh melihat status Pengukuran semua Unit.",

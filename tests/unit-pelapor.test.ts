@@ -1,56 +1,17 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
 import { describe, it } from "node:test";
 
-import { config } from "@/lib/config";
-import type { Kelompok } from "@/lib/indikator";
-import { LABEL_PERAN, type Peran } from "@/lib/peran";
-import { masuk, penggunaDariToken } from "@/modules/auth/service";
+import { LABEL_PERAN } from "@/lib/peran";
 import {
   akhiriUnitPelapor,
   ambilIndikator,
   hapusUnitPelapor,
-  tambahIndikator,
   tambahUnitPelapor,
   unitPelaporAktif,
 } from "@/modules/indikator/service";
-import { aturAktifUnit, tambahUnit } from "@/modules/unit/service";
+import { aturAktifUnit } from "@/modules/unit/service";
 
-async function adminSistem() {
-  const pengguna = await penggunaDariToken(await masuk({ ...config.adminAwal, ip: "10.6.0.1" }));
-  assert.ok(pengguna);
-  return pengguna;
-}
-
-/** Aktor peran lain = sesi Admin Sistem dengan peran itu (service Unit Pelapor hanya memeriksa peran). */
-async function sebagai(peran: Peran) {
-  return { ...(await adminSistem()), peran };
-}
-
-/** Semua tes memakai satu database: nama Unit dan kode Indikator dibuat unik. */
-const unik = (awalan: string) => `${awalan} ${randomUUID().slice(0, 8)}`;
-
-async function unitBaru(awalan: string) {
-  return tambahUnit(await adminSistem(), { nama: unik(awalan) });
-}
-
-async function indikatorBaru(kelompok: Exclude<Kelompok, "INM"> = "IMP-RS") {
-  return tambahIndikator(await sebagai("komiteMutu"), {
-    kode: unik("IMP").replace(" ", "-"),
-    kelompok,
-    nama: "Kepatuhan identifikasi pasien sebelum tindakan",
-    definisiOperasional: "Identifikasi dengan dua penanda sebelum setiap tindakan.",
-    definisiNumerator: "Jumlah tindakan dengan identifikasi benar",
-    definisiDenominator: "Jumlah tindakan yang diobservasi",
-    sumberData: "Lembar observasi",
-    faktor: 100,
-    satuan: "%",
-    arah: "makinTinggi",
-    frekuensi: "bulanan",
-    pic: "",
-    target: { nilai: 100, berlakuMulai: "2026-01" },
-  });
-}
+import { adminSistem, indikatorBaru, komiteMutu, sebagai, unitBaru } from "./bantuan";
 
 /** Nama Unit Pelapor yang aktif pada bulan itu. */
 const aktifPada = async (indikatorId: string, bulan: string) =>
@@ -58,7 +19,7 @@ const aktifPada = async (indikatorId: string, bulan: string) =>
 
 describe("Unit Pelapor", () => {
   it("HCU mulai Maret tidak aktif di Februari; Unit yang berhenti Juni tidak aktif di Juli; detail Indikator menampilkan periodenya", async () => {
-    const komite = await sebagai("komiteMutu");
+    const komite = await komiteMutu();
     const indikatorId = await indikatorBaru();
     const icu = await unitBaru("ICU");
     const hcu = await unitBaru("HCU");
@@ -82,7 +43,7 @@ describe("Unit Pelapor", () => {
   });
 
   it("bulan berhenti lebih awal dari bulan mulai ditolak; periode satu bulan (berhenti = mulai) boleh", async () => {
-    const komite = await sebagai("komiteMutu");
+    const komite = await komiteMutu();
     const indikatorId = await indikatorBaru();
     const icu = await unitBaru("ICU");
 
@@ -141,8 +102,8 @@ describe("Unit Pelapor", () => {
   });
 
   it("periode yang tumpang tindih untuk Indikator dan Unit yang sama ditolak; periode bersambung dan Unit lain boleh", async () => {
-    const komite = await sebagai("komiteMutu");
-    const indikatorId = await indikatorBaru("IMP-RS");
+    const komite = await komiteMutu();
+    const indikatorId = await indikatorBaru();
     const ranap = await unitBaru("Rawat Inap");
     await tambahUnitPelapor(komite, indikatorId, { unitId: ranap.id, bulanMulai: "2026-03", bulanBerhenti: "2026-06" });
 
@@ -175,8 +136,8 @@ describe("Unit Pelapor", () => {
   });
 
   it("IMP-Unit hanya punya satu Unit Pelapor pada bulan mana pun; setelah Unit lama diakhiri, Unit pengganti boleh mulai bulan berikutnya", async () => {
-    const komite = await sebagai("komiteMutu");
-    const indikatorId = await indikatorBaru("IMP-Unit");
+    const komite = await komiteMutu();
+    const indikatorId = await indikatorBaru({ kelompok: "IMP-Unit" });
     const lama = await unitBaru("Kamar Operasi");
     const baru = await unitBaru("IBS");
     const lamaId = await tambahUnitPelapor(komite, indikatorId, { unitId: lama.id, bulanMulai: "2026-01" });
@@ -201,7 +162,7 @@ describe("Unit Pelapor", () => {
   });
 
   it("mengakhiri Unit Pelapor mengisi bulan berhenti; bulan berhenti sebelum bulan mulai ditolak", async () => {
-    const komite = await sebagai("komiteMutu");
+    const komite = await komiteMutu();
     const indikatorId = await indikatorBaru();
     const icu = await unitBaru("ICU");
     const id = await tambahUnitPelapor(komite, indikatorId, { unitId: icu.id, bulanMulai: "2026-03" });
@@ -233,7 +194,7 @@ describe("Unit Pelapor", () => {
 
   for (const peran of ["petugasInputData", "kepalaUnit", "direktur"] as const) {
     it(`${LABEL_PERAN[peran]} bisa melihat Unit Pelapor tetapi ditolak saat menambah, mengakhiri, atau menghapus`, async () => {
-      const komite = await sebagai("komiteMutu");
+      const komite = await komiteMutu();
       const indikatorId = await indikatorBaru();
       const icu = await unitBaru("ICU");
       const id = await tambahUnitPelapor(komite, indikatorId, { unitId: icu.id, bulanMulai: "2026-01" });

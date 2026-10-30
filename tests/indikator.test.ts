@@ -1,66 +1,17 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
 import { describe, it } from "node:test";
 
 import { bootstrapDatabase } from "@/db/bootstrap";
-import { config } from "@/lib/config";
-import { LABEL_PERAN, type Peran } from "@/lib/peran";
-import { masuk, penggunaDariToken } from "@/modules/auth/service";
+import { LABEL_PERAN } from "@/lib/peran";
 import {
   aturAktifIndikator,
   ambilIndikator,
   daftarIndikator,
   tambahIndikator,
   ubahIndikator,
-  type Indikator,
-  type IndikatorBaru,
-  type IsianIndikator,
 } from "@/modules/indikator/service";
 
-async function adminSistem() {
-  const pengguna = await penggunaDariToken(await masuk({ ...config.adminAwal, ip: "10.5.0.1" }));
-  assert.ok(pengguna);
-  return pengguna;
-}
-
-/** Service Pengguna belum ada (tiket 04): aktor peran lain = sesi Admin Sistem dengan peran itu. */
-async function sebagai(peran: Peran) {
-  return { ...(await adminSistem()), peran };
-}
-
-/** IMP baru dengan kode unik per tes (semua tes memakai satu database). */
-function impBaru(ubahan: Partial<IndikatorBaru> = {}): IndikatorBaru {
-  return {
-    kode: `IMP-ICU-${randomUUID().slice(0, 8)}`,
-    kelompok: "IMP-Unit",
-    nama: "Kelengkapan asesmen awal keperawatan ICU",
-    definisiOperasional: "Asesmen awal keperawatan lengkap dalam 24 jam sejak pasien masuk ICU.",
-    definisiNumerator: "Jumlah pasien ICU dengan asesmen awal keperawatan lengkap dalam 24 jam",
-    definisiDenominator: "Jumlah pasien baru ICU",
-    sumberData: "Rekam medis",
-    faktor: 100,
-    satuan: "%",
-    arah: "makinTinggi",
-    frekuensi: "bulanan",
-    pic: "Kepala Ruang ICU",
-    target: { nilai: 92.5, berlakuMulai: "2026-11" },
-    ...ubahan,
-  };
-}
-
-/** Field yang bisa diubah, diambil dari Indikator yang ada. */
-const isianDari = (i: Indikator): IsianIndikator => ({
-  nama: i.nama,
-  definisiOperasional: i.definisiOperasional,
-  definisiNumerator: i.definisiNumerator,
-  definisiDenominator: i.definisiDenominator,
-  sumberData: i.sumberData,
-  faktor: i.faktor,
-  satuan: i.satuan,
-  arah: i.arah,
-  frekuensi: i.frekuensi,
-  pic: i.pic,
-});
+import { adminSistem, impBaru, isianDari, komiteMutu, sebagai } from "./bantuan";
 
 describe("13 INM awal", () => {
   it("tersedia sejak start sesuai PMK 30/2022, masing-masing dengan Sumber Data dan satu Target awal", async () => {
@@ -101,7 +52,7 @@ describe("13 INM awal", () => {
 
 describe("data awal saat restart", () => {
   it("tidak menimpa perubahan Komite Mutu pada INM dan tidak menggandakan Target", async () => {
-    const komite = await sebagai("komiteMutu");
+    const komite = await komiteMutu();
     const asli = (await daftarIndikator(komite)).find((i) => i.kode === "INM-05")!;
     await ubahIndikator(komite, asli.id, {
       ...isianDari(asli),
@@ -126,8 +77,12 @@ describe("data awal saat restart", () => {
 
 describe("kelola IMP", () => {
   it("Komite Mutu menambah IMP-Unit beserta Target awalnya, lalu semua peran melihatnya di daftar", async () => {
-    const komite = await sebagai("komiteMutu");
-    const { target, ...isian } = impBaru();
+    const komite = await komiteMutu();
+    const { target, ...isian } = impBaru({
+      kelompok: "IMP-Unit",
+      pic: "Kepala Ruang ICU",
+      target: { nilai: 92.5, berlakuMulai: "2026-11" },
+    });
     const id = await tambahIndikator(komite, { ...isian, kode: ` ${isian.kode} `, target });
 
     const detail = await ambilIndikator(komite, id);
@@ -138,7 +93,7 @@ describe("kelola IMP", () => {
   });
 
   it("kode duplikat ditolak tanpa membedakan huruf besar/kecil, termasuk kode INM", async () => {
-    const komite = await sebagai("komiteMutu");
+    const komite = await komiteMutu();
     const pertama = impBaru();
     await tambahIndikator(komite, pertama);
 
@@ -175,7 +130,7 @@ describe("kelola IMP", () => {
 
   for (const peran of ["petugasInputData", "kepalaUnit", "direktur"] as const) {
     it(`${LABEL_PERAN[peran]} bisa melihat daftar dan detail tetapi ditolak saat menambah, mengubah, atau menonaktifkan`, async () => {
-      const id = await tambahIndikator(await sebagai("komiteMutu"), impBaru());
+      const id = await tambahIndikator(await komiteMutu(), impBaru());
       const aktor = await sebagai(peran);
       const detail = await ambilIndikator(aktor, id);
       assert.ok((await daftarIndikator(aktor)).some((i) => i.id === id));

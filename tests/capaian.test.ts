@@ -2,69 +2,45 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { before, describe, it } from "node:test";
 
-import { config } from "@/lib/config";
 import { ServiceError } from "@/lib/errors";
-import type { Arah, Frekuensi } from "@/lib/indikator";
 import { LABEL_PERAN, type Peran } from "@/lib/peran";
-import { masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
+import type { Pengguna } from "@/modules/auth/service";
 import { ringkasanCapaian, trenCapaian } from "@/modules/capaian/service";
-import {
-  akhiriUnitPelapor,
-  ambilIndikator,
-  aturAktifIndikator,
-  tambahIndikator,
-  tambahUnitPelapor,
-  tetapkanTarget,
-} from "@/modules/indikator/service";
+import { akhiriUnitPelapor, ambilIndikator, aturAktifIndikator, tambahUnitPelapor, tetapkanTarget } from "@/modules/indikator/service";
 import {
   ajukanPengukuran,
   bukaKembaliPengukuran,
   simpanPengukuran,
   verifikasiPengukuran,
 } from "@/modules/pengukuran/service";
-import { aturAktifUnit, tambahUnit } from "@/modules/unit/service";
+import { aturAktifUnit } from "@/modules/unit/service";
+
+import { adminSistem, indikatorBaru, komiteMutu, sebagai, unitBaru } from "./bantuan";
 
 let admin: Pengguna;
+let komite: Pengguna;
+let direktur: Pengguna;
 before(async () => {
-  admin = (await penggunaDariToken(await masuk({ ...config.adminAwal, ip: "10.10.0.1" })))!;
+  [admin, komite, direktur] = [await adminSistem(), await komiteMutu(), await sebagai("direktur")];
 });
 
-// Satu database untuk semua tes: nama Unit dan kode Indikator dibuat unik.
-const unik = (awalan: string) => `${awalan}-${randomUUID().slice(0, 8)}`;
-const komite = () => ({ ...admin, peran: "komiteMutu" as const });
 /** Kepala Unit dari Unit-Unit ini: mengisi, mengajukan, dan memverifikasi sendiri. */
-const kepalaUnit = (...unitIds: string[]): Pengguna => ({ ...admin, peran: "kepalaUnit", unitIds });
+const kepalaUnit = (...unitIds: string[]) => sebagai("kepalaUnit", unitIds);
 /** Capaian dibulatkan satu desimal, seperti contoh di spesifikasi. */
 const satuDesimal = (x: number | null | undefined) => (x == null ? x : Math.round(x * 10) / 10);
-
-async function indikatorBaru(ubah: { arah?: Arah; frekuensi?: Frekuensi; target?: number } = {}) {
-  return tambahIndikator(komite(), {
-    kode: unik("IMP"),
-    kelompok: "IMP-RS",
-    nama: "Kepatuhan identifikasi pasien sebelum tindakan",
-    definisiOperasional: "Identifikasi dengan dua penanda sebelum setiap tindakan.",
-    definisiNumerator: "Jumlah tindakan dengan identifikasi benar",
-    definisiDenominator: "Jumlah tindakan yang diobservasi",
-    sumberData: "Lembar observasi",
-    faktor: 100,
-    satuan: "%",
-    arah: ubah.arah ?? "makinTinggi",
-    frekuensi: ubah.frekuensi ?? "bulanan",
-    pic: "",
-    target: { nilai: ubah.target ?? 80, berlakuMulai: "2026-01" },
-  });
-}
+/** Target awal IMP buatan tes berlaku mulai Januari 2026 (Target pertama juga berlaku mundur). */
+const target = (nilai: number) => ({ target: { nilai, berlakuMulai: "2026-01" } });
 
 /** Unit baru yang menjadi Unit Pelapor Indikator mulai bulan tertentu. */
 async function unitPelapor(indikatorId: string, awalan: string, bulanMulai = "2026-01") {
-  const unit = await tambahUnit(admin, { nama: unik(awalan) });
-  await tambahUnitPelapor(komite(), indikatorId, { unitId: unit.id, bulanMulai });
+  const unit = await unitBaru(awalan);
+  await tambahUnitPelapor(komite, indikatorId, { unitId: unit.id, bulanMulai });
   return unit;
 }
 
 /** Isi, ajukan, lalu verifikasi Pengukuran sebagai Kepala Unit dari Unit itu. */
 async function terverifikasi(indikatorId: string, unitId: string, bulan: string, n: number, d: number) {
-  const kepala = kepalaUnit(unitId);
+  const kepala = await kepalaUnit(unitId);
   const { id } = await ajukanPengukuran(kepala, { indikatorId, unitId, bulan, n, d });
   await verifikasiPengukuran(kepala, id);
   return id;
@@ -82,7 +58,7 @@ describe("Capaian RS dan Capaian Unit", () => {
     await terverifikasi(indikatorId, icu.id, "2026-03", 9, 10);
     await terverifikasi(indikatorId, ri.id, "2026-03", 50, 100);
 
-    const tren = await trenCapaian(komite(), indikatorId, "2026-03");
+    const tren = await trenCapaian(komite, indikatorId, "2026-03");
     const rs = pada(tren.rs, "2026-03");
     assert.deepEqual([rs?.n, rs?.d, satuDesimal(rs?.capaian)], [59, 110, 53.6]);
     assert.deepEqual(rs?.kelengkapan, { terverifikasi: 2, wajib: 2 });
@@ -97,18 +73,18 @@ describe("Capaian RS dan Capaian Unit", () => {
     const igd = await unitPelapor(indikatorId, "IGD");
     const ri = await unitPelapor(indikatorId, "Rawat Inap");
     const idIcu = await terverifikasi(indikatorId, icu.id, "2026-04", 9, 10);
-    await simpanPengukuran(kepalaUnit(igd.id), { indikatorId, unitId: igd.id, bulan: "2026-04", n: 0, d: 50 });
-    await ajukanPengukuran(kepalaUnit(ri.id), { indikatorId, unitId: ri.id, bulan: "2026-04", n: 0, d: 50 });
+    await simpanPengukuran(await kepalaUnit(igd.id), { indikatorId, unitId: igd.id, bulan: "2026-04", n: 0, d: 50 });
+    await ajukanPengukuran(await kepalaUnit(ri.id), { indikatorId, unitId: ri.id, bulan: "2026-04", n: 0, d: 50 });
 
-    const tren = await trenCapaian(komite(), indikatorId, "2026-04");
+    const tren = await trenCapaian(komite, indikatorId, "2026-04");
     const rs = pada(tren.rs, "2026-04");
     assert.deepEqual([rs?.n, rs?.d, rs?.capaian], [9, 10, 90]);
     assert.deepEqual(rs?.kelengkapan, { terverifikasi: 1, wajib: 3 });
     const capaianUnit = (id: string) => pada(tren.unit.find((u) => u.unit.id === id)?.titik, "2026-04")?.capaian;
     assert.deepEqual([capaianUnit(icu.id), capaianUnit(igd.id), capaianUnit(ri.id)], [90, null, null]);
 
-    await bukaKembaliPengukuran(kepalaUnit(icu.id), idIcu, "N salah hitung");
-    const rsSesudah = pada((await trenCapaian(komite(), indikatorId, "2026-04")).rs, "2026-04");
+    await bukaKembaliPengukuran(await kepalaUnit(icu.id), idIcu, "N salah hitung");
+    const rsSesudah = pada((await trenCapaian(komite, indikatorId, "2026-04")).rs, "2026-04");
     assert.deepEqual([rsSesudah?.capaian, rsSesudah?.status, rsSesudah?.kelengkapan.terverifikasi], [null, null, 0]);
   });
 
@@ -121,7 +97,7 @@ describe("Capaian RS dan Capaian Unit", () => {
     await terverifikasi(indikatorId, icu.id, "2026-06", 0, 0);
     await terverifikasi(indikatorId, ri.id, "2026-06", 0, 0);
 
-    const tren = await trenCapaian(komite(), indikatorId, "2026-06");
+    const tren = await trenCapaian(komite, indikatorId, "2026-06");
     const titikIcu = (bulan: string) => pada(tren.unit.find((u) => u.unit.id === icu.id)?.titik, bulan);
     assert.deepEqual([titikIcu("2026-05")?.capaian, titikIcu("2026-05")?.status, titikIcu("2026-05")?.selisih], [null, null, null]);
     // D = 0 tetap Pengukuran Terverifikasi: ikut Kelengkapan, tidak menurunkan Capaian RS.
@@ -143,7 +119,7 @@ describe("Kelengkapan", () => {
       await terverifikasi(indikatorId, ri.id, bulan, 9, 10);
     }
 
-    const tren = await trenCapaian(komite(), indikatorId, "2026-03");
+    const tren = await trenCapaian(komite, indikatorId, "2026-03");
     assert.deepEqual(pada(tren.rs, "2026-02")?.kelengkapan, { terverifikasi: 2, wajib: 2 });
     assert.deepEqual(pada(tren.rs, "2026-03")?.kelengkapan, { terverifikasi: 2, wajib: 3 });
     assert.deepEqual(pada(tren.rs, "2025-12")?.kelengkapan, { terverifikasi: 0, wajib: 0 });
@@ -154,7 +130,7 @@ describe("Kelengkapan", () => {
     });
 
     await terverifikasi(indikatorId, hcu.id, "2026-03", 10, 10);
-    const sesudah = await trenCapaian(komite(), indikatorId, "2026-03");
+    const sesudah = await trenCapaian(komite, indikatorId, "2026-03");
     assert.deepEqual(pada(sesudah.rs, "2026-03")?.kelengkapan, { terverifikasi: 3, wajib: 3 });
     assert.equal(satuDesimal(pada(sesudah.rs, "2026-03")?.capaian), 90);
   });
@@ -162,13 +138,13 @@ describe("Kelengkapan", () => {
 
 describe("Status Capaian dan Target", () => {
   it("Arah makin rendah: penundaan operasi elektif 4% ≤ Target 5% Tercapai, 5% Tercapai, 6% Belum Tercapai", async () => {
-    const indikatorId = await indikatorBaru({ arah: "makinRendah", target: 5 });
+    const indikatorId = await indikatorBaru({ arah: "makinRendah", ...target(5) });
     const ok = await unitPelapor(indikatorId, "Kamar Operasi");
     await terverifikasi(indikatorId, ok.id, "2026-01", 4, 100);
     await terverifikasi(indikatorId, ok.id, "2026-02", 5, 100);
     await terverifikasi(indikatorId, ok.id, "2026-03", 6, 100);
 
-    const rs = (await trenCapaian(komite(), indikatorId, "2026-03")).rs;
+    const rs = (await trenCapaian(komite, indikatorId, "2026-03")).rs;
     const ringkas = (bulan: string) => [pada(rs, bulan)?.capaian, pada(rs, bulan)?.selisih, pada(rs, bulan)?.status];
     assert.deepEqual(ringkas("2026-01"), [4, -1, "tercapai"]);
     assert.deepEqual(ringkas("2026-02"), [5, 0, "tercapai"]);
@@ -176,25 +152,25 @@ describe("Status Capaian dan Target", () => {
   });
 
   it("Arah makin tinggi: Capaian sama dengan Target Tercapai (57/100 = 57%, tanpa galat pembulatan)", async () => {
-    const indikatorId = await indikatorBaru({ target: 57 });
+    const indikatorId = await indikatorBaru(target(57));
     const icu = await unitPelapor(indikatorId, "ICU");
     await terverifikasi(indikatorId, icu.id, "2026-01", 57, 100);
     await terverifikasi(indikatorId, icu.id, "2026-02", 56, 100);
 
-    const rs = (await trenCapaian(komite(), indikatorId, "2026-02")).rs;
+    const rs = (await trenCapaian(komite, indikatorId, "2026-02")).rs;
     assert.deepEqual([pada(rs, "2026-01")?.capaian, pada(rs, "2026-01")?.status], [57, "tercapai"]);
     assert.deepEqual([pada(rs, "2026-02")?.capaian, pada(rs, "2026-02")?.status], [56, "belumTercapai"]);
   });
 
   it("setiap bulan dinilai dengan Target yang berlaku bulan itu; Target pertama berlaku mundur", async () => {
-    const indikatorId = await indikatorBaru({ target: 80 });
-    await tetapkanTarget(komite(), indikatorId, { nilai: 85, berlakuMulai: "2026-06" });
+    const indikatorId = await indikatorBaru(target(80));
+    await tetapkanTarget(komite, indikatorId, { nilai: 85, berlakuMulai: "2026-06" });
     const icu = await unitPelapor(indikatorId, "ICU", "2025-01");
     await terverifikasi(indikatorId, icu.id, "2025-09", 82, 100);
     await terverifikasi(indikatorId, icu.id, "2026-05", 82, 100);
     await terverifikasi(indikatorId, icu.id, "2026-06", 82, 100);
 
-    const tren = await trenCapaian(komite(), indikatorId, "2026-07");
+    const tren = await trenCapaian(komite, indikatorId, "2026-07");
     assert.deepEqual(tren.bulan, [
       "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01",
       "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07",
@@ -213,7 +189,7 @@ describe("Status Capaian dan Target", () => {
     await terverifikasi(indikatorId, ri.id, "2025-12", 70, 100);
     await terverifikasi(indikatorId, ri.id, "2026-06", 90, 100);
 
-    const tren = await trenCapaian(komite(), indikatorId, "2026-09");
+    const tren = await trenCapaian(komite, indikatorId, "2026-09");
     assert.deepEqual(tren.bulan, ["2025-12", "2026-06"]);
     assert.deepEqual(
       tren.rs?.map((t) => [t.bulan, t.capaian, t.status, t.kelengkapan.wajib]),
@@ -241,28 +217,29 @@ describe("Pembatasan dan riwayat", () => {
 
   it("Petugas Input Data dan Kepala Unit hanya melihat Capaian Unit-nya, tanpa Capaian RS", async () => {
     const { indikatorId, icu, hcu } = await tigaUnit();
-    const petugas: Pengguna = { ...admin, peran: "petugasInputData", unitIds: [icu.id] };
-    const tren = await trenCapaian(petugas, indikatorId, "2026-07");
+    const tren = await trenCapaian(await sebagai("petugasInputData", [icu.id]), indikatorId, "2026-07");
     assert.equal(tren.rs, null);
     assert.deepEqual(
       tren.unit.map((u) => [u.unit.id, pada(u.titik, "2026-07")?.capaian]),
       [[icu.id, 90]],
     );
 
-    const kepala = await trenCapaian(kepalaUnit(icu.id, hcu.id), indikatorId, "2026-07");
+    const kepala = await trenCapaian(await kepalaUnit(icu.id, hcu.id), indikatorId, "2026-07");
     assert.equal(kepala.rs, null);
     assert.deepEqual(new Set(kepala.unit.map((u) => u.unit.id)), new Set([icu.id, hcu.id]));
 
     // Unit yang bukan Unit Pelapor Indikator ini: tidak ada Capaian yang terlihat.
-    const lain = await tambahUnit(admin, { nama: unik("IGD") });
-    assert.deepEqual((await trenCapaian(kepalaUnit(lain.id), indikatorId, "2026-07")).unit, []);
-    assert.deepEqual((await trenCapaian(kepalaUnit(), indikatorId, "2026-07")).unit, []);
+    const lain = await unitBaru("IGD");
+    const kepalaLain = await kepalaUnit(lain.id);
+    assert.deepEqual((await trenCapaian(kepalaLain, indikatorId, "2026-07")).unit, []);
+    // Sesi tanpa Unit (tidak bisa dibuat lewat service Pengguna) juga tidak melihat Capaian apa pun.
+    assert.deepEqual((await trenCapaian({ ...kepalaLain, unitIds: [] }, indikatorId, "2026-07")).unit, []);
   });
 
   for (const peran of ["komiteMutu", "direktur", "adminSistem"] satisfies Peran[]) {
     it(`${LABEL_PERAN[peran]} melihat Capaian RS dan Capaian semua Unit`, async () => {
       const { indikatorId, icu, hcu, ri } = await tigaUnit();
-      const tren = await trenCapaian({ ...admin, peran }, indikatorId, "2026-07");
+      const tren = await trenCapaian(await sebagai(peran), indikatorId, "2026-07");
       assert.equal(satuDesimal(pada(tren.rs, "2026-07")?.capaian), 52.5);
       assert.deepEqual(new Set(tren.unit.map((u) => u.unit.id)), new Set([icu.id, hcu.id, ri.id]));
     });
@@ -271,20 +248,20 @@ describe("Pembatasan dan riwayat", () => {
   it("tanpa sesi ditolak; bulan tidak valid dan Indikator yang tidak ada ditolak", async () => {
     const { indikatorId } = await tigaUnit();
     await assert.rejects(trenCapaian(null, indikatorId, "2026-07"), { status: 401 });
-    await assert.rejects(trenCapaian(komite(), indikatorId, "2026-13"), { status: 400 });
-    await assert.rejects(trenCapaian(komite(), "bukan-uuid", "2026-07"), { status: 404 });
-    await assert.rejects(trenCapaian(komite(), randomUUID(), "2026-07"), (e) => e instanceof ServiceError && e.status === 404);
+    await assert.rejects(trenCapaian(komite, indikatorId, "2026-13"), { status: 400 });
+    await assert.rejects(trenCapaian(komite, "bukan-uuid", "2026-07"), { status: 404 });
+    await assert.rejects(trenCapaian(komite, randomUUID(), "2026-07"), (e) => e instanceof ServiceError && e.status === 404);
   });
 
   it("Indikator dan Unit yang nonaktif tetap tampil dalam riwayat beserta Capaian-nya", async () => {
     const { indikatorId, hcu } = await tigaUnit();
     // Unit hanya bisa dinonaktifkan setelah periode Unit Pelapor-nya berakhir sebelum bulan berjalan.
-    const periodeHcu = (await ambilIndikator(komite(), indikatorId)).unitPelapor.find((p) => p.unitId === hcu.id)!;
-    await akhiriUnitPelapor(komite(), periodeHcu.id, "2026-07");
+    const periodeHcu = (await ambilIndikator(komite, indikatorId)).unitPelapor.find((p) => p.unitId === hcu.id)!;
+    await akhiriUnitPelapor(komite, periodeHcu.id, "2026-07");
     await aturAktifUnit(admin, hcu.id, false, new Date("2026-10-15T12:00:00+08:00"));
-    await aturAktifIndikator(komite(), indikatorId, false);
+    await aturAktifIndikator(komite, indikatorId, false);
 
-    const tren = await trenCapaian(komite(), indikatorId, "2026-07");
+    const tren = await trenCapaian(komite, indikatorId, "2026-07");
     assert.equal(tren.indikator.aktif, false);
     const titikHcu = tren.unit.find((u) => u.unit.id === hcu.id);
     assert.deepEqual([titikHcu?.unit.aktif, pada(titikHcu?.titik, "2026-07")?.capaian], [false, 40]);
@@ -302,11 +279,11 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
    * dan satu Indikator nonaktif yang tidak dinilai.
    */
   async function dataCampuran(tahun: string) {
-    const icu = await tambahUnit(admin, { nama: unik("ICU") });
-    const ri = await tambahUnit(admin, { nama: unik("Rawat Inap") });
+    const icu = await unitBaru("ICU");
+    const ri = await unitBaru("Rawat Inap");
     const pelapor = async (indikatorId: string, ...unitIds: string[]) => {
       for (const unitId of unitIds) {
-        await tambahUnitPelapor(komite(), indikatorId, { unitId, bulanMulai: `${tahun}-01`, bulanBerhenti: `${tahun}-06` });
+        await tambahUnitPelapor(komite, indikatorId, { unitId, bulanMulai: `${tahun}-01`, bulanBerhenti: `${tahun}-06` });
       }
     };
     const [a, b, c, d, s, nonaktif] = [
@@ -329,13 +306,13 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
     await terverifikasi(c, icu.id, `${tahun}-06`, 0, 0);
     await terverifikasi(s, icu.id, `${tahun}-06`, 95, 100);
     await terverifikasi(nonaktif, icu.id, `${tahun}-06`, 1, 10);
-    await aturAktifIndikator(komite(), nonaktif, false);
+    await aturAktifIndikator(komite, nonaktif, false);
     return { icu, ri, a, b, c, d, s, nonaktif };
   }
 
   it("Capaian RS: jumlah Indikator dinilai, Tercapai, Belum Tercapai, kosong, Kelengkapan keseluruhan, dan daftar Belum Tercapai", async () => {
     const { a, b, c, d, s } = await dataCampuran("2023");
-    const r = await ringkasanCapaian({ ...admin, peran: "direktur" }, "2023-06");
+    const r = await ringkasanCapaian(direktur, "2023-06");
 
     assert.deepEqual(new Set(r.baris.map((x) => x.indikator.id)), new Set([a, b, c, d, s]));
     assert.ok(r.baris.every((x) => x.unit === null));
@@ -347,19 +324,20 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
     );
     assert.deepEqual(r.baris.find((x) => x.indikator.id === b)?.kelengkapan, { terverifikasi: 1, wajib: 2 });
     for (const peran of ["komiteMutu", "adminSistem"] satisfies Peran[]) {
-      const lain = await ringkasanCapaian({ ...admin, peran }, "2023-06");
+      const lain = await ringkasanCapaian(await sebagai(peran), "2023-06");
       assert.deepEqual([lain.jumlah, lain.kelengkapan], [{ dinilai: 5, tercapai: 2, belumTercapai: 1, kosong: 2 }, { terverifikasi: 5, wajib: 7 }]);
     }
 
     // Mei: Indikator Semesteran tidak dinilai, Indikator Bulanan belum punya Capaian.
-    const mei = await ringkasanCapaian({ ...admin, peran: "direktur" }, "2023-05");
+    const mei = await ringkasanCapaian(direktur, "2023-05");
     assert.deepEqual(mei.jumlah, { dinilai: 4, tercapai: 0, belumTercapai: 0, kosong: 4 });
     assert.deepEqual(mei.kelengkapan, { terverifikasi: 0, wajib: 6 });
   });
 
   it("Petugas Input Data dan Kepala Unit: satu baris per Indikator dan Unit-nya, dari Capaian Unit", async () => {
     const { icu, ri, a, b } = await dataCampuran("2024");
-    const r = await ringkasanCapaian({ ...admin, peran: "petugasInputData", unitIds: [ri.id] }, "2024-06");
+    const petugas = await sebagai("petugasInputData", [ri.id]);
+    const r = await ringkasanCapaian(petugas, "2024-06");
     assert.deepEqual(
       new Map(r.baris.map((x) => [x.indikator.id, [x.unit?.id, x.status]])),
       new Map([
@@ -371,17 +349,16 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
     assert.deepEqual(r.kelengkapan, { terverifikasi: 1, wajib: 2 });
     assert.deepEqual(r.belumTercapai.map((x) => [x.indikator.id, x.capaian]), [[a, 50]]);
 
-    const kepala = await ringkasanCapaian(kepalaUnit(icu.id, ri.id), "2024-06");
+    const kepala = await ringkasanCapaian(await kepalaUnit(icu.id, ri.id), "2024-06");
     assert.deepEqual(kepala.jumlah, { dinilai: 7, tercapai: 3, belumTercapai: 1, kosong: 3 });
     assert.deepEqual(kepala.kelengkapan, { terverifikasi: 5, wajib: 7 });
 
-    // Belum terkait ke Unit mana pun: tidak melihat Capaian apa pun, termasuk Capaian RS.
-    const tanpaUnit = await ringkasanCapaian({ ...admin, peran: "petugasInputData", unitIds: [] }, "2024-06");
+    // Sesi tanpa Unit (tidak bisa dibuat lewat service Pengguna): tidak melihat Capaian apa pun, termasuk Capaian RS.
+    const tanpaUnit = await ringkasanCapaian({ ...petugas, unitIds: [] }, "2024-06");
     assert.deepEqual([tanpaUnit.baris, tanpaUnit.kelengkapan], [[], { terverifikasi: 0, wajib: 0 }]);
   });
 
   it("tanpa bulan pilihan, ringkasan untuk bulan lalu menurut WITA: 1 November 00.30 WITA = Oktober", async () => {
-    const direktur: Pengguna = { ...admin, peran: "direktur" };
     // 31 Oktober 16.30 UTC = 1 November 00.30 WITA; 15.59 UTC = 31 Oktober 23.59 WITA.
     assert.equal((await ringkasanCapaian(direktur, undefined, new Date("2026-10-31T16:30:00Z"))).bulan, "2026-10");
     assert.equal((await ringkasanCapaian(direktur, undefined, new Date("2026-10-31T15:59:00Z"))).bulan, "2026-09");
@@ -390,8 +367,8 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
   });
 
   it("Tercapai dan Belum Tercapai menyebut berapa di antaranya yang belum lengkap (Capaian RS sementara)", async () => {
-    const icu = await tambahUnit(admin, { nama: unik("ICU") });
-    const ri = await tambahUnit(admin, { nama: unik("Rawat Inap") });
+    const icu = await unitBaru("ICU");
+    const ri = await unitBaru("Rawat Inap");
     const [tercapaiLengkap, tercapaiSementara, belumTercapaiSementara] = [
       await indikatorBaru(),
       await indikatorBaru(),
@@ -399,7 +376,7 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
     ];
     for (const indikatorId of [tercapaiLengkap, tercapaiSementara, belumTercapaiSementara]) {
       for (const unitId of [icu.id, ri.id]) {
-        await tambahUnitPelapor(komite(), indikatorId, { unitId, bulanMulai: "2022-01", bulanBerhenti: "2022-06" });
+        await tambahUnitPelapor(komite, indikatorId, { unitId, bulanMulai: "2022-01", bulanBerhenti: "2022-06" });
       }
     }
     // Target 80 %: ICU dan Rawat Inap 9/10 = Tercapai lengkap; hanya ICU 9/10 = Tercapai, hanya ICU 1/10 = Belum Tercapai.
@@ -408,12 +385,12 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
     await terverifikasi(tercapaiSementara, icu.id, "2022-06", 9, 10);
     await terverifikasi(belumTercapaiSementara, icu.id, "2022-06", 1, 10);
 
-    const r = await ringkasanCapaian({ ...admin, peran: "direktur" }, "2022-06");
+    const r = await ringkasanCapaian(direktur, "2022-06");
     assert.deepEqual(r.jumlah, { dinilai: 3, tercapai: 2, belumTercapai: 1, kosong: 0 });
     assert.deepEqual(r.jumlahBelumLengkap, { tercapai: 1, belumTercapai: 1 });
 
     // Capaian Unit selalu dari satu Pengukuran Terverifikasi, jadi tidak pernah belum lengkap.
-    const kepala = await ringkasanCapaian(kepalaUnit(icu.id, ri.id), "2022-06");
+    const kepala = await ringkasanCapaian(await kepalaUnit(icu.id, ri.id), "2022-06");
     assert.deepEqual(kepala.jumlah, { dinilai: 6, tercapai: 3, belumTercapai: 1, kosong: 2 });
     assert.deepEqual(kepala.jumlahBelumLengkap, { tercapai: 0, belumTercapai: 0 });
   });
@@ -421,18 +398,18 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
   it("tanpa sesi, bulan tidak valid, dan bulan setelah bulan berjalan ditolak", async () => {
     const sekarang = new Date("2026-10-15T12:00:00+08:00");
     await assert.rejects(ringkasanCapaian(null, "2024-06"), { status: 401 });
-    await assert.rejects(ringkasanCapaian(komite(), "Juni"), { status: 400 });
-    await assert.rejects(ringkasanCapaian(komite(), "2026-11", sekarang), {
+    await assert.rejects(ringkasanCapaian(komite, "Juni"), { status: 400 });
+    await assert.rejects(ringkasanCapaian(komite, "2026-11", sekarang), {
       status: 400,
       message: "November 2026 belum berjalan.",
     });
-    assert.equal((await ringkasanCapaian(komite(), "2026-10", sekarang)).bulan, "2026-10");
+    assert.equal((await ringkasanCapaian(komite, "2026-10", sekarang)).bulan, "2026-10");
 
     const indikatorId = await indikatorBaru();
-    await assert.rejects(trenCapaian(komite(), indikatorId, "2026-11", sekarang), {
+    await assert.rejects(trenCapaian(komite, indikatorId, "2026-11", sekarang), {
       status: 400,
       message: "November 2026 belum berjalan.",
     });
-    assert.equal((await trenCapaian(komite(), indikatorId, "2026-10", sekarang)).bulan.at(-1), "2026-10");
+    assert.equal((await trenCapaian(komite, indikatorId, "2026-10", sekarang)).bulan.at(-1), "2026-10");
   });
 });

@@ -2,21 +2,18 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { before, describe, it } from "node:test";
 
-import { config } from "@/lib/config";
 import { LABEL_PERAN, PERAN } from "@/lib/peran";
 import { gantiSandi, masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
 import { aturAktifPengguna, daftarPengguna, resetSandi, tambahPengguna, ubahPengguna } from "@/modules/pengguna/service";
-import { aturAktifUnit, tambahUnit } from "@/modules/unit/service";
+import { aturAktifUnit } from "@/modules/unit/service";
+
+import { adminSistem, SANDI, unik, unitBaru } from "./bantuan";
 
 let admin: Pengguna;
 before(async () => {
-  admin = (await penggunaDariToken(await masuk({ ...config.adminAwal, ip: "10.4.0.1" })))!;
+  admin = await adminSistem();
 });
 
-// Satu database untuk semua tes: setiap tes memakai username dan nama Unit sendiri.
-const unik = (awalan: string) => `${awalan}-${randomUUID().slice(0, 8)}`;
-const unitBaru = (awalan: string) => tambahUnit(admin, { nama: unik(awalan) });
-const SANDI = "sandi-awal-1";
 const unitDari = async (id: string) => (await daftarPengguna(admin)).find((p) => p.id === id)?.unit.map((u) => u.id);
 
 describe("kelola Pengguna", () => {
