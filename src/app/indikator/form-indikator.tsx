@@ -6,7 +6,14 @@ import { useActionState } from "react";
 import { ARAH, FREKUENSI, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import type { Indikator } from "@/modules/indikator/service";
 
-import { aturAktifIndikatorAction, tambahIndikatorAction, ubahIndikatorAction } from "./actions";
+import {
+  akhiriUnitPelaporAction,
+  aturAktifIndikatorAction,
+  hapusUnitPelaporAction,
+  tambahIndikatorAction,
+  tambahUnitPelaporAction,
+  ubahIndikatorAction,
+} from "./actions";
 
 const kelasInput =
   "w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring";
@@ -159,5 +166,126 @@ export function TombolAktif({ id, aktif }: { id: string; aktif: boolean }) {
       </button>
       <PesanError pesan={state.error} />
     </form>
+  );
+}
+
+/** Form tambah Unit Pelapor di detail Indikator. `unit` = pilihan Unit aktif, `bulanIni` = bulan mulai bawaan. */
+export function FormUnitPelapor({
+  indikatorId,
+  unit,
+  bulanIni,
+}: {
+  indikatorId: string;
+  unit: { id: string; nama: string }[];
+  bulanIni: string;
+}) {
+  const [state, action, pending] = useActionState(tambahUnitPelaporAction, {});
+  return (
+    <form action={action} className="grid gap-3">
+      <input type="hidden" name="indikatorId" value={indikatorId} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Kolom label="Unit" htmlFor="unitId">
+          <select id="unitId" name="unitId" required defaultValue={state.nilai?.unitId ?? ""} className={kelasBaris}>
+            <option value="" disabled>
+              Pilih Unit
+            </option>
+            {unit.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.nama}
+              </option>
+            ))}
+          </select>
+        </Kolom>
+        <Kolom label="Bulan mulai" htmlFor="bulanMulai">
+          <input
+            id="bulanMulai"
+            name="bulanMulai"
+            type="month"
+            required
+            defaultValue={state.nilai?.bulanMulai ?? bulanIni}
+            className={kelasBaris}
+          />
+        </Kolom>
+        <Kolom label="Bulan berhenti (opsional)" htmlFor="bulanBerhenti" petunjuk="Kosongkan bila masih berlangsung.">
+          <input
+            id="bulanBerhenti"
+            name="bulanBerhenti"
+            type="month"
+            defaultValue={state.nilai?.bulanBerhenti}
+            className={kelasBaris}
+          />
+        </Kolom>
+      </div>
+      <PesanError pesan={state.error} />
+      <button type="submit" disabled={pending} className={`${tombolUtama} w-fit`}>
+        {pending ? "Menyimpan…" : "Tambah Unit Pelapor"}
+      </button>
+    </form>
+  );
+}
+
+/** Aksi pengelola untuk satu periode Unit Pelapor: mengakhiri (mengisi bulan berhenti) atau menghapus salah input. */
+export function AksiUnitPelapor({
+  id,
+  namaUnit,
+  bulanBerhenti,
+}: {
+  id: string;
+  namaUnit: string;
+  bulanBerhenti: string | null;
+}) {
+  const [akhiri, akhiriAction, akhiriPending] = useActionState(akhiriUnitPelaporAction, {});
+  const [hapus, hapusAction, hapusPending] = useActionState(hapusUnitPelaporAction, {});
+  const idBerhenti = `berhenti-${id}`;
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+        <details>
+          <summary className="cursor-pointer text-[13px] font-medium text-primary pointer-coarse:py-2">
+            {bulanBerhenti ? "Ubah bulan berhenti" : "Akhiri"}
+          </summary>
+          <form action={akhiriAction} className="mt-2 grid gap-1.5">
+            <input type="hidden" name="id" value={id} />
+            <label htmlFor={idBerhenti} className="text-[13px] font-medium">
+              Bulan berhenti
+            </label>
+            <div className="flex gap-2">
+              <input
+                id={idBerhenti}
+                name="bulanBerhenti"
+                type="month"
+                required
+                defaultValue={akhiri.nilai?.bulanBerhenti ?? bulanBerhenti ?? ""}
+                className={kelasBaris}
+              />
+              <button type="submit" disabled={akhiriPending} className={tombolUtama}>
+                Simpan
+              </button>
+            </div>
+            <p className="text-[12.5px] text-muted-foreground">
+              Masih wajib melapor pada bulan ini, tidak lagi mulai bulan berikutnya.
+            </p>
+          </form>
+        </details>
+        <form
+          action={hapusAction}
+          onSubmit={(e) => {
+            if (!confirm(`Hapus periode Unit Pelapor ${namaUnit}? Hapus hanya untuk koreksi salah input.`)) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <input type="hidden" name="id" value={id} />
+          <button
+            type="submit"
+            disabled={hapusPending}
+            className="text-[13px] font-medium text-danger hover:underline disabled:opacity-70 pointer-coarse:py-2"
+          >
+            Hapus
+          </button>
+        </form>
+      </div>
+      <PesanError pesan={akhiri.error ?? hapus.error} />
+    </div>
   );
 }

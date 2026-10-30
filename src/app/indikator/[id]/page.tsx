@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { labelBulan } from "@/lib/bulan";
+import { bulanBerjalan, labelBulan, labelPeriode } from "@/lib/bulan";
 import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
+import { pilihanUnit } from "@/modules/unit/service";
 
-import { TombolAktif } from "../form-indikator";
+import { AksiUnitPelapor, FormUnitPelapor, TombolAktif } from "../form-indikator";
 import { muatIndikator } from "./muat";
 
 export const metadata: Metadata = { title: "Detail Indikator" };
 
 export default async function HalamanDetailIndikator({ params }: PageProps<"/indikator/[id]">) {
   const { pengguna, indikator } = await muatIndikator((await params).id);
+  // Pilihan Unit hanya untuk pengelola (form tambah Unit Pelapor); null = tanpa aksi kelola.
+  const pilihan = bolehKelolaIndikator(pengguna) ? await pilihanUnit(pengguna) : null;
   const field: [string, string][] = [
     ["Kelompok", indikator.kelompok],
     ["Definisi operasional", indikator.definisiOperasional],
@@ -72,6 +75,53 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface shadow-xs">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-[15px] font-semibold">Unit Pelapor</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            Unit yang wajib mengisi Indikator ini setiap bulan selama periodenya.
+            {indikator.kelompok === "IMP-Unit" && " IMP-Unit hanya boleh punya satu Unit Pelapor pada bulan yang sama."}
+          </p>
+        </div>
+        {indikator.unitPelapor.length === 0 ? (
+          <p className="px-4 py-3 text-muted-foreground">Belum ada Unit Pelapor.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {indikator.unitPelapor.map((p) => (
+              <li key={p.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                <div>
+                  <span className="font-semibold">{p.namaUnit}</span>
+                  {!p.unitAktif && (
+                    <span className="ml-2 rounded bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      Unit nonaktif
+                    </span>
+                  )}
+                  <span className="block text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanBerhenti)}</span>
+                </div>
+                {pilihan && (
+                  // Key berisi bulan berhenti: setelah disimpan, baris dibuat ulang sehingga form tertutup.
+                  <AksiUnitPelapor
+                    key={p.bulanBerhenti ?? ""}
+                    id={p.id}
+                    namaUnit={p.namaUnit}
+                    bulanBerhenti={p.bulanBerhenti}
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {pilihan && (
+          <div className="border-t border-border p-4">
+            {pilihan.length === 0 ? (
+              <p className="text-muted-foreground">Belum ada Unit aktif. Admin Sistem menambahkannya di menu Unit.</p>
+            ) : (
+              <FormUnitPelapor indikatorId={indikator.id} unit={pilihan} bulanIni={bulanBerjalan()} />
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

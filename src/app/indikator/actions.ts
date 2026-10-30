@@ -6,8 +6,11 @@ import { redirect } from "next/navigation";
 import { ServiceError } from "@/lib/errors";
 import type { Arah, Frekuensi } from "@/lib/indikator";
 import {
+  akhiriUnitPelapor,
   aturAktifIndikator,
+  hapusUnitPelapor,
   tambahIndikator,
+  tambahUnitPelapor,
   ubahIndikator,
   type IndikatorBaru,
   type IsianIndikator,
@@ -77,17 +80,44 @@ export async function ubahIndikatorAction(_prev: StateIndikator, formData: FormD
   });
 }
 
-export async function aturAktifIndikatorAction(_prev: StateIndikator, formData: FormData): Promise<StateIndikator> {
+/** Perubahan di halaman detail Indikator: penolakan menjadi pesan form, sukses memuat ulang halaman. */
+async function ubahDiDetail(formData: FormData, jalankan: () => Promise<unknown>): Promise<StateIndikator> {
   try {
-    await aturAktifIndikator(
-      await getSessionUser(),
-      String(formData.get("id") ?? ""),
-      formData.get("aktif") === "true",
-    );
+    await jalankan();
   } catch (error) {
-    if (error instanceof ServiceError) return { error: error.message };
+    if (error instanceof ServiceError) {
+      return { error: error.message, nilai: Object.fromEntries(formData) as Record<string, string> };
+    }
     throw error;
   }
   revalidatePath("/indikator", "layout");
   return {};
+}
+
+const isian = (formData: FormData, nama: string) => String(formData.get(nama) ?? "");
+
+export async function aturAktifIndikatorAction(_prev: StateIndikator, formData: FormData) {
+  return ubahDiDetail(formData, async () =>
+    aturAktifIndikator(await getSessionUser(), isian(formData, "id"), formData.get("aktif") === "true"),
+  );
+}
+
+export async function tambahUnitPelaporAction(_prev: StateIndikator, formData: FormData) {
+  return ubahDiDetail(formData, async () =>
+    tambahUnitPelapor(await getSessionUser(), isian(formData, "indikatorId"), {
+      unitId: isian(formData, "unitId"),
+      bulanMulai: isian(formData, "bulanMulai"),
+      bulanBerhenti: isian(formData, "bulanBerhenti"),
+    }),
+  );
+}
+
+export async function akhiriUnitPelaporAction(_prev: StateIndikator, formData: FormData) {
+  return ubahDiDetail(formData, async () =>
+    akhiriUnitPelapor(await getSessionUser(), isian(formData, "id"), isian(formData, "bulanBerhenti")),
+  );
+}
+
+export async function hapusUnitPelaporAction(_prev: StateIndikator, formData: FormData) {
+  return ubahDiDetail(formData, async () => hapusUnitPelapor(await getSessionUser(), isian(formData, "id")));
 }
