@@ -9,3 +9,6 @@ export const LABEL_PERAN: Record<Peran, string> = {
   direktur: "Direktur",
   adminSistem: "Admin Sistem",
 };
+
+/** Peran yang bekerja untuk Unit tertentu (satu atau lebih Unit aktif); peran lain tidak punya Unit. */
+export const PERAN_BER_UNIT: readonly Peran[] = ["petugasInputData", "kepalaUnit"];

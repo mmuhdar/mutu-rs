@@ -3,6 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { unit } from "@/db/schema";
 import { ServiceError } from "@/lib/errors";
+import { apakahUuid } from "@/lib/uuid";
 import { type Pengguna, wajibPengguna, wajibPeran } from "@/modules/auth/service";
 
 const HANYA_ADMIN = "Hanya Admin Sistem yang boleh mengelola Unit.";
@@ -27,9 +28,8 @@ async function simpanNama<T>(nama: string, simpan: () => Promise<T>) {
   }
 }
 
-/** Mengubah satu Unit; id yang bukan uuid (mis. dari form yang diutak-atik) dianggap tidak ada, bukan error 500. */
 async function ubahUnit(id: string, data: Partial<typeof unit.$inferInsert>) {
-  const [hasil] = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  const [hasil] = apakahUuid(id)
     ? await db.update(unit).set(data).where(eq(unit.id, id)).returning(kolom)
     : [];
   if (!hasil) throw new ServiceError(404, "Unit tidak ditemukan.");

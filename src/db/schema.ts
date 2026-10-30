@@ -1,6 +1,6 @@
 // Skema database (Drizzle). Setelah mengubah file ini jalankan `npm run db:generate -- --name <slug>`.
 import { sql } from "drizzle-orm";
-import { boolean, check, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, check, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { PERAN, type Peran } from "../lib/peran";
 
@@ -36,6 +36,20 @@ export const unit = pgTable(
   },
   // Nama disimpan tanpa spasi di tepi (dirapikan di service), unik tanpa membedakan huruf besar/kecil.
   (t) => [uniqueIndex("unit_nama_unique").on(sql`lower(${t.nama})`)],
+);
+
+/** Unit milik Petugas Input Data dan Kepala Unit (peran lain tidak punya Unit). */
+export const penggunaUnit = pgTable(
+  "pengguna_unit",
+  {
+    penggunaId: uuid("pengguna_id")
+      .notNull()
+      .references(() => pengguna.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => unit.id),
+  },
+  (t) => [primaryKey({ columns: [t.penggunaId, t.unitId] })],
 );
 
 /** Sesi masuk: cookie berisi token acak, database hanya menyimpan hash SHA-256-nya. */

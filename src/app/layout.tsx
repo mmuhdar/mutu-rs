@@ -3,7 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 
 import { config } from "@/lib/config";
-import { LABEL_PERAN, type Peran } from "@/lib/peran";
+import { LABEL_PERAN, PERAN, type Peran } from "@/lib/peran";
 import { getSessionUser } from "@/server/sesi";
 
 import { keluarAction } from "./actions";
@@ -19,6 +19,8 @@ export const metadata: Metadata = {
 /** Menu utama, disaring per peran. Hanya tampilan: hak akses tetap diperiksa di service. */
 const MENU: { href: string; label: string; peran: readonly Peran[] }[] = [
   { href: "/unit", label: "Unit", peran: ["adminSistem"] },
+  { href: "/pengguna", label: "Pengguna", peran: ["adminSistem"] },
+  { href: "/sandi", label: "Ganti sandi", peran: PERAN },
 ];
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
