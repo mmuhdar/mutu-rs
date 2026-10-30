@@ -236,7 +236,7 @@ export async function tetapkanTarget(aktor: Pengguna | null, indikatorId: string
 
 /**
  * Target yang berlaku untuk Indikator pada bulan "YYYY-MM" (aturannya `targetPadaBulan` di `src/lib/indikator.ts`).
- * Semua peran boleh membaca; dipakai modul Capaian.
+ * Semua peran boleh membaca.
  */
 export async function targetBerlaku(aktor: Pengguna | null, indikatorId: string, bulan: string) {
   wajibPengguna(aktor);
@@ -394,8 +394,8 @@ export async function hapusUnitPelapor(aktor: Pengguna | null, id: string) {
 }
 
 /**
- * Unit Pelapor yang aktif untuk Indikator pada bulan "YYYY-MM", urut nama Unit. Dipakai isian Pengukuran dan
- * modul Capaian. Unit yang sudah nonaktif tetap terhitung selama periodenya berlangsung (`unitAktif` = false).
+ * Unit Pelapor yang aktif untuk Indikator pada bulan "YYYY-MM", urut nama Unit. Unit yang sudah nonaktif tetap
+ * terhitung selama periodenya berlangsung (`unitAktif` = false).
  */
 export async function unitPelaporAktif(aktor: Pengguna | null, indikatorId: string, bulan: string) {
   wajibPengguna(aktor);

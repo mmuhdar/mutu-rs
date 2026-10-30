@@ -6,10 +6,3 @@ export const LABEL_STATUS_PENGUKURAN: Record<StatusPengukuran, string> = {
   diajukan: "Diajukan",
   terverifikasi: "Terverifikasi",
 };
-
-/** Capaian = N/D × faktor; kosong (null) bila D = 0. */
-export const hitungCapaian = (n: number, d: number, faktor: number) => (d === 0 ? null : (n / d) * faktor);
-
-/** "90,5 %"; null (D = 0) = "kosong". */
-export const formatCapaian = (capaian: number | null, satuan: string) =>
-  capaian === null ? "kosong" : `${capaian.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${satuan}`;

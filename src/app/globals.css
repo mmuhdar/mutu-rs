@@ -25,6 +25,9 @@
   --success-soft: #e6f5ec;
   --warning: #a8480a;
   --warning-soft: #fff4e0;
+
+  /* Garis Target di grafik: abu-abu muda supaya terbedakan dari garis Capaian (primary), juga untuk buta warna. */
+  --chart-target: #9aaab0;
 }
 
 @theme inline {
@@ -45,6 +48,7 @@
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
+  --color-chart-target: var(--chart-target);
 }
 
 @layer base {

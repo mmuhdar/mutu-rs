@@ -9,9 +9,13 @@ export function bulanBerjalan(sekarang = new Date()): string {
 }
 
 /** Bulan sebelum bulan berjalan ("YYYY-MM"): bulan bawaan daftar isian dan Dashboard. */
-export function bulanLalu(sekarang = new Date()): string {
-  const [tahun, bulan] = bulanBerjalan(sekarang).split("-").map(Number);
-  return bulan === 1 ? `${tahun - 1}-12` : `${tahun}-${String(bulan - 1).padStart(2, "0")}`;
+export const bulanLalu = (sekarang = new Date()) => geserBulan(bulanBerjalan(sekarang), -1);
+
+/** Bulan "YYYY-MM" digeser sejumlah bulan (negatif = mundur): geserBulan("2026-01", -1) = "2025-12". */
+export function geserBulan(bulan: string, jumlah: number) {
+  const [tahun, b] = bulan.split("-").map(Number);
+  const urutan = tahun * 12 + b - 1 + jumlah;
+  return `${Math.floor(urutan / 12)}-${String((urutan % 12) + 1).padStart(2, "0")}`;
 }
 
 /** Benar bila teks berbentuk bulan "YYYY-MM". */
@@ -28,5 +32,11 @@ export const labelPeriode = (mulai: string, berhenti: string | null) =>
 /** "2026-10" → "Oktober 2026". */
 export const labelBulan = (bulan: string) =>
   new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(`${keTanggal(bulan)}T00:00:00Z`),
+  );
+
+/** "2026-10" → "Okt 2026", untuk tabel dan grafik yang sempit. */
+export const labelBulanPendek = (bulan: string) =>
+  new Intl.DateTimeFormat("id-ID", { month: "short", year: "numeric", timeZone: "UTC" }).format(
     new Date(`${keTanggal(bulan)}T00:00:00Z`),
   );

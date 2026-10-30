@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { formatCapaian, hitungCapaian } from "@/lib/pengukuran";
+import { formatCapaian, hitungCapaian } from "@/lib/capaian";
 
 import { simpanPengukuranAction } from "./actions";
 

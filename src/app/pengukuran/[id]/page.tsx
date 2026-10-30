@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { labelBulan } from "@/lib/bulan";
-import { formatCapaian, hitungCapaian } from "@/lib/pengukuran";
+import { formatCapaian, hitungCapaian } from "@/lib/capaian";
 import { PERAN_BER_UNIT } from "@/lib/peran";
 import { ambilPengukuran } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";

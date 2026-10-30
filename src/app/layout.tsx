@@ -21,6 +21,7 @@ const MENU: { href: string; label: string; peran: readonly Peran[] }[] = [
   { href: "/pengukuran", label: "Isi Pengukuran", peran: ["petugasInputData", "kepalaUnit"] },
   { href: "/pengukuran/verifikasi", label: "Verifikasi", peran: ["kepalaUnit"] },
   { href: "/pengukuran/pantau", label: "Status Pengukuran", peran: ["komiteMutu", "adminSistem"] },
+  { href: "/monitoring", label: "Monitoring", peran: PERAN },
   { href: "/indikator", label: "Indikator", peran: PERAN },
   { href: "/unit", label: "Unit", peran: ["adminSistem"] },
   { href: "/pengguna", label: "Pengguna", peran: ["adminSistem"] },
