@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 
-import { ServiceError } from "@/lib/errors";
 import { daftarPengguna } from "@/modules/pengguna/service";
 import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
+import { pesanAtau } from "../pengukuran/status";
 import { BarisPengguna, FormTambahPengguna } from "./form-pengguna";
 
 export const metadata: Metadata = { title: "Pengguna" };
@@ -14,10 +14,7 @@ const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
 export default async function HalamanPengguna() {
   const pengguna = await requireUser();
   // Hak akses diperiksa di service; penolakannya ditampilkan sebagai pesan, bukan halaman error.
-  const daftar = await daftarPengguna(pengguna).catch((error) => {
-    if (error instanceof ServiceError) return error.message;
-    throw error;
-  });
+  const daftar = await pesanAtau(daftarPengguna(pengguna));
   if (typeof daftar === "string") {
     return (
       <p role="alert" className={`${kelasKartu} p-5`}>
