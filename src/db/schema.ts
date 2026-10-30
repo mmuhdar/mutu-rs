@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { ARAH, FREKUENSI, KELOMPOK, type Arah, type Frekuensi, type Kelompok } from "../lib/indikator";
+import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
 import { PERAN, type Peran } from "../lib/peran";
 
 const id = () => uuid("id").primaryKey().defaultRandom();
@@ -156,5 +157,64 @@ export const unitPelapor = pgTable(
     check("unit_pelapor_bulan_mulai_check", sql`extract(day from ${t.bulanMulai}) = 1`),
     check("unit_pelapor_bulan_berhenti_check", sql`extract(day from ${t.bulanBerhenti}) = 1`),
     check("unit_pelapor_periode_check", sql`${t.bulanBerhenti} >= ${t.bulanMulai}`),
+  ],
+);
+
+/**
+ * Pengukuran: N dan D satu Indikator di satu Unit untuk satu bulan. Unik per Indikator + Unit + bulan, jadi mengisi
+ * ulang mengubah baris yang sama. Aturan isian yang bergantung pada Indikator (N ≤ D untuk faktor 100, Frekuensi,
+ * Unit Pelapor) diperiksa di service.
+ */
+export const pengukuran = pgTable(
+  "pengukuran",
+  {
+    id: id(),
+    indikatorId: uuid("indikator_id")
+      .notNull()
+      .references(() => indikator.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => unit.id),
+    bulan: date("bulan", { mode: "string" }).notNull(),
+    n: integer("n").notNull(),
+    d: integer("d").notNull(),
+    catatan: text("catatan").notNull().default(""),
+    status: varchar("status", { length: 16 }).$type<StatusPengukuran>().notNull(),
+    /** Pengguna yang terakhir menyimpan N, D, dan Catatan; diambil dari sesi. */
+    pengisiId: uuid("pengisi_id")
+      .notNull()
+      .references(() => pengguna.id),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("pengukuran_indikator_unit_bulan_unique").on(t.indikatorId, t.unitId, t.bulan),
+    check("pengukuran_bulan_check", sql`extract(day from ${t.bulan}) = 1`),
+    check("pengukuran_status_check", salahSatu(t.status, STATUS_PENGUKURAN)),
+    check("pengukuran_nd_check", sql`${t.n} >= 0 and ${t.d} >= 0 and (${t.d} > 0 or ${t.n} = 0)`),
+  ],
+);
+
+/** Riwayat Status Pengukuran: setiap simpan pertama dan setiap perpindahan status. Status asal null = baru dibuat. */
+export const riwayatStatusPengukuran = pgTable(
+  "riwayat_status_pengukuran",
+  {
+    id: id(),
+    pengukuranId: uuid("pengukuran_id")
+      .notNull()
+      .references(() => pengukuran.id),
+    statusAsal: varchar("status_asal", { length: 16 }).$type<StatusPengukuran>(),
+    statusTujuan: varchar("status_tujuan", { length: 16 }).$type<StatusPengukuran>().notNull(),
+    olehId: uuid("oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    // clock_timestamp(), bukan now(): dua perpindahan dalam satu transaksi (simpan pertama + ajukan) tetap berurutan.
+    waktu: timestamp("waktu", { withTimezone: true }).notNull().default(sql`clock_timestamp()`),
+    alasan: text("alasan"),
+  },
+  (t) => [
+    index("riwayat_status_pengukuran_idx").on(t.pengukuranId, t.waktu),
+    check("riwayat_status_pengukuran_asal_check", salahSatu(t.statusAsal, STATUS_PENGUKURAN)),
+    check("riwayat_status_pengukuran_tujuan_check", salahSatu(t.statusTujuan, STATUS_PENGUKURAN)),
   ],
 );

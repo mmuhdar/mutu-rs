@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { bulanBerjalan } from "@/lib/bulan";
+import { bulanBerjalan, bulanLalu } from "@/lib/bulan";
 
 // Tes dijalankan dengan zona waktu Asia/Makassar (WITA, UTC+8), lihat scripts/test.sh.
 describe("bulan berjalan", () => {
@@ -15,5 +15,16 @@ describe("bulan berjalan", () => {
 
   it("sudah Januari tahun berikutnya pada 1 Januari 00.00 WITA", () => {
     assert.equal(bulanBerjalan(new Date("2026-12-31T16:00:00Z")), "2027-01");
+  });
+});
+
+describe("bulan lalu", () => {
+  it("Desember tahun sebelumnya pada 1 Januari 00.00 WITA, menurut zona waktu konfigurasi", () => {
+    assert.equal(bulanLalu(new Date("2026-12-31T16:00:00Z")), "2026-12");
+    assert.equal(bulanLalu(new Date("2027-01-15T00:00:00Z")), "2026-12");
+  });
+
+  it("bulan sebelumnya di tahun yang sama", () => {
+    assert.equal(bulanLalu(new Date("2026-10-31T15:59:00Z")), "2026-09");
   });
 });

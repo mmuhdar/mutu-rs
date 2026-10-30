@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, isNull, lte, ne, or } from "drizzle-orm";
 
 import { db } from "@/db";
-import { indikator, target, unit, unitPelapor } from "@/db/schema";
+import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
 import { bulanValid, dariTanggal, keTanggal, labelPeriode } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { ARAH, FREKUENSI, type Kelompok } from "@/lib/indikator";
@@ -190,9 +190,10 @@ export type IsianUnitPelapor = { unitId: string; bulanMulai: string; bulanBerhen
 
 /**
  * Periode Unit Pelapor yang bersinggungan dengan bulan `mulai` s.d. `berhenti` (keduanya termasuk; null = tanpa
- * akhir). Satu-satunya aturan periode: aktif pada bulan M = bersinggungan dengan M s.d. M.
+ * akhir). Satu-satunya aturan periode: aktif pada bulan M = bersinggungan dengan M s.d. M. Diekspor untuk query yang
+ * menggabungkan `unit_pelapor` dengan tabel lain (mis. daftar isian per Unit).
  */
-const bersinggungan = (mulai: string, berhenti: string | null) =>
+export const bersinggungan = (mulai: string, berhenti: string | null) =>
   and(
     berhenti ? lte(unitPelapor.bulanMulai, keTanggal(berhenti)) : undefined,
     or(isNull(unitPelapor.bulanBerhenti), gte(unitPelapor.bulanBerhenti, keTanggal(mulai))),
@@ -294,12 +295,34 @@ export async function akhiriUnitPelapor(aktor: Pengguna | null, id: string, bula
 
 /**
  * Menghapus periode Unit Pelapor yang salah dimasukkan. Unit yang berhenti melapor diakhiri, bukan dihapus.
- * Periode yang sudah punya Pengukuran tidak boleh dihapus; penjaganya ditambahkan bersama tabel Pengukuran.
+ * Periode yang sudah punya Pengukuran tidak boleh dihapus. Baris Indikator dikunci `for update`, jadi Pengukuran yang
+ * sedang disimpan (menguncinya `for share`) selesai lebih dulu dan ikut terperiksa.
  */
 export async function hapusUnitPelapor(aktor: Pengguna | null, id: string) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
-  await ambilPeriode(id);
-  await db.delete(unitPelapor).where(eq(unitPelapor.id, id));
+  const periode = await ambilPeriode(id);
+  await db.transaction(async (tx) => {
+    await tx.select({ id: indikator.id }).from(indikator).where(eq(indikator.id, periode.indikatorId)).for("update");
+    const [ada] = await tx
+      .select({ id: pengukuran.id })
+      .from(pengukuran)
+      .where(
+        and(
+          eq(pengukuran.indikatorId, periode.indikatorId),
+          eq(pengukuran.unitId, periode.unitId),
+          gte(pengukuran.bulan, periode.bulanMulai),
+          periode.bulanBerhenti ? lte(pengukuran.bulan, periode.bulanBerhenti) : undefined,
+        ),
+      )
+      .limit(1);
+    if (ada) {
+      throw new ServiceError(
+        409,
+        "Periode Unit Pelapor ini sudah punya Pengukuran, jadi tidak bisa dihapus. Akhiri periodenya bila Unit berhenti melapor.",
+      );
+    }
+    await tx.delete(unitPelapor).where(eq(unitPelapor.id, id));
+  });
 }
 
 /**

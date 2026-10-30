@@ -43,6 +43,13 @@
       "when": 1793382217517,
       "tag": "0005_unit_pelapor",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793383203972,
+      "tag": "0006_pengukuran",
+      "breakpoints": true
     }
   ]
 }

@@ -14,3 +14,7 @@ export const LABEL_ARAH: Record<Arah, string> = {
 export const FREKUENSI = ["bulanan", "semesteran"] as const;
 export type Frekuensi = (typeof FREKUENSI)[number];
 export const LABEL_FREKUENSI: Record<Frekuensi, string> = { bulanan: "Bulanan", semesteran: "Semesteran" };
+
+/** Benar bila Indikator dengan Frekuensi ini diukur pada bulan "YYYY-MM" (Semesteran: hanya Juni dan Desember). */
+export const diukurPadaBulan = (frekuensi: Frekuensi, bulan: string) =>
+  frekuensi === "bulanan" || bulan.endsWith("-06") || bulan.endsWith("-12");

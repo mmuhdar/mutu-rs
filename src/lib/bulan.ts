@@ -8,6 +8,12 @@ export function bulanBerjalan(sekarang = new Date()): string {
   return `${ambil("year")}-${ambil("month")}`;
 }
 
+/** Bulan sebelum bulan berjalan ("YYYY-MM"): bulan bawaan daftar isian dan Dashboard. */
+export function bulanLalu(sekarang = new Date()): string {
+  const [tahun, bulan] = bulanBerjalan(sekarang).split("-").map(Number);
+  return bulan === 1 ? `${tahun - 1}-12` : `${tahun}-${String(bulan - 1).padStart(2, "0")}`;
+}
+
 /** Benar bila teks berbentuk bulan "YYYY-MM". */
 export const bulanValid = (bulan: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(bulan);
 
