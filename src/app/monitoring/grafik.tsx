@@ -1,12 +1,11 @@
 import { labelBulan } from "@/lib/bulan";
-import { formatCapaian, LABEL_STATUS_CAPAIAN } from "@/lib/capaian";
+import { formatAngka, formatCapaian, LABEL_STATUS_CAPAIAN } from "@/lib/capaian";
 import type { TitikCapaian } from "@/modules/capaian/service";
 
 /* Grafik tren Capaian vs Target: SVG biasa yang dirender di server, tanpa pustaka grafik dan tanpa JavaScript. */
 
 const [LEBAR, TINGGI] = [360, 190];
 const RUANG = { kiri: 34, kanan: 6, atas: 8, bawah: 32 };
-const BULAN_SINGKAT = new Intl.DateTimeFormat("id-ID", { month: "short", timeZone: "UTC" });
 /**
  * Ukuran huruf sumbu dalam satuan viewBox, jadi ikut mengecil bersama grafik. Di layar sempit (< 640 px) grafik selebar
  * ~300–340 px, jadi hurufnya dibesarkan supaya tetap terbaca (≥ 11 px sesungguhnya pada layar 390 px).
@@ -20,7 +19,6 @@ function batasAtas(nilai: number) {
 }
 
 const bulat = (v: number) => Math.round(v * 10) / 10;
-const angka = (v: number) => v.toLocaleString("id-ID", { maximumFractionDigits: 2 });
 
 /**
  * Garis Capaian (terputus di bulan yang Capaiannya kosong) dan garis Target bertangga (Target bisa berganti setiap
@@ -77,7 +75,7 @@ export function GrafikCapaian({ titik, satuan, judul }: { titik: TitikCapaian[];
               dominantBaseline="middle"
               className={`${kelasSumbu} tabular-nums`}
             >
-              {angka(v)}
+              {formatAngka(v)}
             </text>
           </g>
         ))}
@@ -89,7 +87,7 @@ export function GrafikCapaian({ titik, satuan, judul }: { titik: TitikCapaian[];
             textAnchor="middle"
             className={kelasSumbu}
           >
-            {BULAN_SINGKAT.format(new Date(`${t.bulan}-01T00:00:00Z`))}
+            {labelBulan(t.bulan, { pendek: true, tahun: false })}
             {(i === 0 || t.bulan.endsWith("-01")) && (
               <tspan x={x(i)} dy="1.15em">
                 {t.bulan.slice(0, 4)}

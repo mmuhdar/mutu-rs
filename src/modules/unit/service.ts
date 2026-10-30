@@ -3,7 +3,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { indikator, unit, unitPelapor } from "@/db/schema";
 import { bulanBerjalan } from "@/lib/bulan";
-import { ServiceError } from "@/lib/errors";
+import { kodePg, ServiceError } from "@/lib/errors";
 import { apakahUuid } from "@/lib/uuid";
 import { type Pengguna, wajibPengguna, wajibPeran } from "@/modules/auth/service";
 import { bersinggungan } from "@/modules/indikator/service";
@@ -24,8 +24,7 @@ async function simpanNama<T>(nama: string, simpan: () => Promise<T>) {
   try {
     return await simpan();
   } catch (error) {
-    const pg = ((error as { cause?: unknown }).cause ?? error) as { code?: string };
-    if (pg.code === "23505") throw new ServiceError(409, `Unit "${nama}" sudah ada.`);
+    if (kodePg(error) === "23505") throw new ServiceError(409, `Unit "${nama}" sudah ada.`);
     throw error;
   }
 }

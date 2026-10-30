@@ -1,4 +1,5 @@
 import { config } from "./config";
+import { ServiceError } from "./errors";
 
 /** Bulan berjalan ("YYYY-MM") menurut zona waktu konfigurasi, bukan zona waktu server. */
 export function bulanBerjalan(sekarang = new Date()): string {
@@ -20,6 +21,11 @@ export function geserBulan(bulan: string, jumlah: number) {
 
 /** Benar bila teks berbentuk bulan "YYYY-MM". */
 export const bulanValid = (bulan: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(bulan);
+
+/** Penjaga di service: bulan dari isian harus berbentuk "YYYY-MM"; selain itu ditolak 400 dengan `pesan`. */
+export function wajibBulan(bulan: unknown, pesan = "Bulan tidak valid."): asserts bulan is string {
+  if (typeof bulan !== "string" || !bulanValid(bulan)) throw new ServiceError(400, pesan);
+}
 
 /**
  * Bulan dari alamat halaman (`?bulan=`) di halaman yang hanya menampilkan bulan yang sudah berjalan (Dashboard,
@@ -59,14 +65,13 @@ export const dariTanggal = (tanggal: string) => tanggal.slice(0, 7);
 export const labelPeriode = (mulai: string, berhenti: string | null) =>
   berhenti ? `${labelBulan(mulai)} – ${labelBulan(berhenti)}` : `mulai ${labelBulan(mulai)}`;
 
-/** "2026-10" → "Oktober 2026". */
-export const labelBulan = (bulan: string) =>
-  new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(
-    new Date(`${keTanggal(bulan)}T00:00:00Z`),
-  );
-
-/** "2026-10" → "Okt 2026", untuk tabel dan grafik yang sempit. */
-export const labelBulanPendek = (bulan: string) =>
-  new Intl.DateTimeFormat("id-ID", { month: "short", year: "numeric", timeZone: "UTC" }).format(
-    new Date(`${keTanggal(bulan)}T00:00:00Z`),
-  );
+/**
+ * Nama bulan "YYYY-MM" untuk tampilan: "2026-10" → "Oktober 2026"; `pendek` → "Okt 2026" (tabel dan grafik yang
+ * sempit); `tahun: false` → tanpa tahun ("Okt", label sumbu grafik).
+ */
+export const labelBulan = (bulan: string, { pendek = false, tahun = true } = {}) =>
+  new Intl.DateTimeFormat("id-ID", {
+    month: pendek ? "short" : "long",
+    year: tahun ? "numeric" : undefined,
+    timeZone: "UTC",
+  }).format(new Date(`${keTanggal(bulan)}T00:00:00Z`));

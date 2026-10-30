@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { labelBulan } from "@/lib/bulan";
+import { teksAlamat } from "@/lib/form";
 import { ambilIsian } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
@@ -14,8 +15,11 @@ export const metadata: Metadata = { title: "Isi Pengukuran" };
 export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"/pengukuran/isi">) {
   const pengguna = await requireUser();
   const sp = await searchParams;
-  const ambil = (nama: string) => (typeof sp[nama] === "string" ? (sp[nama] as string) : "");
-  const kunci = { indikatorId: ambil("indikator"), unitId: ambil("unit"), bulan: ambil("bulan") };
+  const kunci = {
+    indikatorId: teksAlamat(sp, "indikator"),
+    unitId: teksAlamat(sp, "unit"),
+    bulan: teksAlamat(sp, "bulan"),
+  };
   const kembali = (
     <Link
       href={`/pengukuran?${new URLSearchParams({ unit: kunci.unitId, bulan: kunci.bulan })}`}

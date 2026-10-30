@@ -19,9 +19,12 @@ export const LABEL_STATUS_CAPAIAN: Record<StatusCapaian, string> = {
  */
 export const hitungCapaian = (n: number, d: number, faktor: number) => (d === 0 ? null : (n * faktor) / d);
 
+/** Angka untuk tampilan: "90,5", paling banyak dua desimal. */
+export const formatAngka = (angka: number) => angka.toLocaleString("id-ID", { maximumFractionDigits: 2 });
+
 /** "90,5 %"; null (D = 0) = "kosong". */
 export const formatCapaian = (capaian: number | null, satuan: string) =>
-  capaian === null ? "kosong" : `${capaian.toLocaleString("id-ID", { maximumFractionDigits: 2 })} ${satuan}`;
+  capaian === null ? "kosong" : `${formatAngka(capaian)} ${satuan}`;
 
 /** Kelengkapan: Pengukuran Terverifikasi dibanding Unit Pelapor yang aktif bulan itu. */
 export type Kelengkapan = { terverifikasi: number; wajib: number };
@@ -32,7 +35,7 @@ export type Kelengkapan = { terverifikasi: number; wajib: number };
  * bukan rata-rata Capaian Unit); Capaian Unit = baris Unit itu saja (kosong bila bukan Unit Pelapor bulan itu).
  * Status Capaian menurut Arah dan Target yang berlaku bulan itu; Capaian kosong tidak punya status.
  */
-export function nilaiCapaian(
+export function capaianDari(
   pengukuran: readonly { n: number | null; d: number | null }[],
   indikator: { faktor: number; arah: Arah },
   target: number,

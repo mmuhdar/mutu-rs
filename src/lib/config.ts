@@ -4,6 +4,8 @@
  * tidak terbekukan saat `next build`.
  */
 export const config = {
+  /** Koneksi PostgreSQL (`src/db/index.ts`). */
+  databaseUrl: process.env.DATABASE_URL,
   namaRs: process.env.NAMA_RS?.trim() || "Rumah Sakit",
   zonaWaktu: process.env.APP_TIMEZONE?.trim() || "Asia/Makassar",
   /** Admin Sistem awal, dibuat saat start hanya bila username-nya belum ada. */

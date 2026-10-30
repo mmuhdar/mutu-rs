@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { bulanBerjalan, labelBulan, labelPeriode } from "@/lib/bulan";
-import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
+import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH } from "@/lib/indikator";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { pilihanUnit } from "@/modules/unit/service";
 
@@ -77,7 +77,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
           {indikator.target.map((t, i) => (
             <li key={t.berlakuMulai} className="flex flex-wrap gap-x-3 px-4 py-3">
               <span className="font-semibold">
-                {indikator.arah === "makinRendah" ? "≤" : "≥"} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
+                {TANDA_ARAH[indikator.arah]} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
               </span>
               <span className="text-muted-foreground">
                 berlaku mulai {labelBulan(t.berlakuMulai)}

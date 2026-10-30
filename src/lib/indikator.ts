@@ -9,6 +9,8 @@ export const LABEL_ARAH: Record<Arah, string> = {
   makinTinggi: "Makin tinggi makin baik",
   makinRendah: "Makin rendah makin baik",
 };
+/** Sisi Target yang baik menurut Arah, untuk "Target ≥ 80 %". */
+export const TANDA_ARAH: Record<Arah, string> = { makinTinggi: "≥", makinRendah: "≤" };
 
 /** Frekuensi: Semesteran diisi pada bulan Juni dan Desember. */
 export const FREKUENSI = ["bulanan", "semesteran"] as const;

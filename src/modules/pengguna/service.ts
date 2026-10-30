@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
 import { db } from "@/db";
 import { pengguna, penggunaUnit, sesi, unit } from "@/db/schema";
-import { ServiceError } from "@/lib/errors";
+import { kodePg, ServiceError } from "@/lib/errors";
 import { LABEL_PERAN, PERAN, PERAN_BER_UNIT } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { hashSandiBaru, type Pengguna, wajibPeran } from "@/modules/auth/service";
@@ -33,8 +33,6 @@ async function periksa(input: DataPengguna) {
   if (unitAktif.length !== unitIds.length) throw new ServiceError(400, "Pilih hanya Unit yang aktif.");
   return { nama, peran, unitIds };
 }
-
-const kodePg = (error: unknown) => (((error as { cause?: unknown }).cause ?? error) as { code?: string }).code;
 
 /** Daftar kelola: semua Pengguna beserta status dan Unit-nya. */
 export async function daftarPengguna(aktor: Pengguna | null) {

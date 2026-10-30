@@ -2,9 +2,13 @@
 
 import { useActionState, useState } from "react";
 
+import type { AksiVerifikasi } from "@/lib/pengukuran";
+
 import { ubahStatusPengukuranAction } from "../actions";
 
 const kelasTombol = "h-12 rounded-md px-4 font-semibold disabled:opacity-70";
+/** Nilai tombol `aksi` = kunci `PERPINDAHAN` (`src/lib/pengukuran.ts`). */
+const VERIFIKASI: AksiVerifikasi = "verifikasi";
 
 /**
  * Aksi Kepala Unit pada Pengukuran Diajukan (verifikasi, kembalikan ke Draf) atau Terverifikasi (buka kembali).
@@ -13,7 +17,7 @@ const kelasTombol = "h-12 rounded-md px-4 font-semibold disabled:opacity-70";
 export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" | "terverifikasi" }) {
   const [state, action, pending] = useActionState(ubahStatusPengukuranAction, {});
   const [alasan, setAlasan] = useState("");
-  const [aksi, label, petunjuk] =
+  const [aksi, label, petunjuk]: [AksiVerifikasi, string, string] =
     status === "diajukan"
       ? ["kembalikan", "Kembalikan ke Draf", "Tulis apa yang harus diperbaiki Petugas Input Data."]
       : ["bukaKembali", "Buka kembali", "Statusnya kembali Diajukan sehingga bisa dikembalikan ke Draf untuk dikoreksi."];
@@ -27,7 +31,7 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
           <button
             type="submit"
             name="aksi"
-            value="verifikasi"
+            value={VERIFIKASI}
             disabled={pending}
             className={`${kelasTombol} w-full bg-primary text-primary-foreground hover:bg-primary-hover sm:w-auto`}
           >

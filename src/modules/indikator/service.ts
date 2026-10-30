@@ -1,9 +1,9 @@
-import { and, asc, eq, gte, isNull, lte, max, ne, or } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, max, ne, or } from "drizzle-orm";
 
 import { db } from "@/db";
 import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
-import { bulanValid, dariTanggal, keTanggal, labelBulan, labelPeriode } from "@/lib/bulan";
-import { ServiceError } from "@/lib/errors";
+import { dariTanggal, keTanggal, labelBulan, labelPeriode, wajibBulan } from "@/lib/bulan";
+import { kodePg, ServiceError } from "@/lib/errors";
 import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, targetPadaBulan, type Kelompok } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
@@ -106,11 +106,6 @@ export async function ambilIndikator(aktor: Pengguna | null, id: string) {
   wajibPengguna(aktor);
   const [baris] = apakahUuid(id) ? await db.select().from(indikator).where(eq(indikator.id, id)) : [];
   if (!baris) throw tidakDitemukan();
-  const riwayat = await db
-    .select({ nilai: target.nilai, berlakuMulai: target.berlakuMulai })
-    .from(target)
-    .where(eq(target.indikatorId, id))
-    .orderBy(asc(target.berlakuMulai));
   const periode = await db
     .select({
       id: unitPelapor.id,
@@ -127,13 +122,27 @@ export async function ambilIndikator(aktor: Pengguna | null, id: string) {
   return {
     ...baris,
     terkunci: await punyaPengukuran(db, id),
-    target: riwayat.map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) })),
+    target: (await riwayatTarget([id])).map(({ nilai, berlakuMulai }) => ({ nilai, berlakuMulai })),
     unitPelapor: periode.map((p) => ({
       ...p,
       bulanMulai: dariTanggal(p.bulanMulai),
       bulanBerhenti: p.bulanBerhenti && dariTanggal(p.bulanBerhenti),
     })),
   };
+}
+
+/**
+ * Riwayat Target beberapa Indikator (bulan mulai berlaku "YYYY-MM"), urut bulan mulai. Satu-satunya pembaca tabel
+ * `target`; Target yang berlaku pada suatu bulan = `targetPadaBulan` (`src/lib/indikator.ts`) atas riwayat satu
+ * Indikator. Tanpa pemeriksaan peran (semua peran boleh membaca Target): untuk service lain, mis. modul Capaian.
+ */
+export async function riwayatTarget(indikatorIds: string[]) {
+  const riwayat = await db
+    .select({ indikatorId: target.indikatorId, nilai: target.nilai, berlakuMulai: target.berlakuMulai })
+    .from(target)
+    .where(inArray(target.indikatorId, indikatorIds))
+    .orderBy(asc(target.berlakuMulai));
+  return riwayat.map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) }));
 }
 
 /** Benar bila Indikator sudah punya Pengukuran dengan status apa pun (cara hitungnya terkunci). */
@@ -196,8 +205,7 @@ export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBar
       return id;
     });
   } catch (error) {
-    const pg = ((error as { cause?: unknown }).cause ?? error) as { code?: string };
-    if (pg.code === "23505") throw new ServiceError(409, `Kode ${kode} sudah dipakai Indikator lain.`);
+    if (kodePg(error) === "23505") throw new ServiceError(409, `Kode ${kode} sudah dipakai Indikator lain.`);
     throw error;
   }
 }
@@ -208,9 +216,7 @@ function periksaTarget(isian: IndikatorBaru["target"] | undefined) {
   if (typeof nilai !== "number" || !Number.isFinite(nilai) || nilai < 0) {
     throw new ServiceError(400, "Target harus berupa angka ≥ 0.");
   }
-  if (typeof berlakuMulai !== "string" || !bulanValid(berlakuMulai)) {
-    throw new ServiceError(400, "Pilih bulan mulai berlaku Target.");
-  }
+  wajibBulan(berlakuMulai, "Pilih bulan mulai berlaku Target.");
   return { nilai, berlakuMulai };
 }
 
@@ -228,8 +234,7 @@ export async function tetapkanTarget(aktor: Pengguna | null, indikatorId: string
       .values({ indikatorId, nilai, berlakuMulai: keTanggal(berlakuMulai) })
       .onConflictDoUpdate({ target: [target.indikatorId, target.berlakuMulai], set: { nilai } });
   } catch (error) {
-    const pg = ((error as { cause?: unknown }).cause ?? error) as { code?: string };
-    if (pg.code === "23503") throw tidakDitemukan();
+    if (kodePg(error) === "23503") throw tidakDitemukan();
     throw error;
   }
 }
@@ -240,14 +245,8 @@ export async function tetapkanTarget(aktor: Pengguna | null, indikatorId: string
  */
 export async function targetBerlaku(aktor: Pengguna | null, indikatorId: string, bulan: string) {
   wajibPengguna(aktor);
-  if (!bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
-  const riwayat = apakahUuid(indikatorId)
-    ? await db
-        .select({ nilai: target.nilai, berlakuMulai: target.berlakuMulai })
-        .from(target)
-        .where(eq(target.indikatorId, indikatorId))
-    : [];
-  const nilai = targetPadaBulan(riwayat.map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) })), bulan);
+  wajibBulan(bulan);
+  const nilai = targetPadaBulan(apakahUuid(indikatorId) ? await riwayatTarget([indikatorId]) : [], bulan);
   // Setiap Indikator punya Target sejak dibuat, jadi riwayat kosong = Indikator tidak ada.
   if (nilai === undefined) throw tidakDitemukan();
   return nilai;
@@ -315,7 +314,7 @@ async function tolakTumpangTindih(
 /** Bulan berhenti yang sudah diperiksa (null = masih berlangsung). */
 function periksaBulanBerhenti(mulai: string, berhenti: string | null | undefined) {
   if (!berhenti) return null;
-  if (!bulanValid(berhenti)) throw new ServiceError(400, "Bulan berhenti tidak valid.");
+  wajibBulan(berhenti, "Bulan berhenti tidak valid.");
   if (berhenti < mulai) throw new ServiceError(400, "Bulan berhenti tidak boleh lebih awal dari bulan mulai.");
   return berhenti;
 }
@@ -324,7 +323,7 @@ function periksaBulanBerhenti(mulai: string, berhenti: string | null | undefined
 export async function tambahUnitPelapor(aktor: Pengguna | null, indikatorId: string, isian: IsianUnitPelapor) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const mulai = isian.bulanMulai;
-  if (typeof mulai !== "string" || !bulanValid(mulai)) throw new ServiceError(400, "Pilih bulan mulai.");
+  wajibBulan(mulai, "Pilih bulan mulai.");
   const berhenti = periksaBulanBerhenti(mulai, isian.bulanBerhenti);
   if (!apakahUuid(indikatorId)) throw tidakDitemukan();
 
@@ -419,7 +418,7 @@ export async function hapusUnitPelapor(aktor: Pengguna | null, id: string) {
  */
 export async function unitPelaporAktif(aktor: Pengguna | null, indikatorId: string, bulan: string) {
   wajibPengguna(aktor);
-  if (!bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
+  wajibBulan(bulan);
   if (!apakahUuid(indikatorId)) throw tidakDitemukan();
   return db
     .select({ unitId: unit.id, nama: unit.nama, unitAktif: unit.aktif })

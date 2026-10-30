@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
+import { teksAlamat } from "@/lib/form";
 import { LABEL_STATUS_PENGUKURAN, STATUS_PENGUKURAN } from "@/lib/pengukuran";
 import { statusPengukuranBulan } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
@@ -16,10 +17,9 @@ const PILIHAN_STATUS = [["belum", "Belum diisi"], ...STATUS_PENGUKURAN.map((s) =
 export default async function HalamanStatusPengukuran({ searchParams }: PageProps<"/pengukuran/pantau">) {
   const pengguna = await requireUser();
   const sp = await searchParams;
-  const ambil = (nama: string) => (typeof sp[nama] === "string" ? (sp[nama] as string) : "");
   const dariAlamat = bulanDariAlamat(sp.bulan);
   const bulan = dariAlamat.bulan ?? bulanLalu();
-  const [unitId, status] = [ambil("unit"), ambil("status")];
+  const [unitId, status] = [teksAlamat(sp, "unit"), teksAlamat(sp, "status")];
   const semua = await pesanAtau(statusPengukuranBulan(pengguna, bulan));
   if (typeof semua === "string") return <Pesan>{semua}</Pesan>;
 

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
-import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan, labelBulanPendek } from "@/lib/bulan";
-import { formatCapaian, LABEL_STATUS_CAPAIAN, type StatusCapaian } from "@/lib/capaian";
+import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
+import { formatAngka, formatCapaian, LABEL_STATUS_CAPAIAN, type StatusCapaian } from "@/lib/capaian";
+import { teksAlamat } from "@/lib/form";
 import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import { trenCapaian, type TitikCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
@@ -12,9 +13,8 @@ import { GrafikCapaian } from "./grafik";
 
 export const metadata: Metadata = { title: "Monitoring" };
 
-const angka = (v: number) => v.toLocaleString("id-ID", { maximumFractionDigits: 2 });
 /** Selisih Capaian terhadap Target dengan tanda: "+2", "−26,36", "0". */
-const formatSelisih = (s: number | null) => (s === null ? "–" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${angka(Math.abs(s))}`);
+const formatSelisih = (s: number | null) => (s === null ? "–" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${formatAngka(Math.abs(s))}`);
 
 const WARNA_STATUS: Record<StatusCapaian, string> = {
   tercapai: "bg-success-soft text-success",
@@ -77,7 +77,7 @@ function Tren(p: {
                 const catatan = p.catatan(t);
                 return (
                   <tr key={t.bulan} className="align-top">
-                    <td className="px-1.5 py-2 whitespace-nowrap">{labelBulanPendek(t.bulan)}</td>
+                    <td className="px-1.5 py-2 whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</td>
                     <td className="px-1.5 py-2 text-right">
                       <span className="whitespace-nowrap">
                         {/* "kosong" hanya untuk ΣD = 0 dari Pengukuran Terverifikasi; tanpa Pengukuran Terverifikasi = "–". */}
@@ -163,11 +163,10 @@ function RincianPerUnit({ tren }: { tren: TrenCapaian }) {
 export default async function HalamanMonitoring({ searchParams }: PageProps<"/monitoring">) {
   const pengguna = await requireUser();
   const sp = await searchParams;
-  const ambil = (nama: string) => (typeof sp[nama] === "string" ? (sp[nama] as string) : "");
   const dariAlamat = bulanDariAlamat(sp.bulan);
   const bulan = dariAlamat.bulan ?? bulanLalu();
   const daftar = await daftarIndikator(pengguna);
-  const indikatorId = ambil("indikator") || daftar[0]?.id;
+  const indikatorId = teksAlamat(sp, "indikator") || daftar[0]?.id;
   const tren = indikatorId ? await pesanAtau(trenCapaian(pengguna, indikatorId, bulan)) : "Belum ada Indikator.";
 
   return (

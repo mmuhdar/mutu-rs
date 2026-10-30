@@ -3,10 +3,17 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import { indikator, pengguna, pengukuran, riwayatStatusPengukuran, unit, unitPelapor } from "@/db/schema";
-import { bulanBerjalan, bulanValid, dariTanggal, keTanggal, labelBulan } from "@/lib/bulan";
+import { bulanBerjalan, dariTanggal, keTanggal, labelBulan, wajibBulan } from "@/lib/bulan";
+import { hitungCapaian } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan } from "@/lib/indikator";
-import { LABEL_STATUS_PENGUKURAN, type StatusPengukuran } from "@/lib/pengukuran";
+import {
+  aksiVerifikasi,
+  LABEL_STATUS_PENGUKURAN,
+  PERPINDAHAN,
+  type AksiVerifikasi,
+  type StatusPengukuran,
+} from "@/lib/pengukuran";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPeran, type Pengguna } from "@/modules/auth/service";
@@ -20,12 +27,20 @@ export type IsianPengukuran = KunciIsian & { n: number; d: number; catatan?: str
 /** Hanya Petugas Input Data dan Kepala Unit yang mengisi, dan hanya untuk Unit-nya sendiri. */
 const PENGISI: readonly Peran[] = ["petugasInputData", "kepalaUnit"];
 const HANYA_PENGISI = "Hanya Petugas Input Data dan Kepala Unit yang boleh mengisi dan mengajukan Pengukuran.";
+/** Hanya Kepala Unit yang memverifikasi, dan hanya Pengukuran Unit-nya sendiri. */
+const VERIFIKATOR: readonly Peran[] = ["kepalaUnit"];
+
+/** Untuk tampilan (menu isian, tautan "Ubah isian"); hak akses tetap diperiksa di setiap fungsi service. */
+export const bolehIsiPengukuran = (aktor: Pengguna) => PENGISI.includes(aktor.peran);
+/** Untuk tampilan (antrean dan form Verifikasi); hak akses tetap diperiksa di setiap fungsi service. */
+export const bolehVerifikasi = (aktor: Pengguna) => VERIFIKATOR.includes(aktor.peran);
 /** Panjang maksimal Catatan dan alasan. */
 const MAKS_TEKS = 1000;
 const MAKS_INT = 2_147_483_647;
 
 /** `db` atau transaksi yang sedang berjalan. */
 type Kueri = Pick<typeof db, "select">;
+type Transaksi = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Pengukuran milik Indikator + Unit (id atau kolom) + bulan "YYYY-MM". */
 const pengukuranUntuk = (indikatorId: string | AnyPgColumn, unitId: string | AnyPgColumn, bulan: string) =>
@@ -51,7 +66,7 @@ function wajibPengisiUnit(aktor: Pengguna | null, unitId: string): asserts aktor
 }
 
 function periksaBulan(bulan: string, sekarang: Date) {
-  if (typeof bulan !== "string" || !bulanValid(bulan)) throw new ServiceError(400, "Pilih bulan.");
+  wajibBulan(bulan, "Pilih bulan.");
   if (bulan > bulanBerjalan(sekarang)) {
     throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan, jadi belum bisa diisi.`);
   }
@@ -92,8 +107,11 @@ async function periksaKonteks(q: Kueri, aktor: Pengguna | null, k: KunciIsian, s
   return { indikator: ind, unit: u };
 }
 
-/** Aturan angka: N dan D bilangan bulat ≥ 0, D = 0 hanya bila N = 0, N ≤ D untuk faktor 100. */
-function periksaNilai(isian: IsianPengukuran, faktor: number) {
+/**
+ * Aturan N, D, dan Catatan: N dan D bilangan bulat ≥ 0, D = 0 hanya bila N = 0, N ≤ D untuk faktor 100; Catatan
+ * dirapikan dan dibatasi panjangnya.
+ */
+function periksaAngkaDanCatatan(isian: IsianPengukuran, faktor: number) {
   const { n, d } = isian;
   if (![n, d].every((x) => Number.isInteger(x) && x >= 0)) {
     throw new ServiceError(400, "N dan D harus bilangan bulat ≥ 0.");
@@ -190,9 +208,7 @@ async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: bo
     const konteks = await periksaKonteks(tx, aktor, isian, sekarang);
     const { indikator: ind, unit: u } = konteks;
     const oleh = aktor!.id;
-    const data = { ...periksaNilai(isian, ind.faktor), pengisiId: oleh, updatedAt: new Date() };
-    const catat = (id: string, statusAsal: StatusPengukuran | null, statusTujuan: StatusPengukuran) =>
-      tx.insert(riwayatStatusPengukuran).values({ pengukuranId: id, statusAsal, statusTujuan, olehId: oleh });
+    const data = { ...periksaAngkaDanCatatan(isian, ind.faktor), pengisiId: oleh, updatedAt: new Date() };
 
     // Simpan pertama dua orang sekaligus: insert kedua menunggu yang pertama, lalu mengubah baris yang sama.
     const [baru] = await tx
@@ -203,7 +219,9 @@ async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: bo
     let id: string;
     if (baru) {
       id = baru.id;
-      await catat(id, null, "draf");
+      await tx
+        .insert(riwayatStatusPengukuran)
+        .values({ pengukuranId: id, statusAsal: null, statusTujuan: "draf", olehId: oleh });
     } else {
       const [lama] = await tx
         .select({ id: pengukuran.id, status: pengukuran.status })
@@ -220,12 +238,9 @@ async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: bo
       await tx.update(pengukuran).set(data).where(eq(pengukuran.id, id));
     }
 
-    const status: StatusPengukuran = ajukan ? "diajukan" : "draf";
-    if (ajukan) {
-      await tx.update(pengukuran).set({ status }).where(eq(pengukuran.id, id));
-      await catat(id, "draf", status);
-    }
-    return { id, status };
+    // Baris ini baru dibuat atau sudah dikunci di atas, dan statusnya Draf.
+    const draf = { id, status: "draf" as StatusPengukuran };
+    return ajukan ? pindahStatus(tx, draf, "ajukan", oleh) : draf;
   });
 }
 
@@ -270,15 +285,23 @@ const pilihPengukuran = () =>
     .innerJoin(pengguna, eq(pengguna.id, pengukuran.pengisiId));
 /** Kolom bulan (tanggal 1) dikembalikan sebagai "YYYY-MM". */
 const bulanDariTanggal = <T extends { bulan: string }>(p: T) => ({ ...p, bulan: dariTanggal(p.bulan) });
+/** Baris `pilihPengukuran` untuk tampilan: bulan "YYYY-MM" dan Capaian-nya (N/D × faktor; null bila D = 0). */
+const denganCapaian = <T extends { bulan: string; n: number; d: number; indikator: { faktor: number } }>(p: T) => ({
+  ...bulanDariTanggal(p),
+  capaian: hitungCapaian(p.n, p.d, p.indikator.faktor),
+});
 
-/** Antrean Verifikasi: semua Pengukuran Diajukan dari Unit-Unit Kepala Unit, di bulan mana pun, terlama lebih dulu. */
+/**
+ * Antrean Verifikasi: semua Pengukuran Diajukan dari Unit-Unit Kepala Unit, di bulan mana pun, terlama lebih dulu,
+ * beserta Capaian-nya.
+ */
 export async function antreanVerifikasi(aktor: Pengguna | null) {
-  wajibPeran(aktor, ["kepalaUnit"], HANYA_KEPALA);
+  wajibPeran(aktor, VERIFIKATOR, HANYA_KEPALA);
   if (aktor.unitIds.length === 0) return [];
   const baris = await pilihPengukuran()
     .where(and(eq(pengukuran.status, "diajukan"), inArray(pengukuran.unitId, aktor.unitIds)))
     .orderBy(asc(pengukuran.bulan), asc(unit.nama), asc(indikator.kode));
-  return baris.map(bulanDariTanggal);
+  return baris.map(denganCapaian);
 }
 
 /**
@@ -307,15 +330,15 @@ export async function pengukuranDikembalikan(aktor: Pengguna | null) {
 /** Yang melihat status Pengukuran semua Unit: Komite Mutu dan Admin Sistem. Petugas dan Kepala Unit hanya Unit-nya. */
 const PEMANTAU: readonly Peran[] = ["komiteMutu", "adminSistem"];
 
-/** Detail Pengukuran beserta Riwayat Status-nya, untuk Unit itu, Komite Mutu, dan Admin Sistem. */
+/** Detail Pengukuran beserta Capaian dan Riwayat Status-nya, untuk Unit itu, Komite Mutu, dan Admin Sistem. */
 export async function ambilPengukuran(aktor: Pengguna | null, id: string) {
   wajibPeran(aktor, [...PENGISI, ...PEMANTAU], "Anda tidak berhak melihat Pengukuran.");
   const [p] = apakahUuid(id) ? await pilihPengukuran().where(eq(pengukuran.id, id)) : [];
   if (!p) throw new ServiceError(404, "Pengukuran tidak ditemukan.");
-  if (PENGISI.includes(aktor.peran) && !aktor.unitIds.includes(p.unit.id)) {
+  if (bolehIsiPengukuran(aktor) && !aktor.unitIds.includes(p.unit.id)) {
     throw new ServiceError(403, "Anda hanya bisa melihat Pengukuran Unit Anda sendiri.");
   }
-  return { ...bulanDariTanggal(p), riwayat: await riwayatStatus(p.id) };
+  return { ...denganCapaian(p), riwayat: await riwayatStatus(p.id) };
 }
 
 /**
@@ -344,21 +367,38 @@ export async function statusPengukuranBulan(aktor: Pengguna | null, bulan: strin
     .sort((a, b) => a.unit.nama.localeCompare(b.unit.nama, "id") || a.indikator.kode.localeCompare(b.indikator.kode, "id"));
 }
 
-/** Perpindahan status oleh Kepala Unit: dari, ke, dan kata kerjanya untuk pesan penolakan. */
-const PERPINDAHAN = {
-  verifikasi: { dari: "diajukan", ke: "terverifikasi", kata: "diverifikasi" },
-  kembalikan: { dari: "diajukan", ke: "draf", kata: "dikembalikan" },
-  bukaKembali: { dari: "terverifikasi", ke: "diajukan", kata: "dibuka kembali" },
-} as const satisfies Record<string, { dari: StatusPengukuran; ke: StatusPengukuran; kata: string }>;
+/**
+ * Satu perpindahan status (`PERPINDAHAN`, `src/lib/pengukuran.ts`) atas baris Pengukuran yang sudah dikunci di
+ * transaksi ini: status asal diperiksa, status diubah, lalu satu baris Riwayat Status ditulis beserta alasannya.
+ */
+async function pindahStatus(
+  tx: Transaksi,
+  p: { id: string; status: StatusPengukuran },
+  aksi: keyof typeof PERPINDAHAN,
+  olehId: string,
+  alasan: string | null = null,
+) {
+  const { dari, ke, kata } = PERPINDAHAN[aksi];
+  if (p.status !== dari) {
+    throw new ServiceError(
+      409,
+      `Pengukuran ini ${LABEL_STATUS_PENGUKURAN[p.status]}; hanya Pengukuran ${LABEL_STATUS_PENGUKURAN[dari]} yang bisa ${kata}.`,
+    );
+  }
+  await tx.update(pengukuran).set({ status: ke }).where(eq(pengukuran.id, p.id));
+  await tx.insert(riwayatStatusPengukuran).values({ pengukuranId: p.id, statusAsal: dari, statusTujuan: ke, olehId, alasan });
+  return { id: p.id, status: ke as StatusPengukuran };
+}
 
 /**
- * Memindahkan status Pengukuran oleh Kepala Unit dari Unit itu. Verifikasi tanpa alasan; mengembalikan dan membuka
- * kembali wajib beralasan. Baris Pengukuran dikunci, status asal diperiksa, lalu perpindahannya dicatat di Riwayat
- * Status beserta alasannya.
+ * Aksi Verifikasi oleh Kepala Unit dari Unit itu (`aksi` = kunci `PERPINDAHAN` selain `ajukan`, mis. dari tombol form
+ * Verifikasi). Verifikasi tanpa alasan; mengembalikan dan membuka kembali wajib beralasan. Baris Pengukuran dikunci
+ * sebelum Unit dan status asalnya diperiksa.
  */
-async function pindahStatus(aktor: Pengguna | null, id: string, aksi: keyof typeof PERPINDAHAN, alasan?: unknown) {
-  wajibPeran(aktor, ["kepalaUnit"], HANYA_KEPALA);
-  const { dari, ke, kata } = PERPINDAHAN[aksi];
+export async function ubahStatusPengukuran(aktor: Pengguna | null, id: string, aksi: AksiVerifikasi, alasan?: unknown) {
+  wajibPeran(aktor, VERIFIKATOR, HANYA_KEPALA);
+  // Nilai dari form bisa diutak-atik.
+  if (!aksiVerifikasi(aksi)) throw new ServiceError(400, "Aksi tidak dikenal.");
   let teks: string | null = null;
   if (aksi !== "verifikasi") {
     teks = typeof alasan === "string" ? alasan.trim() : "";
@@ -368,7 +408,7 @@ async function pindahStatus(aktor: Pengguna | null, id: string, aksi: keyof type
   return db.transaction(async (tx) => {
     const [p] = apakahUuid(id)
       ? await tx
-          .select({ unitId: pengukuran.unitId, status: pengukuran.status })
+          .select({ id: pengukuran.id, unitId: pengukuran.unitId, status: pengukuran.status })
           .from(pengukuran)
           .where(eq(pengukuran.id, id))
           .for("update")
@@ -377,27 +417,17 @@ async function pindahStatus(aktor: Pengguna | null, id: string, aksi: keyof type
     if (!aktor.unitIds.includes(p.unitId)) {
       throw new ServiceError(403, "Anda hanya bisa memverifikasi Pengukuran Unit Anda sendiri.");
     }
-    if (p.status !== dari) {
-      throw new ServiceError(
-        409,
-        `Pengukuran ini ${LABEL_STATUS_PENGUKURAN[p.status]}; hanya Pengukuran ${LABEL_STATUS_PENGUKURAN[dari]} yang bisa ${kata}.`,
-      );
-    }
-    await tx.update(pengukuran).set({ status: ke }).where(eq(pengukuran.id, id));
-    await tx
-      .insert(riwayatStatusPengukuran)
-      .values({ pengukuranId: id, statusAsal: dari, statusTujuan: ke, olehId: aktor.id, alasan: teks });
-    return { id, status: ke as StatusPengukuran };
+    return pindahStatus(tx, p, aksi, aktor.id, teks);
   });
 }
 
 /** Diajukan → Terverifikasi: angkanya ikut dihitung dalam Capaian. */
-export const verifikasiPengukuran = (aktor: Pengguna | null, id: string) => pindahStatus(aktor, id, "verifikasi");
+export const verifikasiPengukuran = (aktor: Pengguna | null, id: string) => ubahStatusPengukuran(aktor, id, "verifikasi");
 
 /** Diajukan → Draf dengan alasan, supaya Petugas tahu apa yang harus diperbaiki. */
 export const kembalikanPengukuran = (aktor: Pengguna | null, id: string, alasan: string) =>
-  pindahStatus(aktor, id, "kembalikan", alasan);
+  ubahStatusPengukuran(aktor, id, "kembalikan", alasan);
 
 /** Terverifikasi → Diajukan dengan alasan, untuk mengoreksi kesalahan yang ketahuan belakangan. */
 export const bukaKembaliPengukuran = (aktor: Pengguna | null, id: string, alasan: string) =>
-  pindahStatus(aktor, id, "bukaKembali", alasan);
+  ubahStatusPengukuran(aktor, id, "bukaKembali", alasan);

@@ -1,15 +1,15 @@
 import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
-import { bulanBerjalan, bulanLalu, bulanValid, dariTanggal, geserBulan, keTanggal, labelBulan } from "@/lib/bulan";
-import { nilaiCapaian } from "@/lib/capaian";
+import { indikator, pengukuran, unit, unitPelapor } from "@/db/schema";
+import { bulanBerjalan, bulanLalu, geserBulan, keTanggal, labelBulan, wajibBulan } from "@/lib/bulan";
+import { capaianDari } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan, targetPadaBulan } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
-import { bersinggungan } from "@/modules/indikator/service";
+import { bersinggungan, riwayatTarget } from "@/modules/indikator/service";
 
 /*
  * Modul Capaian: satu-satunya sumber angka Monitoring dan Dashboard. Rumusnya di `src/lib/capaian.ts`; di sini
@@ -18,6 +18,8 @@ import { bersinggungan } from "@/modules/indikator/service";
 
 /** Komite Mutu, Direktur, dan Admin Sistem melihat Capaian RS dan semua Unit; peran lain hanya Capaian Unit-nya. */
 const PELIHAT_RS: readonly Peran[] = ["komiteMutu", "direktur", "adminSistem"];
+/** Benar bila aktor melihat Capaian RS (dan semua Unit); salah = hanya Capaian Unit-nya. Juga untuk tampilan. */
+export const melihatCapaianRs = (aktor: Pengguna) => PELIHAT_RS.includes(aktor.peran);
 
 const kolomIndikator = {
   id: indikator.id,
@@ -33,7 +35,7 @@ const kolomIndikator = {
 
 /** Unit yang boleh dilihat aktor: semua, atau hanya Unit miliknya (termasuk yang kini nonaktif). */
 const saringUnit = (aktor: Pengguna) =>
-  PELIHAT_RS.includes(aktor.peran) ? undefined : inArray(unitPelapor.unitId, aktor.unitIds);
+  melihatCapaianRs(aktor) ? undefined : inArray(unitPelapor.unitId, aktor.unitIds);
 
 /**
  * Unit Pelapor yang aktif pada bulan "YYYY-MM" beserta Indikator dan Pengukuran Terverifikasi-nya (n dan d null =
@@ -64,18 +66,13 @@ const unitPelaporBulan = (bulan: string, saring: SQL | undefined) =>
 
 /** Bulan "YYYY-MM" yang boleh dilihat: valid dan tidak setelah bulan berjalan (bulan depan belum punya Pengukuran). */
 function periksaBulan(bulan: unknown, sekarang: Date): asserts bulan is string {
-  if (typeof bulan !== "string" || !bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
+  wajibBulan(bulan);
   if (bulan > bulanBerjalan(sekarang)) throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan.`);
 }
 
 /** Riwayat Target beberapa Indikator dibaca sekali; hasilnya = Target yang berlaku untuk Indikator pada suatu bulan. */
 async function targetUntuk(indikatorIds: string[]) {
-  const riwayat = (
-    await db
-      .select({ indikatorId: target.indikatorId, nilai: target.nilai, berlakuMulai: target.berlakuMulai })
-      .from(target)
-      .where(inArray(target.indikatorId, indikatorIds))
-  ).map((t) => ({ ...t, berlakuMulai: dariTanggal(t.berlakuMulai) }));
+  const riwayat = await riwayatTarget(indikatorIds);
   // Setiap Indikator punya Target sejak dibuat.
   return (indikatorId: string, bulan: string) =>
     targetPadaBulan(
@@ -108,7 +105,7 @@ export async function trenCapaian(aktor: Pengguna | null, indikatorId: string, b
     Promise.all(bulan.map((b) => unitPelaporBulan(b, and(eq(unitPelapor.indikatorId, ind.id), saringUnit(aktor))))),
   ]);
   const deret = (pilih: (baris: (typeof perBulan)[number]) => typeof baris) =>
-    bulan.map((b, i) => ({ bulan: b, ...nilaiCapaian(pilih(perBulan[i]), ind, targetPada(ind.id, b)) }));
+    bulan.map((b, i) => ({ bulan: b, ...capaianDari(pilih(perBulan[i]), ind, targetPada(ind.id, b)) }));
   const daftarUnit = [...new Map(perBulan.flat().map((b) => [b.unit.id, b.unit])).values()].sort((a, b) =>
     a.nama.localeCompare(b.nama, "id"),
   );
@@ -116,7 +113,7 @@ export async function trenCapaian(aktor: Pengguna | null, indikatorId: string, b
   return {
     indikator: ind,
     bulan,
-    rs: PELIHAT_RS.includes(aktor.peran) ? deret((baris) => baris) : null,
+    rs: melihatCapaianRs(aktor) ? deret((baris) => baris) : null,
     unit: daftarUnit.map((u) => ({ unit: u, titik: deret((baris) => baris.filter((b) => b.unit.id === u.id)) })),
   };
 }
@@ -142,17 +139,15 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
   );
   const daftar = [...new Map(pelapor.map((p) => [p.indikator.id, p.indikator])).values()];
   const targetPada = await targetUntuk(daftar.map((i) => i.id));
-  const nilai = (ind: (typeof daftar)[number], baris: typeof pelapor) => ({
+  const barisCapaian = (ind: (typeof daftar)[number], dari: typeof pelapor) => ({
     indikator: ind,
     bulan,
-    ...nilaiCapaian(baris, ind, targetPada(ind.id, bulan)),
+    ...capaianDari(dari, ind, targetPada(ind.id, bulan)),
   });
 
-  const baris: (ReturnType<typeof nilai> & { unit: (typeof pelapor)[number]["unit"] | null })[] = PELIHAT_RS.includes(
-    aktor.peran,
-  )
-    ? daftar.map((ind) => ({ ...nilai(ind, pelapor.filter((p) => p.indikator.id === ind.id)), unit: null }))
-    : pelapor.map((p) => ({ ...nilai(p.indikator, [p]), unit: p.unit }));
+  const baris: (ReturnType<typeof barisCapaian> & { unit: (typeof pelapor)[number]["unit"] | null })[] = melihatCapaianRs(aktor)
+    ? daftar.map((ind) => ({ ...barisCapaian(ind, pelapor.filter((p) => p.indikator.id === ind.id)), unit: null }))
+    : pelapor.map((p) => ({ ...barisCapaian(p.indikator, [p]), unit: p.unit }));
   const jumlahStatus = (status: (typeof baris)[number]["status"], daftar = baris) =>
     daftar.filter((b) => b.status === status).length;
   const belumLengkap = baris.filter((b) => b.kelengkapan.terverifikasi < b.kelengkapan.wajib);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { labelBulan } from "@/lib/bulan";
-import { formatCapaian, hitungCapaian } from "@/lib/capaian";
+import { formatCapaian } from "@/lib/capaian";
 import { antreanVerifikasi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
@@ -45,7 +45,7 @@ export default async function HalamanAntreanVerifikasi() {
                   </span>
                   <span className="shrink-0 text-right tabular-nums">
                     <span className="block font-semibold">
-                      {formatCapaian(hitungCapaian(p.n, p.d, p.indikator.faktor), p.indikator.satuan)}
+                      {formatCapaian(p.capaian, p.indikator.satuan)}
                     </span>
                     <span className="block text-[13px] text-muted-foreground">
                       {p.n}/{p.d}

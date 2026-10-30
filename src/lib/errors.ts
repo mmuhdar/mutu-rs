@@ -7,3 +7,19 @@ export class ServiceError extends Error {
     super(message);
   }
 }
+
+/** Kode error PostgreSQL (mis. "23505" unik, "23503" foreign key); Drizzle membungkus error aslinya di `cause`. */
+export const kodePg = (error: unknown) => (((error as { cause?: unknown }).cause ?? error) as { code?: string }).code;
+
+/**
+ * Untuk server action: hasil service, atau `{ error }` berisi pesan penolakannya (`ServiceError`) untuk form. Error
+ * lain tetap dilempar (halaman error).
+ */
+export async function hasilAtauError<T>(janji: Promise<T>): Promise<{ hasil: T } | { error: string }> {
+  try {
+    return { hasil: await janji };
+  } catch (error) {
+    if (error instanceof ServiceError) return { error: error.message };
+    throw error;
+  }
+}

@@ -3,18 +3,19 @@ import Link from "next/link";
 
 import { bulanBerjalan, bulanDariAlamat, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
-import type { Arah } from "@/lib/indikator";
-import { PERAN_BER_UNIT } from "@/lib/peran";
-import { ringkasanCapaian } from "@/modules/capaian/service";
-import { antreanVerifikasi, pengukuranDikembalikan } from "@/modules/pengukuran/service";
+import { TANDA_ARAH } from "@/lib/indikator";
+import { melihatCapaianRs, ringkasanCapaian } from "@/modules/capaian/service";
+import {
+  antreanVerifikasi,
+  bolehIsiPengukuran,
+  bolehVerifikasi,
+  pengukuranDikembalikan,
+} from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
 import { kelasInput, kelasKartu, Pemberitahuan, Pesan, pesanAtau } from "./pengukuran/status";
 
 export const metadata: Metadata = { title: "Dashboard" };
-
-/** Sisi Target yang baik menurut Arah, untuk "Target ≥ 80 %". */
-const TANDA_ARAH: Record<Arah, string> = { makinTinggi: "≥", makinRendah: "≤" };
 
 /** Kartu ringkasan: angka besar + keterangan; garis atas berwarna hanya pelengkap label. */
 function Kartu(p: { label: string; nilai: React.ReactNode; keterangan: React.ReactNode; garis?: string; children?: React.ReactNode }) {
@@ -39,11 +40,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const pengguna = await requireUser();
   // Bulan tidak valid atau belum berjalan diganti bulan bawaan (ditentukan service) dengan pemberitahuan.
   const { bulan, pemberitahuan } = bulanDariAlamat((await searchParams).bulan);
-  const perUnit = PERAN_BER_UNIT.includes(pengguna.peran);
+  const perUnit = !melihatCapaianRs(pengguna);
   const [ringkasan, antrean, dikembalikan] = await Promise.all([
     pesanAtau(ringkasanCapaian(pengguna, bulan)),
-    pengguna.peran === "kepalaUnit" ? antreanVerifikasi(pengguna) : null,
-    perUnit ? pengukuranDikembalikan(pengguna) : [],
+    bolehVerifikasi(pengguna) ? antreanVerifikasi(pengguna) : null,
+    bolehIsiPengukuran(pengguna) ? pengukuranDikembalikan(pengguna) : [],
   ]);
 
   return (

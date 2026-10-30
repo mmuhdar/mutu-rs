@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { labelBulan } from "@/lib/bulan";
-import { formatCapaian, hitungCapaian } from "@/lib/capaian";
-import { PERAN_BER_UNIT } from "@/lib/peran";
-import { ambilPengukuran } from "@/modules/pengukuran/service";
+import { formatCapaian } from "@/lib/capaian";
+import { ambilPengukuran, bolehIsiPengukuran, bolehVerifikasi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
 import { AlasanPengembalian, formatWaktu, kelasKartu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
@@ -22,9 +21,9 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
 
   const { indikator, unit } = p;
   const kunci = new URLSearchParams({ unit: unit.id, bulan: p.bulan });
-  const kembali = PERAN_BER_UNIT.includes(pengguna.peran)
+  const kembali = bolehIsiPengukuran(pengguna)
     ? [
-        ...(pengguna.peran === "kepalaUnit" ? [["/pengukuran/verifikasi", "← Antrean Verifikasi"]] : []),
+        ...(bolehVerifikasi(pengguna) ? [["/pengukuran/verifikasi", "← Antrean Verifikasi"]] : []),
         [`/pengukuran?${kunci}`, "← Daftar isian"],
       ]
     : [[`/pengukuran/pantau?${kunci}`, "← Status Pengukuran"]];
@@ -75,7 +74,7 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
             <span className="block text-[13px] text-muted-foreground">N/D × {indikator.faktor}</span>
           </dt>
           <dd className="text-lg font-semibold tabular-nums">
-            {formatCapaian(hitungCapaian(p.n, p.d, indikator.faktor), indikator.satuan)}
+            {formatCapaian(p.capaian, indikator.satuan)}
           </dd>
         </div>
         <div className="grid gap-1 px-4 py-3">
@@ -85,7 +84,7 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
       </dl>
 
       {p.status === "draf" ? (
-        PERAN_BER_UNIT.includes(pengguna.peran) && (
+        bolehIsiPengukuran(pengguna) && (
           <Link
             href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan: p.bulan })}`}
             className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary-hover sm:justify-self-start"
@@ -94,7 +93,7 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
           </Link>
         )
       ) : (
-        pengguna.peran === "kepalaUnit" && <FormVerifikasi id={p.id} status={p.status} />
+        bolehVerifikasi(pengguna) && <FormVerifikasi id={p.id} status={p.status} />
       )}
 
       <RiwayatStatus riwayat={p.riwayat} />

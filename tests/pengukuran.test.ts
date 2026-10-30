@@ -4,6 +4,7 @@ import { before, describe, it } from "node:test";
 
 import { config } from "@/lib/config";
 import type { Frekuensi } from "@/lib/indikator";
+import type { AksiVerifikasi } from "@/lib/pengukuran";
 import { LABEL_PERAN, type Peran } from "@/lib/peran";
 import { masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
 import {
@@ -25,6 +26,7 @@ import {
   pengukuranDikembalikan,
   simpanPengukuran,
   statusPengukuranBulan,
+  ubahStatusPengukuran,
   unitPengisi,
   verifikasiPengukuran,
 } from "@/modules/pengukuran/service";
@@ -489,6 +491,10 @@ describe("Verifikasi Pengukuran", () => {
     });
 
     await kembalikanPengukuran(kepala, id, alasan);
+    // Aksi form Verifikasi hanya verifikasi, kembalikan, dan buka kembali; mengajukan bukan aksi Verifikasi.
+    for (const aksi of ["ajukan", "hapus"]) {
+      await assert.rejects(ubahStatusPengukuran(kepala, id, aksi as AksiVerifikasi), { status: 400, message: "Aksi tidak dikenal." });
+    }
     for (const pindah of [() => verifikasiPengukuran(kepala, id), () => kembalikanPengukuran(kepala, id, alasan)]) {
       await assert.rejects(pindah, { status: 409, message: /^Pengukuran ini Draf; hanya Pengukuran Diajukan yang bisa/ });
     }
@@ -581,8 +587,8 @@ describe("Verifikasi Pengukuran", () => {
       ],
     );
     assert.deepEqual(
-      [antrean[0].indikator.id, antrean[0].n, antrean[0].d, antrean[0].indikator.faktor, antrean[0].pengisi],
-      [icu.indikatorId, 9, 10, 100, icu.petugas.nama],
+      [antrean[0].indikator.id, antrean[0].n, antrean[0].d, antrean[0].capaian, antrean[0].pengisi],
+      [icu.indikatorId, 9, 10, 90, icu.petugas.nama],
     );
 
     // Pengukuran yang sudah diverifikasi keluar dari antrean.
@@ -601,8 +607,8 @@ describe("Verifikasi Pengukuran", () => {
     for (const aktor of [petugas, kepala, komite, admin]) {
       const detail = await ambilPengukuran(aktor, id);
       assert.deepEqual(
-        [detail.indikator.id, detail.unit.id, detail.bulan, detail.n, detail.d, detail.status, detail.pengisi],
-        [indikatorId, unit.id, "2026-02", 9, 10, "draf", petugas.nama],
+        [detail.indikator.id, detail.unit.id, detail.bulan, detail.n, detail.d, detail.capaian, detail.status, detail.pengisi],
+        [indikatorId, unit.id, "2026-02", 9, 10, 90, "draf", petugas.nama],
       );
       assert.deepEqual(
         detail.riwayat.map((r) => [r.statusAsal, r.statusTujuan, r.oleh, r.alasan]),
