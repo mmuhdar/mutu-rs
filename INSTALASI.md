@@ -13,7 +13,7 @@ Petunjuk untuk IT RS. MutuRS berjalan dengan docker compose di satu server RS, b
    nano .env
    ```
 
-   Isi `NAMA_RS`, ganti `POSTGRES_PASSWORD` dengan sandi yang kuat, lalu sesuaikan `APP_TIMEZONE`, `APP_PORT`, dan `BACKUP_DIR` bila perlu. Penjelasan setiap variabel ada di `.env.example`.
+   Isi `NAMA_RS`, ganti `POSTGRES_PASSWORD` dan `ADMIN_PASSWORD` dengan sandi yang kuat, lalu sesuaikan `APP_TIMEZONE`, `APP_PORT`, dan `BACKUP_DIR` bila perlu. Penjelasan setiap variabel ada di `.env.example`.
 4. Jalankan:
 
    ```bash
@@ -21,7 +21,7 @@ Petunjuk untuk IT RS. MutuRS berjalan dengan docker compose di satu server RS, b
    ```
 
    Migrasi database berjalan otomatis saat aplikasi mulai. Periksa dengan `docker compose ps` dan `docker compose logs app`.
-5. Buka `http://<ip-server>:<APP_PORT>` dari komputer di jaringan RS.
+5. Buka `http://<ip-server>:<APP_PORT>` dari komputer di jaringan RS, lalu masuk sebagai Admin Sistem dengan `ADMIN_USERNAME` dan `ADMIN_PASSWORD` dari `.env`. Akun ini dibuat saat start pertama; restart berikutnya tidak menimpa sandinya.
 
 **Pembaruan versi:** picu backup segera (lihat di bawah), ganti isi folder aplikasi dengan versi baru (`.env` dan folder backup tetap), lalu jalankan lagi `docker compose up -d --build`.
 
