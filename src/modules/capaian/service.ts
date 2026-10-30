@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
-import { bulanValid, dariTanggal, geserBulan, keTanggal } from "@/lib/bulan";
+import { bulanLalu, bulanValid, dariTanggal, geserBulan, keTanggal } from "@/lib/bulan";
 import { nilaiCapaian } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan, targetPadaBulan } from "@/lib/indikator";
@@ -123,9 +123,11 @@ export type TitikCapaian = TrenCapaian["unit"][number]["titik"][number];
  * aktif; Semesteran hanya Juni dan Desember), urut kode. Komite Mutu, Direktur, dan Admin Sistem: satu baris per
  * Indikator dari Capaian RS (`unit` null). Petugas Input Data dan Kepala Unit: satu baris per Indikator + Unit-nya
  * dari Capaian Unit. `jumlah`, `kelengkapan` (keseluruhan), dan `belumTercapai` dihitung dari baris itu.
+ * Tanpa bulan (kosong) = bulan lalu menurut zona waktu konfigurasi, bulan bawaan Dashboard.
  */
-export async function ringkasanCapaian(aktor: Pengguna | null, bulan: string) {
+export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, sekarang = new Date()) {
   wajibPengguna(aktor);
+  bulan ||= bulanLalu(sekarang);
   if (typeof bulan !== "string" || !bulanValid(bulan)) throw new ServiceError(400, "Bulan tidak valid.");
   const pelapor = (await unitPelaporBulan(bulan, and(eq(indikator.aktif, true), saringUnit(aktor)))).filter((p) =>
     diukurPadaBulan(p.indikator.frekuensi, bulan),

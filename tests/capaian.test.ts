@@ -336,6 +336,10 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
       [[a, 53.6, 80]],
     );
     assert.deepEqual(r.baris.find((x) => x.indikator.id === b)?.kelengkapan, { terverifikasi: 1, wajib: 2 });
+    for (const peran of ["komiteMutu", "adminSistem"] satisfies Peran[]) {
+      const lain = await ringkasanCapaian({ ...admin, peran }, "2023-06");
+      assert.deepEqual([lain.jumlah, lain.kelengkapan], [{ dinilai: 5, tercapai: 2, belumTercapai: 1, kosong: 2 }, { terverifikasi: 5, wajib: 7 }]);
+    }
 
     // Mei: Indikator Semesteran tidak dinilai, Indikator Bulanan belum punya Capaian.
     const mei = await ringkasanCapaian({ ...admin, peran: "direktur" }, "2023-05");
@@ -360,6 +364,19 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
     const kepala = await ringkasanCapaian(kepalaUnit(icu.id, ri.id), "2024-06");
     assert.deepEqual(kepala.jumlah, { dinilai: 7, tercapai: 3, belumTercapai: 1, kosong: 3 });
     assert.deepEqual(kepala.kelengkapan, { terverifikasi: 5, wajib: 7 });
+
+    // Belum terkait ke Unit mana pun: tidak melihat Capaian apa pun, termasuk Capaian RS.
+    const tanpaUnit = await ringkasanCapaian({ ...admin, peran: "petugasInputData", unitIds: [] }, "2024-06");
+    assert.deepEqual([tanpaUnit.baris, tanpaUnit.kelengkapan], [[], { terverifikasi: 0, wajib: 0 }]);
+  });
+
+  it("tanpa bulan pilihan, ringkasan untuk bulan lalu menurut WITA: 1 November 00.30 WITA = Oktober", async () => {
+    const direktur: Pengguna = { ...admin, peran: "direktur" };
+    // 31 Oktober 16.30 UTC = 1 November 00.30 WITA; 15.59 UTC = 31 Oktober 23.59 WITA.
+    assert.equal((await ringkasanCapaian(direktur, undefined, new Date("2026-10-31T16:30:00Z"))).bulan, "2026-10");
+    assert.equal((await ringkasanCapaian(direktur, undefined, new Date("2026-10-31T15:59:00Z"))).bulan, "2026-09");
+    assert.equal((await ringkasanCapaian(direktur, "", new Date("2026-12-31T16:00:00Z"))).bulan, "2026-12");
+    assert.equal((await ringkasanCapaian(direktur, "2025-03", new Date("2026-10-31T16:30:00Z"))).bulan, "2025-03");
   });
 
   it("tanpa sesi dan bulan tidak valid ditolak", async () => {
