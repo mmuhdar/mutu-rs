@@ -1,0 +1,1 @@
+-- Migrasi awal sengaja kosong: menyiapkan jurnal migrasi. Tabel ditambahkan oleh migrasi berikutnya.

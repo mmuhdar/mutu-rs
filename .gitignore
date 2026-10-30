@@ -1,0 +1,17 @@
+# dependensi & hasil build
+/node_modules
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# konfigurasi lokal (contoh: .env.example)
+.env*
+!.env.example
+
+# worktree agen
+/.claude/worktrees/
+
+.DS_Store
+npm-debug.log*

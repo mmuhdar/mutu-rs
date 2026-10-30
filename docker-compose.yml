@@ -1,0 +1,37 @@
+# Menjalankan MutuRS beserta PostgreSQL 17 di server RS:
+#   cp .env.example .env      (isi NAMA_RS, ganti POSTGRES_PASSWORD)
+#   docker compose up -d --build
+# Migrasi database berjalan otomatis saat aplikasi mulai.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mutu
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Atur POSTGRES_PASSWORD di .env}
+      POSTGRES_DB: mutu
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mutu -d mutu"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://mutu:${POSTGRES_PASSWORD}@db:5432/mutu
+      NAMA_RS: ${NAMA_RS:?Atur NAMA_RS di .env}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Makassar}
+      # Jam lokal proses (log, format waktu) ikut zona waktu RS.
+      TZ: ${APP_TIMEZONE:-Asia/Makassar}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  pgdata:

@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/*
+ * Token warna MutuRS (palet mengikuti sistem-radiologi-digital). Komponen hanya memakai token
+ * (`bg-surface`, `text-danger`, `border-border`), jangan menulis hex di komponen.
+ * Status (Tercapai/Belum Tercapai, error) selalu disertai teks, bukan warna saja.
+ */
+:root {
+  --background: #f1f5f6;
+  --surface: #ffffff;
+  --foreground: #0d2128;
+  --muted-foreground: #46595f;
+  --border: #dce4e7;
+  --input: #7b8f97;
+
+  --primary: #0e7490;
+  --primary-hover: #0b5f76;
+  --primary-foreground: #ffffff;
+  --ring: rgb(14 116 144 / 0.38);
+
+  --danger: #be2a2a;
+  --danger-soft: #fdecec;
+  --danger-border: #f2c0c0;
+  --success: #157a3d;
+  --success-soft: #e6f5ec;
+  --warning: #a8480a;
+  --warning-soft: #fff4e0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+}
+
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+  }
+}
