@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { bulanBerjalan, bulanLalu, labelBulan } from "@/lib/bulan";
+import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { LABEL_STATUS_PENGUKURAN, STATUS_PENGUKURAN } from "@/lib/pengukuran";
 import { statusPengukuranBulan } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, kelasKartu, LabelStatus, Pesan, pesanAtau } from "../status";
+import { kelasInput, kelasKartu, LabelStatus, Pemberitahuan, Pesan, pesanAtau } from "../status";
 
 export const metadata: Metadata = { title: "Status Pengukuran" };
 
@@ -17,7 +17,8 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
   const pengguna = await requireUser();
   const sp = await searchParams;
   const ambil = (nama: string) => (typeof sp[nama] === "string" ? (sp[nama] as string) : "");
-  const bulan = ambil("bulan") || bulanLalu();
+  const dariAlamat = bulanDariAlamat(sp.bulan);
+  const bulan = dariAlamat.bulan ?? bulanLalu();
   const [unitId, status] = [ambil("unit"), ambil("status")];
   const semua = await pesanAtau(statusPengukuranBulan(pengguna, bulan));
   if (typeof semua === "string") return <Pesan>{semua}</Pesan>;
@@ -42,7 +43,7 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
           <label htmlFor="bulan" className="text-[13px] font-medium">
             Bulan
           </label>
-          <input id="bulan" name="bulan" type="month" required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
+          <input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
         </div>
         <div className="grid gap-1.5">
           <label htmlFor="unit" className="text-[13px] font-medium">
@@ -75,6 +76,8 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
           Tampilkan
         </button>
       </form>
+
+      <Pemberitahuan>{dariAlamat.pemberitahuan}</Pemberitahuan>
 
       <div className={kelasKartu}>
         <div className="border-b border-border px-4 py-3">

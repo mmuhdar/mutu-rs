@@ -15,6 +15,9 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
   const { pengguna, indikator } = await muatIndikator((await params).id);
   // Pilihan Unit hanya untuk pengelola (form tambah Unit Pelapor); null = tanpa aksi kelola.
   const pilihan = bolehKelolaIndikator(pengguna) ? await pilihanUnit(pengguna) : null;
+  // Setiap perubahan yang berhasil mengubah data ini, jadi semua form di halaman dibuat ulang dan pesan penolakan lama
+  // dari form lain hilang: setiap form hanya menampilkan hasilnya sendiri.
+  const versi = JSON.stringify([indikator.aktif, indikator.target, indikator.unitPelapor]);
   const field: [string, string][] = [
     ["Kelompok", indikator.kelompok],
     ["Definisi operasional", indikator.definisiOperasional],
@@ -50,7 +53,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
           >
             Ubah
           </Link>
-          <TombolAktif key={String(indikator.aktif)} id={indikator.id} aktif={indikator.aktif} />
+          <TombolAktif key={versi} id={indikator.id} aktif={indikator.aktif} />
         </div>
       )}
 
@@ -85,7 +88,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
         </ul>
         {bolehKelolaIndikator(pengguna) && (
           <div className="border-t border-border p-4">
-            <FormTarget indikatorId={indikator.id} bulanIni={bulanBerjalan()} />
+            <FormTarget key={versi} indikatorId={indikator.id} bulanIni={bulanBerjalan()} />
           </div>
         )}
       </div>
@@ -114,9 +117,9 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
                   <span className="block text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanBerhenti)}</span>
                 </div>
                 {pilihan && (
-                  // Key berisi bulan berhenti: setelah disimpan, baris dibuat ulang sehingga form tertutup.
+                  // Setelah perubahan apa pun berhasil, aksi dibuat ulang sehingga form tertutup dan pesannya hilang.
                   <AksiUnitPelapor
-                    key={p.bulanBerhenti ?? ""}
+                    key={versi}
                     id={p.id}
                     namaUnit={p.namaUnit}
                     bulanBerhenti={p.bulanBerhenti}
@@ -131,7 +134,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
             {pilihan.length === 0 ? (
               <p className="text-muted-foreground">Belum ada Unit aktif. Admin Sistem menambahkannya di menu Unit.</p>
             ) : (
-              <FormUnitPelapor indikatorId={indikator.id} unit={pilihan} bulanIni={bulanBerjalan()} />
+              <FormUnitPelapor key={versi} indikatorId={indikator.id} unit={pilihan} bulanIni={bulanBerjalan()} />
             )}
           </div>
         )}

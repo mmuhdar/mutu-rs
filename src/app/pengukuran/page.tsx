@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { bulanBerjalan, bulanLalu, labelBulan } from "@/lib/bulan";
+import { bulanBerjalan, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { LABEL_STATUS_PENGUKURAN, STATUS_PENGUKURAN } from "@/lib/pengukuran";
 import { daftarIsian, unitPengisi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
@@ -72,7 +72,7 @@ export default async function HalamanIsian({ searchParams }: PageProps<"/penguku
               <label htmlFor="bulan" className="text-[13px] font-medium">
                 Bulan
               </label>
-              <input id="bulan" name="bulan" type="month" required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
+              <input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
             </div>
             <button
               type="submit"
@@ -108,7 +108,7 @@ export default async function HalamanIsian({ searchParams }: PageProps<"/penguku
                   </p>
                 ) : (
                   <ul className="divide-y divide-border">
-                    {daftar.map(({ indikator, status }) => (
+                    {daftar.map(({ indikator, status, alasanPengembalian }) => (
                       <li key={indikator.id}>
                         <Link
                           href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan })}`}
@@ -117,8 +117,13 @@ export default async function HalamanIsian({ searchParams }: PageProps<"/penguku
                           <span className="min-w-0 flex-1">
                             <span className="block text-[12.5px] font-medium text-muted-foreground">{indikator.kode}</span>
                             <span className="block font-medium">{indikator.nama}</span>
+                            {alasanPengembalian && (
+                              <span className="block text-[13px] whitespace-pre-line text-warning">
+                                Alasan dikembalikan: {alasanPengembalian}
+                              </span>
+                            )}
                           </span>
-                          <LabelStatus status={status} />
+                          <LabelStatus status={status} dikembalikan={Boolean(alasanPengembalian)} />
                           <span aria-hidden className="text-muted-foreground">
                             ›
                           </span>

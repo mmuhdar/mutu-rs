@@ -68,7 +68,9 @@ function IsianPengguna({
         <label htmlFor={`${idAwalan}-peran`} className={kelasLabel}>
           Peran
         </label>
+        {/* key: React tidak memperbarui pilihan bawaan select yang sudah ada; dibuat ulang supaya peran yang ditolak tetap terpilih setelah form di-reset. */}
         <select
+          key={awal.peran}
           id={`${idAwalan}-peran`}
           name="peran"
           required

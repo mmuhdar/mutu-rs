@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { bulanBerjalan, labelBulan } from "@/lib/bulan";
+import { bulanBerjalan, bulanDariAlamat, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import type { Arah } from "@/lib/indikator";
 import { PERAN_BER_UNIT } from "@/lib/peran";
 import { ringkasanCapaian } from "@/modules/capaian/service";
-import { antreanVerifikasi } from "@/modules/pengukuran/service";
+import { antreanVerifikasi, pengukuranDikembalikan } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, kelasKartu, Pesan, pesanAtau } from "./pengukuran/status";
+import { kelasInput, kelasKartu, Pemberitahuan, Pesan, pesanAtau } from "./pengukuran/status";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -29,14 +29,21 @@ function Kartu(p: { label: string; nilai: React.ReactNode; keterangan: React.Rea
   );
 }
 
+/** "2 di antaranya belum lengkap": Capaian RS yang dihitung dari sebagian Unit Pelapor saja (sementara). */
+function BelumLengkap({ jumlah }: { jumlah: number }) {
+  return jumlah > 0 ? <p className="mt-2 text-[12.5px] font-medium text-warning">{jumlah} di antaranya belum lengkap</p> : null;
+}
+
 /** Dashboard: halaman pertama setelah masuk. Semua angka dari `ringkasanCapaian` (modul Capaian). */
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const pengguna = await requireUser();
-  const sp = await searchParams;
+  // Bulan tidak valid atau belum berjalan diganti bulan bawaan (ditentukan service) dengan pemberitahuan.
+  const { bulan, pemberitahuan } = bulanDariAlamat((await searchParams).bulan);
   const perUnit = PERAN_BER_UNIT.includes(pengguna.peran);
-  const [ringkasan, antrean] = await Promise.all([
-    pesanAtau(ringkasanCapaian(pengguna, typeof sp.bulan === "string" ? sp.bulan : undefined)),
+  const [ringkasan, antrean, dikembalikan] = await Promise.all([
+    pesanAtau(ringkasanCapaian(pengguna, bulan)),
     pengguna.peran === "kepalaUnit" ? antreanVerifikasi(pengguna) : null,
+    perUnit ? pengukuranDikembalikan(pengguna) : [],
   ]);
 
   return (
@@ -58,7 +65,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             <input
               id="bulan"
               name="bulan"
-              type="month"
+              {...INPUT_BULAN}
               required
               max={bulanBerjalan()}
               defaultValue={typeof ringkasan === "string" ? undefined : ringkasan.bulan}
@@ -70,6 +77,40 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           </button>
         </form>
       </div>
+
+      <Pemberitahuan>{pemberitahuan}</Pemberitahuan>
+
+      {dikembalikan.length > 0 && (
+        <div className={`${kelasKartu} border-warning/40`}>
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="text-[15px] font-semibold">Pengukuran dikembalikan untuk diperbaiki ({dikembalikan.length})</h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              Dikembalikan Kepala Unit dengan alasan. Perbaiki lalu ajukan lagi.
+            </p>
+          </div>
+          <ul className="divide-y divide-border">
+            {dikembalikan.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/pengukuran/isi?${new URLSearchParams({ indikator: p.indikator.id, unit: p.unit.id, bulan: p.bulan })}`}
+                  className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-background"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12.5px] font-medium text-muted-foreground">
+                      {p.indikator.kode} · {p.unit.nama} · {labelBulan(p.bulan)}
+                    </span>
+                    <span className="block font-medium">{p.indikator.nama}</span>
+                    <span className="block text-[13px] whitespace-pre-line">Alasan: {p.alasan}</span>
+                  </span>
+                  <span aria-hidden className="text-muted-foreground">
+                    ›
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {antrean && (
         <Link
@@ -101,13 +142,22 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
               nilai={ringkasan.jumlah.dinilai}
               keterangan={`${ringkasan.jumlah.kosong} belum punya Capaian${perUnit ? " · dihitung per Unit" : ""}`}
             />
-            <Kartu label="Tercapai" nilai={ringkasan.jumlah.tercapai} keterangan="Capaian memenuhi Target" garis="bg-success" />
+            <Kartu
+              label="Tercapai"
+              nilai={ringkasan.jumlah.tercapai}
+              keterangan="Status Capaian Tercapai menurut Target dan Arah"
+              garis="bg-success"
+            >
+              <BelumLengkap jumlah={ringkasan.jumlahBelumLengkap.tercapai} />
+            </Kartu>
             <Kartu
               label="Belum Tercapai"
               nilai={ringkasan.jumlah.belumTercapai}
-              keterangan="Capaian belum memenuhi Target"
+              keterangan="Status Capaian Belum Tercapai menurut Target dan Arah"
               garis="bg-danger"
-            />
+            >
+              <BelumLengkap jumlah={ringkasan.jumlahBelumLengkap.belumTercapai} />
+            </Kartu>
             <Kartu
               label="Kelengkapan"
               nilai={`${ringkasan.kelengkapan.terverifikasi}/${ringkasan.kelengkapan.wajib}`}

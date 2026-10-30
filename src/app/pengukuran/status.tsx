@@ -26,18 +26,36 @@ export function Pesan({ children }: { children: React.ReactNode }) {
   );
 }
 
-const WARNA: Record<StatusPengukuran | "belum", string> = {
+/** Pemberitahuan singkat di atas isi halaman, mis. bulan pada alamat yang diganti bulan bawaan. Kosong = tidak tampil. */
+export function Pemberitahuan({ children }: { children?: React.ReactNode }) {
+  if (!children) return null;
+  return (
+    <p role="status" className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2.5 text-[13px]">
+      {children}
+    </p>
+  );
+}
+
+const WARNA: Record<StatusPengukuran | "belum" | "dikembalikan", string> = {
   belum: "bg-warning-soft text-warning",
   draf: "border border-border bg-background",
+  dikembalikan: "bg-warning-soft text-warning",
   diajukan: "bg-primary/10 text-primary",
   terverifikasi: "bg-success-soft text-success",
 };
 
-/** Status Pengukuran sebagai teks (warna hanya pelengkap); null = belum diisi. */
-export function LabelStatus({ status }: { status: StatusPengukuran | null }) {
+/**
+ * Status Pengukuran sebagai teks (warna hanya pelengkap); null = belum diisi. `dikembalikan` = Draf yang dikembalikan
+ * Kepala Unit dan belum diajukan lagi (statusnya tetap Draf).
+ */
+export function LabelStatus({ status, dikembalikan = false }: { status: StatusPengukuran | null; dikembalikan?: boolean }) {
+  const kembali = dikembalikan && status === "draf";
   return (
-    <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${WARNA[status ?? "belum"]}`}>
+    <span
+      className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${WARNA[kembali ? "dikembalikan" : (status ?? "belum")]}`}
+    >
       {status ? LABEL_STATUS_PENGUKURAN[status] : "Belum diisi"}
+      {kembali && " · dikembalikan"}
     </span>
   );
 }

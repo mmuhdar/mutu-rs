@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
+import { INPUT_BULAN } from "@/lib/bulan";
 import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import type { Indikator } from "@/modules/indikator/service";
 
@@ -76,10 +77,15 @@ export function FormIndikator({
     </Kolom>
   );
 
-  /** Select tidak punya readOnly: saat terkunci dibuat disabled, nilainya dikirim lewat input tersembunyi. */
+  /**
+   * Select tidak punya readOnly: saat terkunci dibuat disabled, nilainya dikirim lewat input tersembunyi. `key` = pilihan
+   * bawaan: React tidak memperbarui pilihan bawaan select yang sudah ada, jadi select dibuat ulang supaya pilihan yang
+   * ditolak tetap terpilih setelah form di-reset.
+   */
   const pilihan = (nama: "arah" | "frekuensi", bawaan: string, opsi: readonly string[], label: Record<string, string>) => (
     <>
       <select
+        key={awal(nama, bawaan)}
         id={nama}
         name={kunci(nama) ? undefined : nama}
         disabled={kunci(nama)}
@@ -118,7 +124,13 @@ export function FormIndikator({
             <input id="kode" name="kode" required maxLength={32} defaultValue={state.nilai?.kode} className={kelasBaris} />
           </Kolom>
           <Kolom label="Kelompok" htmlFor="kelompok" petunjuk="INM sudah tersedia sesuai PMK 30/2022.">
-            <select id="kelompok" name="kelompok" defaultValue={state.nilai?.kelompok ?? "IMP-RS"} className={kelasBaris}>
+            <select
+              key={state.nilai?.kelompok}
+              id="kelompok"
+              name="kelompok"
+              defaultValue={state.nilai?.kelompok ?? "IMP-RS"}
+              className={kelasBaris}
+            >
               <option value="IMP-RS">IMP-RS</option>
               <option value="IMP-Unit">IMP-Unit</option>
             </select>
@@ -182,7 +194,7 @@ export function FormIndikator({
             <input
               id="targetBerlakuMulai"
               name="targetBerlakuMulai"
-              type="month"
+              {...INPUT_BULAN}
               required
               defaultValue={state.nilai?.targetBerlakuMulai ?? bulanIni}
               className={kelasBaris}
@@ -242,7 +254,7 @@ export function FormTarget({ indikatorId, bulanIni }: { indikatorId: string; bul
           <input
             id="targetBerlakuMulai"
             name="targetBerlakuMulai"
-            type="month"
+            {...INPUT_BULAN}
             required
             defaultValue={state.nilai?.targetBerlakuMulai ?? bulanIni}
             className={kelasBaris}
@@ -273,7 +285,15 @@ export function FormUnitPelapor({
       <input type="hidden" name="indikatorId" value={indikatorId} />
       <div className="grid gap-3 sm:grid-cols-3">
         <Kolom label="Unit" htmlFor="unitId">
-          <select id="unitId" name="unitId" required defaultValue={state.nilai?.unitId ?? ""} className={kelasBaris}>
+          {/* key: pilihan Unit yang ditolak tetap terpilih setelah form di-reset (lihat `pilihan` di FormIndikator). */}
+          <select
+            key={state.nilai?.unitId}
+            id="unitId"
+            name="unitId"
+            required
+            defaultValue={state.nilai?.unitId ?? ""}
+            className={kelasBaris}
+          >
             <option value="" disabled>
               Pilih Unit
             </option>
@@ -288,7 +308,7 @@ export function FormUnitPelapor({
           <input
             id="bulanMulai"
             name="bulanMulai"
-            type="month"
+            {...INPUT_BULAN}
             required
             defaultValue={state.nilai?.bulanMulai ?? bulanIni}
             className={kelasBaris}
@@ -298,7 +318,7 @@ export function FormUnitPelapor({
           <input
             id="bulanBerhenti"
             name="bulanBerhenti"
-            type="month"
+            {...INPUT_BULAN}
             defaultValue={state.nilai?.bulanBerhenti}
             className={kelasBaris}
           />
@@ -341,7 +361,7 @@ export function AksiUnitPelapor({
               <input
                 id={idBerhenti}
                 name="bulanBerhenti"
-                type="month"
+                {...INPUT_BULAN}
                 required
                 defaultValue={akhiri.nilai?.bulanBerhenti ?? bulanBerhenti ?? ""}
                 className={kelasBaris}
@@ -353,6 +373,7 @@ export function AksiUnitPelapor({
             <p className="text-[12.5px] text-muted-foreground">
               Masih wajib melapor pada bulan ini, tidak lagi mulai bulan berikutnya.
             </p>
+            <PesanError pesan={akhiri.error} />
           </form>
         </details>
         <form
@@ -373,7 +394,7 @@ export function AksiUnitPelapor({
           </button>
         </form>
       </div>
-      <PesanError pesan={akhiri.error ?? hapus.error} />
+      <PesanError pesan={hapus.error} />
     </div>
   );
 }

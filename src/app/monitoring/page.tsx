@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
-import { bulanBerjalan, bulanLalu, labelBulan, labelBulanPendek } from "@/lib/bulan";
+import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan, labelBulanPendek } from "@/lib/bulan";
 import { formatCapaian, LABEL_STATUS_CAPAIAN, type StatusCapaian } from "@/lib/capaian";
 import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import { trenCapaian, type TitikCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, kelasKartu, Pesan, pesanAtau } from "../pengukuran/status";
+import { kelasInput, kelasKartu, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
 import { GrafikCapaian } from "./grafik";
 
 export const metadata: Metadata = { title: "Monitoring" };
@@ -61,7 +61,7 @@ function Tren(p: {
       </div>
       <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-2 lg:items-start">
         <GrafikCapaian titik={p.titik} satuan={p.satuan} judul={p.judul} />
-        <div className="-mx-1.5 overflow-x-auto">
+        <div className="-mx-1.5 min-w-0 overflow-x-auto">
           <table className="w-full border-collapse text-[13px] tabular-nums">
             <thead>
               <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
@@ -164,7 +164,8 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
   const pengguna = await requireUser();
   const sp = await searchParams;
   const ambil = (nama: string) => (typeof sp[nama] === "string" ? (sp[nama] as string) : "");
-  const bulan = ambil("bulan") || bulanLalu();
+  const dariAlamat = bulanDariAlamat(sp.bulan);
+  const bulan = dariAlamat.bulan ?? bulanLalu();
   const daftar = await daftarIndikator(pengguna);
   const indikatorId = ambil("indikator") || daftar[0]?.id;
   const tren = indikatorId ? await pesanAtau(trenCapaian(pengguna, indikatorId, bulan)) : "Belum ada Indikator.";
@@ -196,12 +197,14 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
           <label htmlFor="bulan" className="text-[13px] font-medium">
             Bulan akhir
           </label>
-          <input id="bulan" name="bulan" type="month" required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
+          <input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
         </div>
         <button type="submit" className="h-11 rounded-md border border-border px-4 font-semibold hover:bg-background">
           Tampilkan
         </button>
       </form>
+
+      <Pemberitahuan>{dariAlamat.pemberitahuan}</Pemberitahuan>
 
       {typeof tren === "string" ? (
         <Pesan>{tren}</Pesan>

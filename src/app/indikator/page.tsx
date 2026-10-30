@@ -37,7 +37,8 @@ export default async function HalamanIndikator() {
       {KELOMPOK.map((kelompok) => {
         const baris = daftar.filter((i) => i.kelompok === kelompok);
         return (
-          <div key={kelompok} className={kelasKartu}>
+          // min-w-0: tabel yang lebar menggulir di dalam kartunya, bukan melebarkan halaman.
+          <div key={kelompok} className={`${kelasKartu} min-w-0`}>
             <h2 className="border-b border-border px-4 py-3 text-[15px] font-semibold">
               {kelompok} <span className="font-normal text-muted-foreground">({baris.length})</span>
             </h2>

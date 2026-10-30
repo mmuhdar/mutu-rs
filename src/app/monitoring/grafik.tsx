@@ -7,6 +7,11 @@ import type { TitikCapaian } from "@/modules/capaian/service";
 const [LEBAR, TINGGI] = [360, 190];
 const RUANG = { kiri: 34, kanan: 6, atas: 8, bawah: 32 };
 const BULAN_SINGKAT = new Intl.DateTimeFormat("id-ID", { month: "short", timeZone: "UTC" });
+/**
+ * Ukuran huruf sumbu dalam satuan viewBox, jadi ikut mengecil bersama grafik. Di layar sempit (< 640 px) grafik selebar
+ * ~300–340 px, jadi hurufnya dibesarkan supaya tetap terbaca (≥ 11 px sesungguhnya pada layar 390 px).
+ */
+const kelasSumbu = "fill-muted-foreground text-[10px] max-sm:text-[13px]";
 
 /** Batas atas sumbu yang bulat: 1, 2, 5, atau 10 × 10^n terkecil yang ≥ nilai. */
 function batasAtas(nilai: number) {
@@ -70,8 +75,7 @@ export function GrafikCapaian({ titik, satuan, judul }: { titik: TitikCapaian[];
               y={y(v)}
               textAnchor="end"
               dominantBaseline="middle"
-              fontSize={10}
-              className="fill-muted-foreground tabular-nums"
+              className={`${kelasSumbu} tabular-nums`}
             >
               {angka(v)}
             </text>
@@ -83,12 +87,11 @@ export function GrafikCapaian({ titik, satuan, judul }: { titik: TitikCapaian[];
             x={x(i)}
             y={TINGGI - RUANG.bawah + 13}
             textAnchor="middle"
-            fontSize={10}
-            className="fill-muted-foreground"
+            className={kelasSumbu}
           >
             {BULAN_SINGKAT.format(new Date(`${t.bulan}-01T00:00:00Z`))}
             {(i === 0 || t.bulan.endsWith("-01")) && (
-              <tspan x={x(i)} dy={12}>
+              <tspan x={x(i)} dy="1.15em">
                 {t.bulan.slice(0, 4)}
               </tspan>
             )}
