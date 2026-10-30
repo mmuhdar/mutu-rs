@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Stack: Next.js 16 (App Router), Drizzle ORM, PostgreSQL 17. Polanya mengikuti `sistem-radiologi-digital`: logika bisnis di service per modul, route handler dan server action tipis, migrasi dijalankan saat server mulai. Baca dokumentasi Next yang terpasang di `node_modules` sebelum memakai API Next, karena versi 16 berbeda dari yang umum dikenal.
 - [ ] `docker compose up` menjalankan aplikasi dan PostgreSQL 17. Migrasi berjalan otomatis saat aplikasi mulai.

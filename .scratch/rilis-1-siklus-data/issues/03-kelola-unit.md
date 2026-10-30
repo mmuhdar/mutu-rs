@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Masuk dan keluar)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Unit punya nama dan status aktif. Nama Unit unik tanpa membedakan huruf besar/kecil dan spasi di tepi, sehingga "Rawat Inap" dan " rawat inap" ditolak sebagai duplikat.
 - [ ] Admin Sistem bisa menambah, mengganti nama, menonaktifkan, dan mengaktifkan kembali Unit. Tidak ada aksi hapus.

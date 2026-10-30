@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (Isi dan ajukan Pengukuran)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Komite Mutu dan Admin Sistem bisa menambah Target dengan nilai dan bulan mulai berlaku. Menetapkan Target untuk bulan mulai yang sudah punya Target akan mengganti nilainya; ini dipakai untuk koreksi salah ketik. Riwayat Target tampil di detail Indikator.
 - [ ] Ada satu fungsi "Target berlaku untuk Indikator X pada bulan M". Fungsi ini memilih Target dengan bulan mulai terbaru yang tidak lewat dari M. Target pertama juga berlaku untuk semua bulan sebelumnya. Fungsi ini teruji karena dipakai modul Capaian (10).

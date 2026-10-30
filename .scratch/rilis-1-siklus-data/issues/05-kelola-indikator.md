@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Masuk dan keluar)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Field Indikator:
   - kode unik, nama, kelompok (INM, IMP-RS, IMP-Unit);

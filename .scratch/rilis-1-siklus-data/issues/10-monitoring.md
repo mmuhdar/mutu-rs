@@ -4,7 +4,7 @@
 
 **Blocked by:** 08 (Verifikasi Pengukuran), 09 (Target berlaku dan penguncian Indikator)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Modul Capaian adalah satu-satunya tempat aturan perhitungan. Isinya:
   - Capaian = N/D × faktor; kosong bila D = 0.

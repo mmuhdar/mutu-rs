@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (Kelola Unit)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Admin Sistem membuat Pengguna dengan username unik, nama, sandi awal, dan tepat satu peran: Petugas Input Data, Kepala Unit, Komite Mutu, Direktur, atau Admin Sistem.
 - [ ] Petugas Input Data dan Kepala Unit wajib terkait ke satu atau lebih Unit aktif. Peran lain tidak punya Unit.

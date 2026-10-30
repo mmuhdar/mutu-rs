@@ -1,6 +1,6 @@
 # Spec: MutuRS Rilis 1 — Siklus Data Indikator Mutu
 
-Status: ready-for-agent
+Status: selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 ## Problem Statement
 

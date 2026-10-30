@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Kerangka aplikasi)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] docker-compose punya layanan backup yang menjalankan dump PostgreSQL sekali sehari, menurut zona waktu konfigurasi, ke folder yang di-mount. Nama berkas memuat tanggal.
 - [ ] Dump yang lebih tua dari 30 hari dihapus otomatis.

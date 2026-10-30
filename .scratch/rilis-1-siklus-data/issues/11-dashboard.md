@@ -4,7 +4,7 @@
 
 **Blocked by:** 10 (Monitoring)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Dashboard adalah halaman pertama setelah masuk. Bulan bawaannya adalah bulan lalu menurut zona waktu konfigurasi, dan bisa diganti ke bulan lain.
 - [ ] Kartu ringkasan berisi:

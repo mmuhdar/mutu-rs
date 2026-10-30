@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Kerangka aplikasi)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Tabel Pengguna berisi username unik, nama, hash sandi (bcrypt), peran (salah satu dari lima peran tetap yang disimpan sebagai konstanta), dan aktif. Relasi ke Unit belum ada di tiket ini.
 - [ ] Saat start, Admin Sistem awal dibuat dari konfigurasi (username dan sandi) **hanya bila username itu belum ada**, sehingga restart tidak menimpa sandi yang sudah diganti.

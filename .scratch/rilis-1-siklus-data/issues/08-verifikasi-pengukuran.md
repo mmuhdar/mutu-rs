@@ -4,7 +4,7 @@
 
 **Blocked by:** 07 (Isi dan ajukan Pengukuran)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Perpindahan status yang diizinkan, semuanya hanya oleh Kepala Unit dari Unit itu:
   - Diajukan → Terverifikasi (verifikasi);

@@ -4,7 +4,7 @@
 
 **Blocked by:** 04 (Kelola Pengguna), 06 (Unit Pelapor)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Pengukuran berisi Indikator, Unit, bulan (tanggal 1), N, D, Catatan, status, dan pengisi (diambil dari sesi, bukan dari isian). Kombinasi Indikator + Unit + bulan unik, jadi mengisi ulang berarti mengubah Pengukuran yang sama.
 - [ ] Riwayat Status Pengukuran dibuat di tiket ini: Pengukuran, status asal, status tujuan, oleh, waktu, alasan. Setiap simpan pertama dan setiap pengajuan tercatat.

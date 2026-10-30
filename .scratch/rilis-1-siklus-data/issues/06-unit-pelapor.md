@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (Kelola Unit), 05 (Kelola Indikator dan 13 INM awal)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-10-31, branch `rilis-1-siklus-data`)
 
 - [ ] Unit Pelapor berisi Indikator, Unit (yang aktif saat ditambahkan), bulan mulai, dan bulan berhenti (opsional). Bulan berhenti tidak boleh lebih awal dari bulan mulai.
 - [ ] Periode yang tumpang tindih untuk pasangan Indikator–Unit yang sama ditolak.
