@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNull, lt, ne, type AnyColumn } from "drizzle-o
 
 import { db } from "@/db";
 import { analisis, indikator, pdsa, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
-import { bulanBerjalan, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan } from "@/lib/bulan";
+import { bulanBerjalan, bulanLalu, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan } from "@/lib/bulan";
 import { kodePg, ServiceError } from "@/lib/errors";
 import { diukurPadaBulan } from "@/lib/indikator";
 import {
@@ -619,4 +619,42 @@ export async function daftarPdsa(
     )
     .orderBy(asc(indikator.kode), asc(pdsa.createdAt));
   return baris.map(denganBulan);
+}
+
+/**
+ * Analisis yang diharapkan pada bulan "YYYY-MM" tetapi belum ditulis (Dashboard): untuk setiap Indikator aktif yang
+ * dinilai bulan itu, Lingkup RS bagi INM dan IMP-RS, dan Lingkup Unit Pelapor bagi IMP-Unit (Unit yang kini nonaktif
+ * tetap terhitung). Petugas Input Data dan Kepala Unit hanya melihat IMP-Unit Unit-nya. Urut kode Indikator lalu nama
+ * Unit. Tanpa bulan = bulan lalu; bulan setelah bulan berjalan ditolak.
+ */
+export async function belumDianalisis(aktor: Pengguna | null, bulan?: string, sekarang = new Date()) {
+  wajibPengguna(aktor);
+  bulan ||= bulanLalu(sekarang);
+  wajibBulan(bulan);
+  if (bulan > bulanBerjalan(sekarang)) throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan.`);
+  const [pelapor, ada] = await Promise.all([
+    db
+      .select({
+        indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama, kelompok: indikator.kelompok, frekuensi: indikator.frekuensi },
+        unit: { id: unit.id, nama: unit.nama },
+      })
+      .from(unitPelapor)
+      .innerJoin(indikator, eq(indikator.id, unitPelapor.indikatorId))
+      .innerJoin(unit, eq(unit.id, unitPelapor.unitId))
+      .where(and(eq(indikator.aktif, true), bersinggungan(bulan, bulan), saringLingkup(aktor, unitPelapor.unitId)))
+      .orderBy(asc(indikator.kode), asc(unit.nama)),
+    db.select({ indikatorId: analisis.indikatorId, unitId: analisis.unitId }).from(analisis).where(eq(analisis.bulan, keTanggal(bulan))),
+  ]);
+  const sudah = new Set(ada.map((a) => `${a.indikatorId}|${a.unitId}`));
+  const harapan = new Map<string, { indikator: (typeof pelapor)[number]["indikator"]; unit: (typeof pelapor)[number]["unit"] | null }>();
+  for (const p of pelapor) {
+    if (!diukurPadaBulan(p.indikator.frekuensi, bulan)) continue;
+    const perUnit = p.indikator.kelompok === "IMP-Unit";
+    // Lingkup RS hanya untuk yang melihat Capaian RS.
+    if (!perUnit && !melihatCapaianRs(aktor)) continue;
+    const unitId = perUnit ? p.unit.id : null;
+    const k = `${p.indikator.id}|${unitId}`;
+    if (!sudah.has(k)) harapan.set(k, { indikator: p.indikator, unit: perUnit ? p.unit : null });
+  }
+  return { bulan, daftar: [...harapan.values()] };
 }

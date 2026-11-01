@@ -11,8 +11,10 @@ import {
   bolehVerifikasi,
   pengukuranDikembalikan,
 } from "@/modules/pengukuran/service";
+import { belumDianalisis, bolehTulisLingkup, daftarPdsa, daftarTindakLanjut } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
+import { tautanAnalisis } from "./analisis/tautan";
 import { kelasInput, kelasKartu, Pemberitahuan, Pesan, pesanAtau } from "./pengukuran/status";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -35,17 +37,43 @@ function BelumLengkap({ jumlah }: { jumlah: number }) {
   return jumlah > 0 ? <p className="mt-2 text-[12.5px] font-medium text-warning">{jumlah} di antaranya belum lengkap</p> : null;
 }
 
-/** Dashboard: halaman pertama setelah masuk. Semua angka dari `ringkasanCapaian` (modul Capaian). */
+/** Kartu tautan berangka: jumlah pekerjaan yang menunggu, menaut ke daftarnya. */
+function KartuTautan(p: { href: string; jumlah: number; judul: string; keterangan: string; sorot?: boolean }) {
+  return (
+    <Link
+      href={p.href}
+      className={`${kelasKartu} flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-background ${p.sorot ? "border-danger-border" : ""}`}
+    >
+      <span className={`text-[28px] leading-none font-semibold ${p.sorot ? "text-danger" : "text-primary"}`}>{p.jumlah}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold">{p.judul}</span>
+        <span className="block text-[13px] text-muted-foreground">{p.keterangan}</span>
+      </span>
+      <span aria-hidden className="text-muted-foreground">
+        ›
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * Dashboard: halaman pertama setelah masuk. Angka Capaian dari `ringkasanCapaian` (modul Capaian); Analisis yang
+ * belum ditulis, Tindak Lanjut lewat tenggat, dan PDSA berjalan dari modul Perbaikan.
+ */
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const pengguna = await requireUser();
   // Bulan tidak valid atau belum berjalan diganti bulan bawaan (ditentukan service) dengan pemberitahuan.
   const { bulan, pemberitahuan } = bulanDariAlamat((await searchParams).bulan);
   const perUnit = !melihatCapaianRs(pengguna);
-  const [ringkasan, antrean, dikembalikan] = await Promise.all([
+  const [ringkasan, antrean, dikembalikan, belum, tindakLanjut, pdsa] = await Promise.all([
     pesanAtau(ringkasanCapaian(pengguna, bulan)),
     bolehVerifikasi(pengguna) ? antreanVerifikasi(pengguna) : null,
     bolehIsiPengukuran(pengguna) ? pengukuranDikembalikan(pengguna) : [],
+    pesanAtau(belumDianalisis(pengguna, bulan)),
+    daftarTindakLanjut(pengguna),
+    daftarPdsa(pengguna),
   ]);
+  const lewatTenggat = tindakLanjut.filter((t) => t.lewatTenggat).length;
 
   return (
     <section className="grid gap-4">
@@ -130,6 +158,22 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           </span>
         </Link>
       )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <KartuTautan
+          href="/tindak-lanjut"
+          jumlah={lewatTenggat}
+          judul="Tindak Lanjut lewat tenggat"
+          keterangan={`Dari ${tindakLanjut.length} Tindak Lanjut yang masih Direncanakan atau Berjalan.`}
+          sorot={lewatTenggat > 0}
+        />
+        <KartuTautan
+          href="/pdsa"
+          jumlah={pdsa.length}
+          judul="PDSA sedang berjalan"
+          keterangan="Uji coba perbaikan yang belum Selesai."
+        />
+      </div>
 
       {typeof ringkasan === "string" ? (
         <Pesan>{ringkasan}</Pesan>
@@ -223,6 +267,43 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
               </ul>
             )}
           </div>
+
+          {typeof belum !== "string" && (
+            <div className={kelasKartu}>
+              <div className="border-b border-border px-4 py-3">
+                <h2 className="text-[15px] font-semibold">Belum dianalisis ({belum.daftar.length})</h2>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">
+                  {perUnit
+                    ? "IMP-Unit Unit Anda yang belum punya Analisis bulan ini."
+                    : "INM dan IMP-RS (Lingkup RS) serta IMP-Unit yang belum punya Analisis bulan ini, termasuk yang Tercapai."}
+                </p>
+              </div>
+              {belum.daftar.length === 0 ? (
+                <p className="p-4 text-muted-foreground">Tidak ada Analisis yang belum ditulis pada {labelBulan(belum.bulan)}.</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {belum.daftar.map(({ indikator: i, unit }) => (
+                    <li key={`${i.id}-${unit?.id}`}>
+                      <Link
+                        href={tautanAnalisis(i.id, unit?.id ?? null, belum.bulan)}
+                        className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-background"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[12.5px] font-medium text-muted-foreground">
+                            {i.kode} · {unit ? `Unit ${unit.nama}` : "Lingkup RS"}
+                          </span>
+                          <span className="block font-medium">{i.nama}</span>
+                        </span>
+                        <span className="shrink-0 text-[13px] font-medium text-primary">
+                          {bolehTulisLingkup(pengguna, unit?.id ?? null) ? "Tulis Analisis" : "Lihat"}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </>
       )}
     </section>

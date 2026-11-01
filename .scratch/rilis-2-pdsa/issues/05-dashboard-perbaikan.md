@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 (Tindak Lanjut), 03 (PDSA — Plan dan daftar)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-01, branch `rilis-2-pdsa`)
 
 - [ ] `belumDianalisis(aktor, bulan?, sekarang?)`: Komite Mutu, Direktur, Admin Sistem = Lingkup RS untuk INM dan IMP-RS yang dinilai bulan itu + IMP-Unit Lingkup Unit Pelapor-nya; Kepala Unit dan Petugas Input Data = IMP-Unit Unit-nya. Tanpa Analisis. Bulan bawaan = bulan lalu.
 - [ ] Dashboard: daftar "Belum dianalisis" yang menaut ke halaman Analisis; kartu Tindak Lanjut lewat tenggat (menaut ke `/tindak-lanjut`) dan PDSA berjalan (menaut ke `/pdsa`), angkanya dari service.
