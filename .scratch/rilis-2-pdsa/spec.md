@@ -1,6 +1,6 @@
 # Spec: MutuRS Rilis 2 — Analisis, Tindak Lanjut, dan PDSA
 
-Status: ready-for-agent (2026-11-01, branch `rilis-2-pdsa`)
+Status: selesai (2026-11-01, branch `rilis-2-pdsa`)
 
 ## Problem Statement
 
