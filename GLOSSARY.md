@@ -75,6 +75,23 @@ Pemeriksaan Pengukuran oleh Kepala Unit; hanya Pengukuran Terverifikasi yang dih
 **Status Pengukuran**:
 Draf (sedang diisi atau dikembalikan dengan alasan), Diajukan (menunggu Verifikasi), atau Terverifikasi.
 
+## Perbaikan
+
+**Lingkup**:
+Tingkat sebuah Analisis, Tindak Lanjut, atau PDSA: RS (Capaian RS, ditangani Komite Mutu) atau satu Unit (Capaian Unit itu, ditangani Kepala Unit-nya atau Komite Mutu).
+
+**Analisis**:
+Catatan tertulis tentang Capaian satu Indikator dalam satu Lingkup untuk satu bulan: apa yang terjadi, penyebabnya, dan apakah perlu Tindak Lanjut atau PDSA.
+_Avoid_: Evaluasi, analisa capaian
+
+**Tindak Lanjut**:
+Satu tindakan perbaikan konkret hasil sebuah Analisis, dengan PIC, tenggat, status (Direncanakan, Berjalan, Selesai, Dibatalkan), dan catatan hasil; lewat tenggat bila tenggatnya sudah lewat sedangkan statusnya Direncanakan atau Berjalan.
+_Avoid_: RTL, rencana tindak lanjut
+
+**PDSA**:
+Siklus uji coba perbaikan untuk satu Indikator dalam satu Lingkup selama periode uji coba (bulan mulai s.d. bulan akhir), diisi berurutan: Plan (rencana perubahan dan prediksinya), Do (uji coba skala kecil), Study (hasil dibandingkan dengan prediksi, berdampingan dengan Capaian sebelum dan selama uji coba), Act (adopsi, adaptasi, atau tinggalkan); siklus berikutnya bisa dimulai dari Act.
+_Avoid_: PDCA
+
 ## Peran
 
 **Petugas Input Data**:
