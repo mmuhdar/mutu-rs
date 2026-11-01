@@ -6,6 +6,8 @@ import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH } from "@/lib/indikator";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { pilihanUnit } from "@/modules/unit/service";
 
+import { tombolUtama } from "../../form";
+import { Halaman, Kartu, KepalaHalaman, Pil, Ubin } from "../../ui";
 import { AksiUnitPelapor, FormTarget, FormUnitPelapor, TombolAktif } from "../form-indikator";
 import { muatIndikator } from "./muat";
 
@@ -18,127 +20,125 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
   // Setiap perubahan yang berhasil mengubah data ini, jadi semua form di halaman dibuat ulang dan pesan penolakan lama
   // dari form lain hilang: setiap form hanya menampilkan hasilnya sendiri.
   const versi = JSON.stringify([indikator.aktif, indikator.target, indikator.unitPelapor]);
-  const field: [string, string][] = [
-    ["Kelompok", indikator.kelompok],
+  const terbaru = indikator.target.at(-1);
+  const definisi: [string, string][] = [
     ["Definisi operasional", indikator.definisiOperasional],
-    ["Definisi Numerator (N)", indikator.definisiNumerator],
-    ["Definisi Denominator (D)", indikator.definisiDenominator],
+    ["Numerator (N)", indikator.definisiNumerator],
+    ["Denominator (D)", indikator.definisiDenominator],
     ["Sumber Data", indikator.sumberData],
-    ["Cara hitung", `Capaian = N/D × ${indikator.faktor} (${indikator.satuan})`],
-    ["Arah", LABEL_ARAH[indikator.arah]],
-    ["Frekuensi", LABEL_FREKUENSI[indikator.frekuensi]],
-    ["PIC", indikator.pic || "Belum diisi"],
   ];
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <Link href="/indikator" className="text-[13px] font-medium text-accent hover:underline">
-          ← Daftar Indikator
-        </Link>
-        <h1 className="mt-2 text-[22px] leading-tight font-semibold tracking-[-0.02em]">
-          {indikator.kode} · {indikator.nama}
-        </h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">
-          Status: <span className="font-medium text-foreground">{indikator.aktif ? "Aktif" : "Nonaktif"}</span>
-          {!indikator.aktif && " (tidak muncul di isian)"}
-        </p>
+    <Halaman area="atur">
+      <KepalaHalaman
+        judul={indikator.nama}
+        kembali={[{ href: "/indikator", label: "Indikator" }]}
+        meta={
+          <>
+            <span className="font-mono text-[13px]">{indikator.kode}</span> · {indikator.kelompok} · PIC {indikator.pic || "belum diisi"}
+          </>
+        }
+        sub={indikator.aktif ? undefined : "Nonaktif: tidak muncul di isian, riwayatnya tetap ada."}
+        aksi={
+          bolehKelolaIndikator(pengguna) && (
+            <>
+              <Link href={`/indikator/${indikator.id}/ubah`} className={tombolUtama}>
+                Ubah
+              </Link>
+              <TombolAktif key={versi} id={indikator.id} aktif={indikator.aktif} />
+            </>
+          )
+        }
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Ubin
+          nada="atur"
+          label="Target berlaku"
+          nilai={terbaru ? `${TANDA_ARAH[indikator.arah]} ${terbaru.nilai.toLocaleString("id-ID")} ${indikator.satuan}` : "–"}
+          keterangan={terbaru ? `mulai ${labelBulan(terbaru.berlakuMulai)}` : undefined}
+        />
+        <Ubin nada="pantau" label="Cara hitung" nilai={`× ${indikator.faktor}`} keterangan={`N ÷ D × ${indikator.faktor}, satuan ${indikator.satuan}`} />
+        <Ubin nada="brand" label="Arah" nilai={TANDA_ARAH[indikator.arah]} keterangan={LABEL_ARAH[indikator.arah]} />
+        <Ubin
+          nada="ukur"
+          label="Frekuensi"
+          nilai={LABEL_FREKUENSI[indikator.frekuensi]}
+          keterangan={indikator.frekuensi === "semesteran" ? "diisi Juni dan Desember" : "diisi setiap bulan"}
+        />
       </div>
 
-      {bolehKelolaIndikator(pengguna) && (
-        <div className="flex flex-wrap items-start gap-2">
-          <Link
-            href={`/indikator/${indikator.id}/ubah`}
-            className="inline-flex h-10 items-center rounded-md bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary-hover pointer-coarse:h-11"
-          >
-            Ubah
-          </Link>
-          <TombolAktif key={versi} id={indikator.id} aktif={indikator.aktif} />
-        </div>
-      )}
-
-      <dl className="divide-y divide-border rounded-lg border border-border bg-surface">
-        {field.map(([label, isi]) => (
-          <div key={label} className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4">
-            <dt className="text-[13px] font-medium text-muted-foreground">{label}</dt>
-            <dd className="whitespace-pre-line">{isi}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <div className="rounded-lg border border-border bg-surface">
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="text-[15px] font-semibold">Target</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Setiap bulan dinilai dengan Target yang berlaku mulai paling akhir sebelum atau pada bulan itu.
-          </p>
-        </div>
-        <ul className="divide-y divide-border">
-          {indikator.target.map((t, i) => (
-            <li key={t.berlakuMulai} className="flex flex-wrap gap-x-3 px-4 py-3">
-              <span className="font-semibold">
-                {TANDA_ARAH[indikator.arah]} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
-              </span>
-              <span className="text-muted-foreground">
-                berlaku mulai {labelBulan(t.berlakuMulai)}
-                {i === 0 && " (juga untuk bulan-bulan sebelumnya)"}
-              </span>
-            </li>
+      <Kartu judul="Definisi">
+        <dl className="grid gap-3 px-5 pb-5 md:grid-cols-2">
+          {definisi.map(([label, isi]) => (
+            <div key={label} className="rounded-2xl bg-background p-4">
+              <dt className="text-[13px] font-semibold text-atur-ink">{label}</dt>
+              <dd className="mt-1 whitespace-pre-line">{isi}</dd>
+            </div>
           ))}
-        </ul>
-        {bolehKelolaIndikator(pengguna) && (
-          <div className="border-t border-border p-4">
-            <FormTarget key={versi} indikatorId={indikator.id} bulanIni={bulanBerjalan()} />
-          </div>
-        )}
-      </div>
+        </dl>
+      </Kartu>
 
-      <div className="rounded-lg border border-border bg-surface">
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="text-[15px] font-semibold">Unit Pelapor</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Unit yang wajib mengisi Indikator ini setiap bulan selama periodenya.
-            {indikator.kelompok === "IMP-Unit" && " IMP-Unit hanya boleh punya satu Unit Pelapor pada bulan yang sama."}
-          </p>
-        </div>
-        {indikator.unitPelapor.length === 0 ? (
-          <p className="px-4 py-3 text-muted-foreground">Belum ada Unit Pelapor.</p>
-        ) : (
-          <ul className="divide-y divide-border">
-            {indikator.unitPelapor.map((p) => (
-              <li key={p.id} className="grid gap-2 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-start">
-                <div>
-                  <span className="font-semibold">{p.namaUnit}</span>
-                  {!p.unitAktif && (
-                    <span className="ml-2 rounded bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                      Unit nonaktif
-                    </span>
-                  )}
-                  <span className="block text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanBerhenti)}</span>
-                </div>
-                {pilihan && (
-                  // Setelah perubahan apa pun berhasil, aksi dibuat ulang sehingga form tertutup dan pesannya hilang.
-                  <AksiUnitPelapor
-                    key={versi}
-                    id={p.id}
-                    namaUnit={p.namaUnit}
-                    bulanBerhenti={p.bulanBerhenti}
-                  />
-                )}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        <Kartu judul="Target" sub="Setiap bulan dinilai dengan Target yang berlaku mulai paling akhir sebelum atau pada bulan itu.">
+          <ol className="grid gap-2 px-5 pb-4">
+            {indikator.target.toReversed().map((t, i, semua) => (
+              <li key={t.berlakuMulai} className="flex flex-wrap items-baseline justify-between gap-x-3 rounded-xl bg-background px-4 py-2.5">
+                <span className="text-[17px] font-bold">
+                  {TANDA_ARAH[indikator.arah]} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
+                </span>
+                <span className="text-[13px] text-muted-foreground">
+                  mulai {labelBulan(t.berlakuMulai)}
+                  {i === semua.length - 1 && " (juga bulan-bulan sebelumnya)"}
+                </span>
               </li>
             ))}
-          </ul>
-        )}
-        {pilihan && (
-          <div className="border-t border-border p-4">
-            {pilihan.length === 0 ? (
-              <p className="text-muted-foreground">Belum ada Unit aktif. Admin Sistem menambahkannya di menu Unit.</p>
-            ) : (
-              <FormUnitPelapor key={versi} indikatorId={indikator.id} unit={pilihan} bulanIni={bulanBerjalan()} />
-            )}
-          </div>
-        )}
+          </ol>
+          {bolehKelolaIndikator(pengguna) && (
+            <div className="m-3 rounded-2xl bg-atur-tint/60 p-4">
+              <FormTarget key={versi} indikatorId={indikator.id} bulanIni={bulanBerjalan()} />
+            </div>
+          )}
+        </Kartu>
+
+        <Kartu
+          judul="Unit Pelapor"
+          sub={`Unit yang wajib mengisi Indikator ini setiap bulan selama periodenya.${
+            indikator.kelompok === "IMP-Unit" ? " IMP-Unit hanya boleh punya satu Unit Pelapor pada bulan yang sama." : ""
+          }`}
+        >
+          {indikator.unitPelapor.length === 0 ? (
+            <p className="px-5 pb-4 text-muted-foreground">Belum ada Unit Pelapor.</p>
+          ) : (
+            <ul className="grid gap-2 px-3 pb-3">
+              {indikator.unitPelapor.map((p) => (
+                <li key={p.id} className="grid gap-2 rounded-xl bg-background px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                  <div>
+                    <span className="flex flex-wrap items-center gap-2 font-semibold">
+                      {p.namaUnit}
+                      {!p.unitAktif && <Pil nada="netral">Unit nonaktif</Pil>}
+                    </span>
+                    <span className="block text-[13px] text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanBerhenti)}</span>
+                  </div>
+                  {pilihan && (
+                    // Setelah perubahan apa pun berhasil, aksi dibuat ulang sehingga form tertutup dan pesannya hilang.
+                    <AksiUnitPelapor key={versi} id={p.id} namaUnit={p.namaUnit} bulanBerhenti={p.bulanBerhenti} />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {pilihan && (
+            <div className="m-3 rounded-2xl bg-atur-tint/60 p-4">
+              {pilihan.length === 0 ? (
+                <p className="text-atur-ink">Belum ada Unit aktif. Admin Sistem menambahkannya di menu Unit.</p>
+              ) : (
+                <FormUnitPelapor key={versi} indikatorId={indikator.id} unit={pilihan} bulanIni={bulanBerjalan()} />
+              )}
+            </div>
+          )}
+        </Kartu>
       </div>
-    </section>
+    </Halaman>
   );
 }

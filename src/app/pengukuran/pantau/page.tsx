@@ -7,13 +7,19 @@ import { LABEL_STATUS_PENGUKURAN, STATUS_PENGUKURAN } from "@/lib/pengukuran";
 import { statusPengukuranBulan } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, kelasKartu, LabelStatus, Pemberitahuan, Pesan, pesanAtau } from "../status";
+import { kelasInput, kelasLabel, tombolUtama } from "../../form";
+import { Halaman, Kartu, KepalaHalaman, Ubin, type Nada } from "../../ui";
+import { LabelStatus, Pemberitahuan, Pesan, pesanAtau } from "../status";
 
 export const metadata: Metadata = { title: "Status Pengukuran" };
 
-/** Pilihan saringan status; "belum" = Unit Pelapor yang belum mengisi. */
-const PILIHAN_STATUS = [["belum", "Belum diisi"], ...STATUS_PENGUKURAN.map((s) => [s, LABEL_STATUS_PENGUKURAN[s]])];
+/** Pilihan saringan status; "belum" = Unit Pelapor yang belum mengisi. Nada ubinnya mengikuti label status. */
+const PILIHAN_STATUS: [string, string, Nada][] = [
+  ["belum", "Belum diisi", "warn"],
+  ...STATUS_PENGUKURAN.map((s): [string, string, Nada] => [s, LABEL_STATUS_PENGUKURAN[s], s === "draf" ? "netral" : s === "diajukan" ? "ukur" : "pos"]),
+];
 
+/** Status semua Pengukuran pada satu bulan; ubin status sekaligus saringan (ketuk untuk menyaring). */
 export default async function HalamanStatusPengukuran({ searchParams }: PageProps<"/pengukuran/pantau">) {
   const pengguna = await requireUser();
   const sp = await searchParams;
@@ -28,96 +34,88 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
   const perUnit = semua.filter((b) => !unitId || b.unit.id === unitId);
   const tampil = perUnit.filter((b) => !status || (b.status ?? "belum") === status);
   const jumlah = (s: string) => perUnit.filter((b) => (b.status ?? "belum") === s).length;
+  const alamat = (ubah: Record<string, string>) => `/pengukuran/pantau?${new URLSearchParams({ bulan, unit: unitId, status, ...ubah })}`;
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">Status Pengukuran</h1>
-        <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
-          Semua Pengukuran di semua Unit pada bulan yang dipilih, termasuk Unit Pelapor yang belum mengisi.
-        </p>
-      </div>
-
-      <form method="get" className={`${kelasKartu} grid gap-3 p-4 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end`}>
-        <div className="grid gap-1.5">
-          <label htmlFor="bulan" className="text-[13px] font-medium">
+    <Halaman area="ukur">
+      <KepalaHalaman judul="Status Pengukuran" sub={`Semua Pengukuran di semua Unit pada ${labelBulan(bulan)}, termasuk Unit Pelapor yang belum mengisi.`}>
+        <form method="get" className="mt-5 grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)_auto] sm:items-end">
+          <input type="hidden" name="status" value={status} />
+          <label className={`grid gap-1.5 ${kelasLabel}`}>
             Bulan
+            <input name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
           </label>
-          <input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
-        </div>
-        <div className="grid gap-1.5">
-          <label htmlFor="unit" className="text-[13px] font-medium">
+          <label className={`grid min-w-0 gap-1.5 ${kelasLabel}`}>
             Unit
+            <select name="unit" defaultValue={unitId} className={kelasInput}>
+              <option value="">Semua Unit</option>
+              {pilihanUnit.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.nama}
+                  {!u.aktif && " (nonaktif)"}
+                </option>
+              ))}
+            </select>
           </label>
-          <select id="unit" name="unit" defaultValue={unitId} className={kelasInput}>
-            <option value="">Semua Unit</option>
-            {pilihanUnit.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nama}
-                {!u.aktif && " (nonaktif)"}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5">
-          <label htmlFor="status" className="text-[13px] font-medium">
-            Status
-          </label>
-          <select id="status" name="status" defaultValue={status} className={kelasInput}>
-            <option value="">Semua status</option>
-            {PILIHAN_STATUS.map(([nilai, label]) => (
-              <option key={nilai} value={nilai}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" className="h-11 rounded-md border border-border px-4 font-semibold hover:bg-background">
-          Tampilkan
-        </button>
-      </form>
+          <button type="submit" className={tombolUtama}>
+            Tampilkan
+          </button>
+        </form>
+      </KepalaHalaman>
 
       <Pemberitahuan>{dariAlamat.pemberitahuan}</Pemberitahuan>
 
-      <div className={kelasKartu}>
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="text-[15px] font-semibold">{labelBulan(bulan)}</h2>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            {PILIHAN_STATUS.map(([nilai, label]) => `${label} ${jumlah(nilai)}`).join(" · ")}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {PILIHAN_STATUS.map(([nilai, label, nada]) => (
+          <Ubin
+            key={nilai}
+            nada={status && status !== nilai ? "netral" : nada}
+            href={alamat({ status: status === nilai ? "" : nilai })}
+            label={status === nilai ? `${label} · tersaring` : label}
+            nilai={jumlah(nilai)}
+            keterangan={status === nilai ? "Ketuk lagi untuk semua" : "Ketuk untuk menyaring"}
+          />
+        ))}
+      </div>
+
+      <Kartu judul={`${tampil.length} Pengukuran`} sub={status ? `Hanya ${PILIHAN_STATUS.find(([n]) => n === status)?.[1] ?? status}.` : "Semua status."}>
         {tampil.length === 0 ? (
-          <p className="p-4 text-muted-foreground">Tidak ada Pengukuran yang cocok dengan saringan ini.</p>
+          <div className="px-5 pb-5">
+            <Pesan>Tidak ada Pengukuran yang cocok dengan saringan ini.</Pesan>
+          </div>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="grid gap-1 px-3 pb-3">
             {tampil.map((b) => {
               const isi = (
                 <>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[12.5px] font-medium text-muted-foreground">
-                      {b.unit.nama}
-                      {!b.unit.aktif && " (nonaktif)"} · {b.indikator.kode}
+                    <span className="block font-semibold">
+                      <span className="mr-2 font-mono text-[12px] font-medium text-muted-foreground">{b.indikator.kode}</span>
+                      {b.indikator.nama}
                     </span>
-                    <span className="block font-medium">{b.indikator.nama}</span>
+                    <span className="block text-[13px] text-muted-foreground">
+                      {b.unit.nama}
+                      {!b.unit.aktif && " (nonaktif)"}
+                    </span>
                   </span>
                   <LabelStatus status={b.status} />
                 </>
               );
-              const kelas = "flex min-h-14 items-center gap-3 px-4 py-3";
+              const kelas = "flex min-h-14 items-center gap-3 rounded-xl px-4 py-2.5";
               return (
                 <li key={`${b.indikator.id}-${b.unit.id}`}>
                   {b.id ? (
-                    <Link href={`/pengukuran/${b.id}`} className={`${kelas} hover:bg-background`}>
+                    <Link href={`/pengukuran/${b.id}`} className={`${kelas} hover:bg-ukur-tint`}>
                       {isi}
-                      <span aria-hidden className="text-muted-foreground">
-                        ›
+                      <span aria-hidden className="text-ukur-ink">
+                        →
                       </span>
                     </Link>
                   ) : (
                     <div className={kelas}>
                       {isi}
                       <span aria-hidden className="invisible">
-                        ›
+                        →
                       </span>
                     </div>
                   )}
@@ -126,7 +124,7 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
             })}
           </ul>
         )}
-      </div>
-    </section>
+      </Kartu>
+    </Halaman>
   );
 }

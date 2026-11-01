@@ -2,81 +2,51 @@ import { labelBulan } from "@/lib/bulan";
 import { formatAngka, formatCapaian } from "@/lib/capaian";
 import { TANDA_ARAH, type Arah } from "@/lib/indikator";
 
-/* Grafik Dashboard: SVG yang dirender server tanpa pustaka. Angkanya selalu juga tertulis (label kolom, tabel, nilai). */
+import { KerangkaGrafik } from "./monitoring/grafik";
 
-const [LEBAR, TINGGI] = [560, 190];
-const RUANG = { kiri: 40, kanan: 4, atas: 22, bawah: 34 };
-/** Huruf dalam satuan viewBox; di layar sempit grafik ±340 px (skala ±0,6), jadi dibesarkan supaya ≥ 11 px sesungguhnya. */
-const kelasTeks = "fill-muted-foreground text-[11px] max-sm:text-[18px]";
+/* Grafik Dashboard, dirender server tanpa pustaka. Angkanya selalu juga tertulis (label kolom, tabel, nilai). */
 
 /**
  * Kolom "Indikator Tercapai" per bulan: tinggi = Tercapai dibanding Indikator yang dinilai (persen), label di atas
- * kolom = "Tercapai/dinilai". Bulan terakhir (yang sedang ditampilkan) memakai warna data penuh, bulan lain warna
- * muda. Bulan tanpa Indikator yang dinilai tidak punya kolom.
+ * kolom = "Tercapai/dinilai" (di grafik sempit hanya kolom terakhir, angka lengkapnya di tabel). Bulan terakhir (yang
+ * sedang ditampilkan) memakai warna data penuh, bulan lain warna muda. Bulan tanpa Indikator yang dinilai tidak punya
+ * kolom.
  */
 export function GrafikTercapai({ data }: { data: { bulan: string; dinilai: number; tercapai: number }[] }) {
-  const tinggiPlot = TINGGI - RUANG.atas - RUANG.bawah;
-  const slot = (LEBAR - RUANG.kiri - RUANG.kanan) / data.length;
-  const y = (persen: number) => RUANG.atas + tinggiPlot * (1 - persen / 100);
   return (
-    <figure className="grid gap-2">
-      <svg
-        viewBox={`0 0 ${LEBAR} ${TINGGI}`}
-        className="w-full overflow-visible"
-        role="img"
-        aria-label="Grafik persentase Indikator Tercapai per bulan; angkanya ada di tabel di bawahnya."
+    <figure className="grid gap-3">
+      <KerangkaGrafik
+        label="Grafik persentase Indikator Tercapai per bulan; angkanya ada di tabel di bawahnya."
+        bulan={data.map((d) => d.bulan)}
+        sumbu={[0, 50, 100].map((v) => ({ nilai: v, teks: `${v}%`, dasar: v === 0 }))}
+        y={(v) => 100 - v}
       >
-        {[0, 50, 100].map((v) => (
-          <g key={v}>
-            <line
-              x1={RUANG.kiri}
-              x2={LEBAR - RUANG.kanan}
-              y1={y(v)}
-              y2={y(v)}
-              className={v === 0 ? "stroke-chart-target" : "stroke-grid"}
-              vectorEffect="non-scaling-stroke"
-            />
-            <text x={RUANG.kiri - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" className={kelasTeks}>
-              {v}%
-            </text>
-          </g>
-        ))}
-        {data.map((d, i) => {
-          const x = RUANG.kiri + slot * i;
-          const persen = d.dinilai ? (d.tercapai / d.dinilai) * 100 : null;
-          const terakhir = i === data.length - 1;
-          return (
-            <g key={d.bulan}>
-              {persen !== null && (
-                <>
-                  <rect
-                    x={x + slot * 0.22}
-                    y={y(persen)}
-                    width={slot * 0.56}
-                    height={tinggiPlot * (persen / 100)}
-                    className={terakhir ? "fill-accent" : "fill-accent/35"}
-                  />
-                  <text x={x + slot / 2} y={y(persen) - 5} textAnchor="middle" className={`${kelasTeks} fill-foreground`}>
-                    {d.tercapai}/{d.dinilai}
-                  </text>
-                </>
-              )}
-              <text x={x + slot / 2} y={TINGGI - RUANG.bawah + 15} textAnchor="middle" className={kelasTeks}>
-                {labelBulan(d.bulan, { pendek: true, tahun: false })}
-                {(d.bulan.endsWith("-01") || (i === 0 && !data[1]?.bulan.endsWith("-01"))) && (
-                  <tspan x={x + slot / 2} dy="1.15em">
-                    {d.bulan.slice(0, 4)}
-                  </tspan>
+        <div className="absolute inset-0 flex">
+          {data.map((d, i) => {
+            const terakhir = i === data.length - 1;
+            return (
+              <div key={d.bulan} className="relative flex-1">
+                {d.dinilai > 0 && (
+                  <div
+                    className={`absolute inset-x-[20%] bottom-0 rounded-t-md ${terakhir ? "bg-area" : "bg-area/30"}`}
+                    style={{ height: `calc(${d.tercapai} / ${d.dinilai} * 100%)` }}
+                  >
+                    <span
+                      className={`absolute bottom-full left-1/2 -translate-x-1/2 pb-1 whitespace-nowrap text-foreground ${terakhir ? "font-semibold" : "@max-lg:hidden"}`}
+                    >
+                      {d.tercapai}/{d.dinilai}
+                    </span>
+                  </div>
                 )}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+              </div>
+            );
+          })}
+        </div>
+      </KerangkaGrafik>
       <figcaption>
         <details>
-          <summary className="cursor-pointer text-[13px] text-accent pointer-coarse:py-2">Lihat angka</summary>
-          <div className="mt-2 min-w-0 overflow-x-auto">
+          <summary className="cursor-pointer text-[13px] font-semibold text-area-ink pointer-coarse:py-2">Lihat angka</summary>
+          <div className="relative mt-2 min-w-0 overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead className="border-b border-border text-left text-[12px] text-muted-foreground">
                 <tr>
@@ -116,12 +86,12 @@ export function BarTarget(p: { capaian: number | null; target: number; satuan: s
   const persen = (v: number) => `${Math.min(v / skala, 1) * 100}%`;
   return (
     <span
-      className="relative block h-2 rounded-full bg-active"
+      className="relative block h-2.5 rounded-full bg-active"
       title={`Capaian ${formatCapaian(p.capaian, p.satuan)}, Target ${TANDA_ARAH[p.arah]} ${formatCapaian(p.target, p.satuan)}`}
     >
       {p.capaian !== null && (
         <span
-          className={`absolute inset-y-0 left-0 rounded-full ${p.tercapai ? "bg-accent" : "bg-danger"}`}
+          className={`absolute inset-y-0 left-0 rounded-full ${p.tercapai ? "bg-success" : "bg-danger"}`}
           style={{ width: persen(p.capaian) }}
         />
       )}

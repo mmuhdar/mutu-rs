@@ -1,72 +1,135 @@
 @import "tailwindcss";
 
 /*
- * Token MutuRS, gaya "framed sheet" (tasteskill, seed 1676796536). Bingkai abu kehijauan (sidebar dan bar atas,
- * satu nada dari dinding bangsal dan baju jaga), pekerjaan di lembar putih bertepi 1px tanpa bayangan. Warna hanya pada
- * data (teal, `--accent`) dan status; tombol utama hampir hitam. Komponen hanya memakai token (`bg-surface`,
- * `text-danger`, `border-border`), jangan menulis hex di komponen. Status selalu disertai teks, bukan warna saja.
+ * Token MutuRS: berwarna dengan makna. Setiap area kerja punya warnanya sendiri (menu, kepala halaman, tombol, grafik):
+ * Dashboard hijau giok (merek), Pengukuran biru, Monitoring & Analisis sian, Tindak Lanjut oranye, PDSA merah muda,
+ * Pengaturan kuning tua. Halaman memilih areanya lewat `data-area` (komponen `Halaman`, `src/app/ui.tsx`), lalu
+ * komponen memakai `area`, `area-ink`, dan `area-tint`. Status selalu disertai teks, bukan warna saja. Tanpa gradien,
+ * tanpa bayangan pada yang diam. Komponen hanya memakai token, bukan hex.
  */
 :root {
-  /* Bingkai, juga satu langkah nada di dalam lembar (hover baris, baki). */
-  --background: #f4f7f6;
+  --background: #f4f7f5;
   --surface: #ffffff;
-  /* Pil menu aktif dan label netral. */
-  --active: #e3e9e8;
-  --foreground: #131416;
-  --muted-foreground: #5d5f60;
-  /* Tepi lembar dan kartu; garis baris tabel satu langkah lebih muda. */
-  --border: #e8eaec;
-  --rule: #f0f1f2;
-  /* Tepi isian: ≥ 3:1 terhadap putih supaya batasnya terlihat (lebih tegas dari lembar gaya, demi aksesibilitas). */
-  --input: #878c91;
+  --foreground: #1a1d1b;
+  --muted-foreground: #5a615d;
+  --border: #e1e8e3;
+  --rule: #ecf1ed;
+  /* Tepi isian ≥ 3:1 terhadap putih. */
+  --input: #8b938f;
+  --active: #e9efeb;
 
-  /* Tombol utama hampir hitam; satu-satunya warna di bingkai adalah teal pada data, tautan, dan pilihan aktif. */
-  --primary: #1d1f20;
-  --primary-hover: #000000;
-  --primary-foreground: #ffffff;
-  --accent: #1b6c80;
-  --ring: rgb(27 108 128 / 0.35);
+  /* Warna area: solid (tombol, garis), ink (teks di atas tint), tint (bidang pucat). */
+  --brand: #0d7f5f;
+  --brand-ink: #08553f;
+  --brand-tint: #e2f5ec;
+  --ukur: #2b5cd6;
+  --ukur-ink: #1c3f9c;
+  --ukur-tint: #e8efff;
+  --pantau: #0a7489;
+  --pantau-ink: #07505f;
+  --pantau-tint: #e0f4f8;
+  --tindak: #c0510b;
+  --tindak-ink: #863705;
+  --tindak-tint: #ffeedf;
+  --pdsa: #bd2f6c;
+  --pdsa-ink: #8a1f4e;
+  --pdsa-tint: #fde9f2;
+  --atur: #94600a;
+  --atur-ink: #6b4406;
+  --atur-tint: #fdf3d8;
 
-  /* Status: pasangan pucat untuk label, warna penuh hanya untuk teks pendek. */
-  --danger: #c4242a;
-  --danger-soft: #ffedea;
-  --danger-ink: #831c1e;
-  --danger-border: #f5c2bd;
-  --success: #1e7b4f;
-  --success-soft: #dcfae5;
-  --success-ink: #04250e;
-  --warning: #92400e;
-  --warning-soft: #fffbeb;
-  --warning-border: #fde68a;
+  /* Area aktif; bawaannya merek. */
+  --area: var(--brand);
+  --area-ink: var(--brand-ink);
+  --area-tint: var(--brand-tint);
 
-  /* Grafik: garis kisi pucat; Target = garis rujukan abu-abu putus-putus. */
-  --grid: #e5e5e5;
-  --chart-target: #5d5f60;
+  /* Status. */
+  --success: #18804a;
+  --success-ink: #0d4f2c;
+  --success-soft: #dcf6e6;
+  --danger: #cf2e48;
+  --danger-ink: #951b30;
+  --danger-soft: #ffe5ea;
+  --danger-border: #f7b9c4;
+  --warning: #a35a00;
+  --warning-soft: #fff2d3;
+  --warning-border: #f5d48a;
+
+  --grid: #e3e9e5;
+  --chart-target: #5a615d;
+}
+
+[data-area="ukur"] {
+  --area: var(--ukur);
+  --area-ink: var(--ukur-ink);
+  --area-tint: var(--ukur-tint);
+}
+[data-area="pantau"] {
+  --area: var(--pantau);
+  --area-ink: var(--pantau-ink);
+  --area-tint: var(--pantau-tint);
+}
+[data-area="tindak"] {
+  --area: var(--tindak);
+  --area-ink: var(--tindak-ink);
+  --area-tint: var(--tindak-tint);
+}
+[data-area="pdsa"] {
+  --area: var(--pdsa);
+  --area-ink: var(--pdsa-ink);
+  --area-tint: var(--pdsa-tint);
+}
+[data-area="atur"] {
+  --area: var(--atur);
+  --area-ink: var(--atur-ink);
+  --area-tint: var(--atur-tint);
 }
 
 @theme inline {
-  --font-sans: var(--font-plex), system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --color-background: var(--background);
   --color-surface: var(--surface);
-  --color-active: var(--active);
   --color-foreground: var(--foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-rule: var(--rule);
   --color-input: var(--input);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-accent: var(--accent);
-  --color-ring: var(--ring);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-danger-ink: var(--danger-ink);
-  --color-danger-border: var(--danger-border);
+  --color-active: var(--active);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-tint: var(--brand-tint);
+  --color-ukur: var(--ukur);
+  --color-ukur-ink: var(--ukur-ink);
+  --color-ukur-tint: var(--ukur-tint);
+  --color-pantau: var(--pantau);
+  --color-pantau-ink: var(--pantau-ink);
+  --color-pantau-tint: var(--pantau-tint);
+  --color-tindak: var(--tindak);
+  --color-tindak-ink: var(--tindak-ink);
+  --color-tindak-tint: var(--tindak-tint);
+  --color-pdsa: var(--pdsa);
+  --color-pdsa-ink: var(--pdsa-ink);
+  --color-pdsa-tint: var(--pdsa-tint);
+  --color-atur: var(--atur);
+  --color-atur-ink: var(--atur-ink);
+  --color-atur-tint: var(--atur-tint);
+  --color-area: var(--area);
+  --color-area-ink: var(--area-ink);
+  --color-area-tint: var(--area-tint);
+  /* Nama lama: tombol utama dan tautan mengikuti warna area halaman. */
+  --color-primary: var(--area);
+  --color-primary-hover: var(--area-ink);
+  --color-primary-foreground: #ffffff;
+  --color-accent: var(--area-ink);
+  --color-ring: var(--area);
   --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
   --color-success-ink: var(--success-ink);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
@@ -78,17 +141,28 @@
   body {
     -webkit-font-smoothing: antialiased;
     font-variant-numeric: tabular-nums;
+    /* Spasi kata Plus Jakarta Sans sempit; sedikit dilebarkan supaya kalimat panjang mudah dibaca. */
+    word-spacing: 0.06em;
   }
   a,
   button,
-  summary {
+  summary,
+  label {
     transition:
-      background-color 120ms ease,
-      color 120ms ease,
-      border-color 120ms ease;
+      background-color 140ms ease,
+      color 140ms ease,
+      border-color 140ms ease,
+      transform 140ms ease;
   }
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--area);
     outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition: none !important;
+    }
   }
 }

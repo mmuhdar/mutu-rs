@@ -14,60 +14,52 @@ import {
 import { ambilPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
+import { tombolUtama } from "../../form";
 import { keteranganRs, keteranganUnit, Tren } from "../../monitoring/grafik";
-import { formatWaktu, kelasKartu, Pesan, pesanAtau } from "../../pengukuran/status";
+import { formatWaktu, Pesan, pesanAtau } from "../../pengukuran/status";
+import { Halaman, Kartu, KepalaHalaman } from "../../ui";
 import { FormTahap } from "../form-pdsa";
 import { LabelTahap, TabTahap } from "../tahap";
 
 export const metadata: Metadata = { title: "Detail PDSA" };
 
-const kelasTautan = "text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2";
-
-/** Satu bagian tahap: isi tersimpan, atau form bila boleh menulis (tahap aktif terbuka, tahap lewat di "Perbaiki"). */
-function BagianTahap(p: {
+/** Isi satu tahap: teks tersimpan, atau form bila boleh menulis (tahap aktif terbuka, tahap lewat di "Perbaiki"). */
+function IsiTahap(p: {
   tahap: TahapIsianPdsa;
-  judul: string;
   aktif: boolean;
   dicapai: boolean;
   bolehTulis: boolean;
   isi: [string, string][];
   form: React.ReactNode;
-  children?: React.ReactNode;
 }) {
+  if (!p.dicapai) return <Pesan>Belum dicapai; diisi setelah tahap sebelumnya selesai.</Pesan>;
+  if (p.aktif && p.bolehTulis) return <div>{p.form}</div>;
   return (
-    <div className={kelasKartu}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-3">
-        <h2 className="text-[15px] font-semibold">{p.judul}</h2>
-        {p.aktif && <span className="text-[13px] font-medium text-accent">Tahap aktif</span>}
-      </div>
-      {p.children}
-      {!p.dicapai ? (
-        <p className="px-4 py-3 text-muted-foreground">Belum dicapai; diisi setelah tahap sebelumnya selesai.</p>
-      ) : p.aktif && p.bolehTulis ? (
-        <div className="p-4">{p.form}</div>
-      ) : (
-        <>
-          <dl className="divide-y divide-border">
-            {p.isi.map(([label, nilai]) => (
-              <div key={label} className="grid gap-1 px-4 py-3 sm:grid-cols-[12rem_1fr] sm:gap-4">
-                <dt className="text-[13px] font-medium text-muted-foreground">{label}</dt>
-                <dd className="whitespace-pre-line">{nilai || "–"}</dd>
-              </div>
-            ))}
-          </dl>
-          {p.bolehTulis && (
-            <details className="border-t border-border px-4 py-3">
-              <summary className="cursor-pointer text-[13px] font-medium text-accent pointer-coarse:py-2">
-                Perbaiki {LABEL_TAHAP_PDSA[p.tahap]}
-              </summary>
-              <div className="mt-3">{p.form}</div>
-            </details>
-          )}
-        </>
+    <div className="grid gap-4">
+      <dl className="grid gap-4 md:grid-cols-2">
+        {p.isi.map(([label, nilai]) => (
+          <div key={label} className="rounded-2xl bg-background p-4">
+            <dt className="text-[13px] font-semibold text-pdsa-ink">{label}</dt>
+            <dd className="mt-1 whitespace-pre-line">{nilai || <span className="text-muted-foreground">–</span>}</dd>
+          </div>
+        ))}
+      </dl>
+      {p.bolehTulis && (
+        <details className="rounded-2xl border border-border px-4 py-3">
+          <summary className="cursor-pointer font-semibold text-pdsa-ink pointer-coarse:py-2">Perbaiki {LABEL_TAHAP_PDSA[p.tahap]}</summary>
+          <div className="mt-3">{p.form}</div>
+        </details>
       )}
     </div>
   );
 }
+
+const JUDUL: Record<TahapIsianPdsa, string> = {
+  plan: "Plan: rencana perubahan",
+  do: "Do: uji coba skala kecil",
+  study: "Study: hasil dibanding prediksi",
+  act: "Act: keputusan",
+};
 
 export default async function HalamanDetailPdsa({ params, searchParams }: PageProps<"/pdsa/[id]">) {
   const pengguna = await requireUser();
@@ -79,112 +71,64 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
   // Tab yang dibuka: `?tahap=`, bawaannya tahap aktif (Act bila PDSA sudah Selesai).
   const diminta = teksAlamat(await searchParams, "tahap");
   const dipilih = TAHAP_ISIAN_PDSA.find((t) => t === diminta) ?? (p.tahap === "selesai" ? "act" : p.tahap);
-  const bagian = (tahap: TahapIsianPdsa) => ({
-    tahap,
-    aktif: p.tahap === tahap,
-    dicapai: sudahDicapai(tahap, p.tahap),
-    bolehTulis: p.bolehTulis,
-  });
-  const {
-    judul,
-    masalah,
-    tujuan,
-    prediksi,
-    rencana,
-    bulanMulai,
-    bulanAkhir,
-    pelaksanaan,
-    hasil,
-    keputusan,
-    penjelasan,
-  } = p;
-  const awal = {
-    judul,
-    masalah,
-    tujuan,
-    prediksi,
-    rencana,
-    bulanMulai,
-    bulanAkhir,
-    pelaksanaan,
-    hasil,
-    keputusan,
-    penjelasan,
-  };
-  // Setiap simpan yang berhasil mengubah data ini, jadi semua form dibuat ulang dan pesan penolakan lama dari form lain
-  // hilang; "Terakhir diubah oleh" di bawah menjadi tanda tersimpan.
+  const { judul, masalah, tujuan, prediksi, rencana, bulanMulai, bulanAkhir, pelaksanaan, hasil, keputusan, penjelasan } = p;
+  const awal = { judul, masalah, tujuan, prediksi, rencana, bulanMulai, bulanAkhir, pelaksanaan, hasil, keputusan, penjelasan };
+  // Setiap simpan yang berhasil mengubah data ini, jadi semua form dibuat ulang dan pesan penolakan lama hilang.
   const versi = p.diubahPada.toISOString();
-  const form = (tahap: TahapIsianPdsa) => (
-    <FormTahap key={versi} id={p.id} tahap={tahap} aktif={p.tahap === tahap} awal={awal} />
-  );
+  const isi: Record<TahapIsianPdsa, [string, string][]> = {
+    plan: [
+      ["Masalah", p.masalah],
+      ["Tujuan", p.tujuan],
+      ["Prediksi", p.prediksi],
+      ["Rencana perubahan", p.rencana],
+      ["Periode uji coba", labelPeriode(p.bulanMulai, p.bulanAkhir)],
+    ],
+    do: [["Pelaksanaan", p.pelaksanaan]],
+    study: [["Hasil", p.hasil]],
+    act: [
+      ["Keputusan", p.keputusan ? LABEL_KEPUTUSAN_PDSA[p.keputusan] : ""],
+      ["Penjelasan", p.penjelasan],
+    ],
+  };
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <p className="flex flex-wrap gap-x-4">
-          <Link href="/pdsa" className={kelasTautan}>
-            ← Daftar PDSA
-          </Link>
-          {p.sebelumnya && (
-            <Link href={`/pdsa/${p.sebelumnya.id}`} className={kelasTautan}>
-              Siklus ke-{p.sebelumnya.siklus} (sebelumnya)
-            </Link>
-          )}
-          {p.berikutnya && (
-            <Link href={`/pdsa/${p.berikutnya.id}`} className={kelasTautan}>
-              Siklus ke-{p.berikutnya.siklus} (berikutnya) →
-            </Link>
-          )}
-        </p>
-<h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-[-0.01em]">{p.judul}</h1>
-        <p className="mt-1 text-muted-foreground">
-          <span className="font-mono text-[12px]">{p.indikator.kode}</span> {p.indikator.nama} · {lingkup} · siklus ke-
-          {p.siklus}
-        </p>
-        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] text-muted-foreground">
-          <LabelTahap tahap={p.tahap} />
-          Uji coba {labelPeriode(p.bulanMulai, p.bulanAkhir)}
-        </p>
-      </div>
+    <Halaman area="pdsa">
+      <KepalaHalaman
+        judul={p.judul}
+        kembali={[
+          { href: "/pdsa", label: "Daftar PDSA" },
+          ...(p.sebelumnya ? [{ href: `/pdsa/${p.sebelumnya.id}`, label: `Siklus ke-${p.sebelumnya.siklus}` }] : []),
+        ]}
+        meta={
+          <>
+            <span className="font-mono text-[13px]">{p.indikator.kode}</span> {p.indikator.nama} · {lingkup} · siklus ke-{p.siklus} · uji coba{" "}
+            {labelPeriode(p.bulanMulai, p.bulanAkhir)}
+          </>
+        }
+        sub={`Terakhir diubah oleh ${p.diubahOleh}, ${formatWaktu(p.diubahPada)}.`}
+        aksi={
+          <>
+            <LabelTahap tahap={p.tahap} />
+            {p.berikutnya && (
+              <Link href={`/pdsa/${p.berikutnya.id}`} className="text-[14px] font-semibold text-pdsa-ink hover:underline">
+                Siklus ke-{p.berikutnya.siklus} →
+              </Link>
+            )}
+          </>
+        }
+      />
 
       <TabTahap id={p.id} aktif={p.tahap} dipilih={dipilih} />
 
-      {dipilih === "plan" && (
-        <BagianTahap
-          {...bagian("plan")}
-          judul="Plan"
-          isi={[
-            ["Masalah", p.masalah],
-            ["Tujuan", p.tujuan],
-            ["Prediksi", p.prediksi],
-            ["Rencana perubahan", p.rencana],
-            ["Periode uji coba", labelPeriode(p.bulanMulai, p.bulanAkhir)],
-          ]}
-          form={form("plan")}
-        />
-      )}
-      {dipilih === "do" && (
-        <BagianTahap
-          {...bagian("do")}
-          judul="Do: uji coba skala kecil"
-          isi={[["Pelaksanaan", p.pelaksanaan]]}
-          form={form("do")}
-        />
-      )}
       {dipilih === "study" && (
-        <BagianTahap
-          {...bagian("study")}
-          judul="Study: hasil dibanding prediksi"
-          isi={[["Hasil", p.hasil]]}
-          form={form("study")}
-        >
-          <div className="border-b border-border p-3 sm:p-4">
+        <Kartu>
+          <div className="p-5">
             {p.study.length === 0 ? (
-              <p className="text-muted-foreground">Belum ada data Capaian {lingkup} dalam 12 bulan ini.</p>
+              <Pesan>Belum ada data Capaian {lingkup} dalam 12 bulan ini.</Pesan>
             ) : (
               <Tren
                 judul={p.unit ? `Capaian ${lingkup}` : "Capaian RS"}
-                keterangan={`12 bulan sampai ${labelBulan(p.study.at(-1)!.bulan)}, dari Pengukuran Terverifikasi`}
+                keterangan={`12 bulan sampai ${labelBulan(p.study.at(-1)!.bulan)}; periode uji coba disorot.`}
                 titik={p.study}
                 satuan={p.indikator.satuan}
                 catatan={p.unit ? keteranganUnit : keteranganRs}
@@ -193,32 +137,27 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
               />
             )}
           </div>
-        </BagianTahap>
-      )}
-      {dipilih === "act" && (
-        <BagianTahap
-          {...bagian("act")}
-          judul="Act: keputusan"
-          isi={[
-            ["Keputusan", p.keputusan ? LABEL_KEPUTUSAN_PDSA[p.keputusan] : ""],
-            ["Penjelasan", p.penjelasan],
-          ]}
-          form={form("act")}
-        />
+        </Kartu>
       )}
 
+      <Kartu judul={JUDUL[dipilih]} sub={p.tahap === dipilih ? "Tahap yang sedang diisi." : undefined}>
+        <div className="px-5 pb-5">
+          <IsiTahap
+            tahap={dipilih}
+            aktif={p.tahap === dipilih}
+            dicapai={sudahDicapai(dipilih, p.tahap)}
+            bolehTulis={p.bolehTulis}
+            isi={isi[dipilih]}
+            form={<FormTahap key={versi} id={p.id} tahap={dipilih} aktif={p.tahap === dipilih} awal={awal} />}
+          />
+        </div>
+      </Kartu>
+
       {p.tahap === "selesai" && p.bolehTulis && !p.berikutnya && (
-        <Link
-          href={`/pdsa/baru?sebelumnya=${p.id}`}
-          className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary-hover sm:justify-self-start"
-        >
+        <Link href={`/pdsa/baru?sebelumnya=${p.id}`} className={tombolUtama}>
           Mulai siklus berikutnya
         </Link>
       )}
-
-      <p className="text-[13px] text-muted-foreground">
-        Terakhir diubah oleh {p.diubahOleh}, {formatWaktu(p.diubahPada)}
-      </p>
-    </section>
+    </Halaman>
   );
 }

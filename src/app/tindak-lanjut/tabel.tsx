@@ -15,7 +15,8 @@ type BarisTindakLanjut = {
   lewatTenggat: boolean;
 };
 
-const kolom = "sm:grid-cols-[minmax(0,1fr)_11rem_8.5rem_7rem] sm:items-baseline sm:gap-4";
+// Tata letak mengikuti lebar tabel (container query), bukan lebar layar: di kolom samping tetap bertumpuk.
+const kolom = "@2xl:grid-cols-[minmax(0,1fr)_11rem_8.5rem_7rem] @2xl:items-baseline @2xl:gap-4";
 
 /** Tenggat dalam teks; yang lewat ditulis merah dengan kata "lewat" (satu tanda status per baris). */
 function Tenggat({ t }: { t: BarisTindakLanjut }) {
@@ -28,9 +29,10 @@ function Tenggat({ t }: { t: BarisTindakLanjut }) {
 }
 
 /**
- * Tindak Lanjut sebagai tabel: Tindakan, PIC, Tenggat, Status, dipisah garis baris tanpa pita header. Di bawah 640 px
- * setiap baris menjadi dua baris teks (tindakan + status, lalu PIC dan tenggat). `atas` = keterangan kecil di atas
- * tindakan, `href` = baris menjadi tautan, `bawah` = isi selebar tabel di bawah baris (mis. form ubah).
+ * Tindak Lanjut sebagai tabel: Tindakan, PIC, Tenggat, Status, dipisah garis baris tanpa pita header. Bila tabel lebih
+ * sempit dari 42rem (HP atau kolom samping) setiap baris menjadi dua baris teks (tindakan + status, lalu PIC dan
+ * tenggat). `atas` = keterangan kecil di atas tindakan, `href` = baris menjadi tautan, `bawah` = isi selebar tabel di
+ * bawah baris (mis. form ubah).
  */
 export function TabelTindakLanjut<T extends BarisTindakLanjut>({
   daftar,
@@ -44,8 +46,8 @@ export function TabelTindakLanjut<T extends BarisTindakLanjut>({
   bawah?: (t: T) => React.ReactNode;
 }) {
   return (
-    <div role="table" aria-label="Tindak Lanjut">
-      <div role="row" className={`hidden border-b border-border px-4 pb-2 text-[12px] text-muted-foreground sm:grid ${kolom}`}>
+    <div role="table" aria-label="Tindak Lanjut" className="@container">
+      <div role="row" className={`hidden border-b border-border px-4 pb-2 text-[12px] font-semibold text-muted-foreground @2xl:grid ${kolom}`}>
         <span role="columnheader">Tindakan</span>
         <span role="columnheader">PIC</span>
         <span role="columnheader">Tenggat</span>
@@ -65,22 +67,22 @@ export function TabelTindakLanjut<T extends BarisTindakLanjut>({
                     </span>
                   )}
                 </span>
-                <span className="sm:hidden">
+                <span className="@2xl:hidden">
                   <LabelTindakLanjut status={t.status} />
                 </span>
               </span>
-              <span role="cell" className="text-[13px] text-muted-foreground sm:text-[14px] sm:text-foreground">
-                <span className="sm:hidden">PIC </span>
+              <span role="cell" className="text-[13px] text-muted-foreground @2xl:text-[14px] @2xl:text-foreground">
+                <span className="@2xl:hidden">PIC </span>
                 {t.pic}
-                <span className="sm:hidden">
+                <span className="@2xl:hidden">
                   {" · "}
                   <Tenggat t={t} />
                 </span>
               </span>
-              <span role="cell" className="hidden sm:block">
+              <span role="cell" className="hidden @2xl:block">
                 <Tenggat t={t} />
               </span>
-              <span role="cell" className="hidden sm:block">
+              <span role="cell" className="hidden @2xl:block">
                 <LabelTindakLanjut status={t.status} />
               </span>
             </>
@@ -89,7 +91,7 @@ export function TabelTindakLanjut<T extends BarisTindakLanjut>({
           return (
             <div key={t.id} role="rowgroup">
               {href ? (
-                <Link role="row" href={href(t)} className={`${kelas} hover:bg-background`}>
+                <Link role="row" href={href(t)} className={`${kelas} hover:bg-area-tint/60`}>
                   {sel}
                 </Link>
               ) : (

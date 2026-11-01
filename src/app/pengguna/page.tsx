@@ -4,12 +4,11 @@ import { daftarPengguna } from "@/modules/pengguna/service";
 import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
-import { pesanAtau } from "../pengukuran/status";
+import { Pesan, pesanAtau } from "../pengukuran/status";
+import { Halaman, Kartu, KepalaHalaman } from "../ui";
 import { BarisPengguna, FormTambahPengguna } from "./form-pengguna";
 
 export const metadata: Metadata = { title: "Pengguna" };
-
-const kelasKartu = "rounded-lg border border-border bg-surface";
 
 export default async function HalamanPengguna() {
   const pengguna = await requireUser();
@@ -17,29 +16,32 @@ export default async function HalamanPengguna() {
   const daftar = await pesanAtau(daftarPengguna(pengguna));
   if (typeof daftar === "string") {
     return (
-      <p role="alert" className={`${kelasKartu} p-5`}>
-        {daftar}
-      </p>
+      <Halaman area="atur">
+        <KepalaHalaman judul="Pengguna" />
+        <Pesan>{daftar}</Pesan>
+      </Halaman>
     );
   }
   const unit = await pilihanUnit(pengguna);
+  const aktif = daftar.filter((p) => p.aktif).length;
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">Pengguna</h1>
-        <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
-          Pengguna tidak dihapus, hanya dinonaktifkan: Pengguna nonaktif tidak bisa masuk, tetapi jejaknya tetap ada.
-        </p>
-      </div>
-      <div className={`${kelasKartu} p-4`}>
+    <Halaman area="atur">
+      <KepalaHalaman
+        judul="Pengguna"
+        meta={`${aktif} Pengguna aktif${daftar.length > aktif ? ` · ${daftar.length - aktif} nonaktif` : ""}`}
+        sub="Pengguna tidak dihapus, hanya dinonaktifkan: Pengguna nonaktif tidak bisa masuk, tetapi jejaknya tetap ada."
+      />
+      <Kartu judul="Tambah Pengguna">
         <FormTambahPengguna unit={unit} />
-      </div>
-      <ul className={`${kelasKartu} divide-y divide-border`}>
-        {daftar.map((p) => (
-          <BarisPengguna key={JSON.stringify(p)} pengguna={p} unit={unit} />
-        ))}
-      </ul>
-    </section>
+      </Kartu>
+      <Kartu judul="Daftar Pengguna">
+        <ul className="divide-y divide-rule border-t border-rule">
+          {daftar.map((p) => (
+            <BarisPengguna key={JSON.stringify(p)} pengguna={p} unit={unit} />
+          ))}
+        </ul>
+      </Kartu>
+    </Halaman>
   );
 }

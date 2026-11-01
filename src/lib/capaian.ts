@@ -26,6 +26,10 @@ export const formatAngka = (angka: number) => angka.toLocaleString("id-ID", { ma
 export const formatCapaian = (capaian: number | null, satuan: string) =>
   capaian === null ? "kosong" : `${formatAngka(capaian)} ${satuan}`;
 
+/** Satu-satunya aturan Status Capaian: Tercapai bila Capaian ≥ Target (makin tinggi) atau ≤ Target (makin rendah). */
+export const tercapai = (capaian: number, target: number, arah: Arah) =>
+  arah === "makinTinggi" ? capaian >= target : capaian <= target;
+
 /** Kelengkapan: Pengukuran Terverifikasi dibanding Unit Pelapor yang aktif bulan itu. */
 export type Kelengkapan = { terverifikasi: number; wajib: number };
 
@@ -48,14 +52,14 @@ export function capaianDari(
     terverifikasi += 1;
   }
   const capaian = hitungCapaian(n, d, indikator.faktor);
-  const tercapai = capaian !== null && (indikator.arah === "makinTinggi" ? capaian >= target : capaian <= target);
+  const status = capaian === null ? null : tercapai(capaian, target, indikator.arah) ? ("tercapai" as const) : ("belumTercapai" as const);
   return {
     target,
     n,
     d,
     capaian,
     selisih: capaian === null ? null : capaian - target,
-    status: capaian === null ? null : tercapai ? ("tercapai" as const) : ("belumTercapai" as const),
+    status,
     kelengkapan: { terverifikasi, wajib: pengukuran.length } satisfies Kelengkapan,
   };
 }

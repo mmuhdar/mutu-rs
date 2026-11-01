@@ -2,21 +2,20 @@ import { labelBulan } from "@/lib/bulan";
 import { formatAngka, formatCapaian, LABEL_STATUS_CAPAIAN } from "@/lib/capaian";
 import type { TitikCapaian } from "@/modules/capaian/service";
 
-import { kelasKartu, LabelCapaian } from "../pengukuran/status";
+import { LabelCapaian } from "../pengukuran/status";
+import { kelasKartu } from "../ui";
 
-/* Grafik tren Capaian vs Target: SVG biasa yang dirender di server, tanpa pustaka grafik dan tanpa JavaScript. */
+/*
+ * Grafik tren Capaian vs Target, dirender di server tanpa pustaka grafik dan tanpa JavaScript. Garis dan bidang
+ * Capaian (warna area halaman) serta garis Target putus-putus = SVG yang meregang mengikuti lebar (garisnya tidak ikut
+ * diskalakan); label sumbu, garis bantu, sorotan, dan titik bulanan = HTML berposisi persen, jadi hurufnya selalu
+ * 12 px sungguhan di HP maupun layar lebar. Titik berwarna menurut Status Capaian (hijau Tercapai, merah Belum
+ * Tercapai). Angka lengkap selalu ada di tabel di bawahnya.
+ */
 
 /** Rentang bulan "YYYY-MM" yang disorot (keduanya termasuk), mis. periode uji coba PDSA. */
 type Sorot = { mulai: string; akhir: string };
 const dalamSorot = (bulan: string, s: Sorot) => bulan >= s.mulai && bulan <= s.akhir;
-
-const [LEBAR, TINGGI] = [360, 190];
-const RUANG = { kiri: 34, kanan: 6, atas: 8, bawah: 32 };
-/**
- * Ukuran huruf sumbu dalam satuan viewBox, jadi ikut mengecil bersama grafik. Di layar sempit (< 640 px) grafik selebar
- * ~300–340 px, jadi hurufnya dibesarkan supaya tetap terbaca (≥ 11 px sesungguhnya pada layar 390 px).
- */
-const kelasSumbu = "fill-muted-foreground text-[10px] max-sm:text-[13px]";
 
 /** Batas atas sumbu yang bulat: 1, 2, 5, atau 10 × 10^n terkecil yang ≥ nilai. */
 function batasAtas(nilai: number) {
@@ -24,144 +23,144 @@ function batasAtas(nilai: number) {
   return [1, 2, 5, 10].map((m) => m * p).find((x) => x >= nilai)!;
 }
 
-const bulat = (v: number) => Math.round(v * 10) / 10;
-
 /**
- * Garis Capaian (terputus di bulan yang Capaiannya kosong) dan garis Target bertangga (Target bisa berganti setiap
- * bulan). Angka lengkap selalu ada di tabel di bawahnya; tooltip bawaan browser hanya pelengkap.
+ * Kerangka grafik bersama (juga grafik Dashboard): kolom sumbu kiri, bidang plot setinggi tetap, dan label bulan di
+ * bawahnya; tahun ditulis di bawah Januari dan di bawah bulan pertama (kecuali bila bulan berikutnya Januari).
  */
-export function GrafikCapaian({
-  titik,
-  satuan,
-  judul,
-  sorot,
-}: {
-  titik: TitikCapaian[];
-  satuan: string;
-  judul: string;
-  sorot?: Sorot;
+export function KerangkaGrafik(p: {
+  label: string;
+  bulan: string[];
+  sumbu: { nilai: number; teks: string; dasar?: boolean }[];
+  /** Posisi nilai sumbu dari atas bidang plot, dalam persen. */
+  y: (v: number) => number;
+  children: React.ReactNode;
 }) {
-  const lebarPlot = LEBAR - RUANG.kiri - RUANG.kanan;
-  const tinggiPlot = TINGGI - RUANG.atas - RUANG.bawah;
-  const atas = batasAtas(Math.max(...titik.flatMap((t) => [t.capaian ?? 0, t.target])));
-  const slot = lebarPlot / titik.length;
-  const x = (i: number) => bulat(RUANG.kiri + slot * (i + 0.5));
-  const y = (v: number) => bulat(RUANG.atas + tinggiPlot * (1 - v / atas));
+  return (
+    <div role="img" aria-label={p.label} className="@container grid grid-cols-[2.5rem_minmax(0,1fr)] text-[12px] leading-4 text-muted-foreground">
+      <div className="relative">
+        {p.sumbu.map((s) => (
+          <span key={s.nilai} className="absolute right-2.5 -translate-y-1/2" style={{ top: `${p.y(s.nilai)}%` }}>
+            {s.teks}
+          </span>
+        ))}
+      </div>
+      <div className="relative h-52 sm:h-60">
+        {p.sumbu.map((s) => (
+          <span
+            key={s.nilai}
+            className={`absolute inset-x-0 border-t ${s.dasar ? "border-chart-target/50" : "border-grid"}`}
+            style={{ top: `${p.y(s.nilai)}%` }}
+          />
+        ))}
+        {p.children}
+      </div>
+      {/* Di grafik sempit 12 label bulan hampir bersentuhan: huruf 11 px, batas terkecil yang masih terbaca. */}
+      <div className="col-start-2 mt-2 flex @max-md:text-[11px]">
+        {p.bulan.map((b, i) => (
+          <span key={b} className="min-w-0 flex-1 text-center whitespace-nowrap">
+            {labelBulan(b, { pendek: true, tahun: false })}
+            {(b.endsWith("-01") || (i === 0 && !p.bulan[1]?.endsWith("-01"))) && <span className="block">{b.slice(0, 4)}</span>}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  let garisCapaian = "";
-  titik.forEach((t, i) => {
-    if (t.capaian !== null) garisCapaian += `${i > 0 && titik[i - 1].capaian !== null ? "L" : "M"}${x(i)},${y(t.capaian)} `;
-  });
-  const disorot = sorot ? titik.flatMap((t, i) => (dalamSorot(t.bulan, sorot) ? [i] : [])) : [];
+export function GrafikCapaian({ titik, satuan, judul, sorot }: { titik: TitikCapaian[]; satuan: string; judul: string; sorot?: Sorot }) {
+  const atas = batasAtas(Math.max(...titik.flatMap((t) => [t.capaian ?? 0, t.target])) * 1.05);
+  // Koordinat dalam persen bidang plot: x di tengah kolom bulan, y dari atas.
+  const x = (i: number) => ((i + 0.5) / titik.length) * 100;
+  const y = (v: number) => (1 - v / atas) * 100;
+
+  // Ruas-ruas garis Capaian: terputus di bulan yang Capaiannya kosong; setiap ruas punya bidang lembut di bawahnya.
+  const ruas = titik.reduce<number[][]>((semua, t, i) => {
+    if (t.capaian === null) return semua;
+    if (i > 0 && titik[i - 1].capaian !== null) return [...semua.slice(0, -1), [...semua.at(-1)!, i]];
+    return [...semua, [i]];
+  }, []);
+  const garis = (r: number[]) => r.map((i, k) => `${k ? "L" : "M"}${x(i)},${y(titik[i].capaian!)}`).join(" ");
+  const bidang = (r: number[]) => `${garis(r)} L${x(r.at(-1)!)},100 L${x(r[0])},100 Z`;
   const garisTarget = titik
-    .map((t, i) => `${i === 0 ? "M" : "L"}${bulat(RUANG.kiri + slot * i)},${y(t.target)} H${bulat(RUANG.kiri + slot * (i + 1))}`)
+    .map((t, i) => `${i ? "L" : "M"}${(i / titik.length) * 100},${y(t.target)} H${((i + 1) / titik.length) * 100}`)
     .join(" ");
+  const disorot = sorot ? titik.flatMap((t, i) => (dalamSorot(t.bulan, sorot) ? [i] : [])) : [];
 
   return (
-    <figure className="grid gap-2">
+    <figure className="grid gap-4">
       <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 rounded bg-accent" />
+          <span aria-hidden className="h-1 w-5 rounded-full bg-area" />
           {judul}
         </span>
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="w-4 border-t-2 border-dashed border-chart-target" />
+          <span aria-hidden className="size-2.5 rounded-full bg-success" />
+          Tercapai
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden className="size-2.5 rounded-full bg-danger" />
+          Belum Tercapai
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden className="w-5 border-t-2 border-dashed border-chart-target" />
           Target
         </span>
         {disorot.length > 0 && (
           <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-4 rounded-sm bg-foreground/5" />
+            <span aria-hidden className="h-3 w-5 rounded-sm bg-area/15" />
             Periode uji coba
           </span>
         )}
       </figcaption>
-      <svg
-        viewBox={`0 0 ${LEBAR} ${TINGGI}`}
-        className="w-full max-w-[30rem] overflow-visible"
-        role="img"
-        aria-label={`Grafik ${judul} dan Target; angkanya ada di tabel.`}
+      <KerangkaGrafik
+        label={`Grafik ${judul} dan Target; angkanya ada di tabel.`}
+        bulan={titik.map((t) => t.bulan)}
+        sumbu={[0, atas / 2, atas].map((v) => ({ nilai: v, teks: formatAngka(v), dasar: v === 0 }))}
+        y={y}
       >
         {disorot.length > 0 && (
-          <rect
-            x={bulat(RUANG.kiri + slot * disorot[0])}
-            y={RUANG.atas}
-            width={bulat(slot * disorot.length)}
-            height={tinggiPlot}
-            className="fill-foreground/5"
+          <span
+            className="absolute inset-y-0 rounded-lg bg-area/10"
+            style={{ left: `${(disorot[0] / titik.length) * 100}%`, width: `${(disorot.length / titik.length) * 100}%` }}
           />
         )}
-        {[0, atas / 2, atas].map((v) => (
-          <g key={v}>
-            <line
-              x1={RUANG.kiri}
-              x2={LEBAR - RUANG.kanan}
-              y1={y(v)}
-              y2={y(v)}
-              className="stroke-grid"
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className="absolute inset-0 size-full overflow-visible">
+          {ruas.map((r) => (
+            <path key={r[0]} d={bidang(r)} className="fill-area/12" />
+          ))}
+          <path
+            d={garisTarget}
+            fill="none"
+            strokeWidth={1.5}
+            strokeDasharray="5 4"
+            className="stroke-chart-target"
+            vectorEffect="non-scaling-stroke"
+          />
+          {ruas.map((r) => (
+            <path
+              key={r[0]}
+              d={garis(r)}
+              fill="none"
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              className="stroke-area"
               vectorEffect="non-scaling-stroke"
             />
-            <text
-              x={RUANG.kiri - 5}
-              y={y(v)}
-              textAnchor="end"
-              dominantBaseline="middle"
-              className={`${kelasSumbu} tabular-nums`}
-            >
-              {formatAngka(v)}
-            </text>
-          </g>
-        ))}
-        {titik.map((t, i) => (
-          <text
-            key={t.bulan}
-            x={x(i)}
-            y={TINGGI - RUANG.bawah + 13}
-            textAnchor="middle"
-            className={kelasSumbu}
-          >
-            {labelBulan(t.bulan, { pendek: true, tahun: false })}
-            {/* Tahun di bawah Januari, dan di bawah titik pertama kecuali bila titik berikutnya Januari (bertabrakan). */}
-            {(t.bulan.endsWith("-01") || (i === 0 && !titik[1]?.bulan.endsWith("-01"))) && (
-              <tspan x={x(i)} dy="1.15em">
-                {t.bulan.slice(0, 4)}
-              </tspan>
-            )}
-          </text>
-        ))}
-        <path
-          d={garisTarget}
-          fill="none"
-          strokeWidth={1.5}
-          strokeDasharray="4 3"
-          className="stroke-chart-target"
-          vectorEffect="non-scaling-stroke"
-        />
-        <path
-          d={garisCapaian}
-          fill="none"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          className="stroke-accent"
-          vectorEffect="non-scaling-stroke"
-        />
+          ))}
+        </svg>
         {titik.map(
           (t, i) =>
             t.capaian !== null && (
-              <g key={t.bulan}>
-                <title>
-                  {`${labelBulan(t.bulan)}: ${formatCapaian(t.capaian, satuan)}, Target ${formatCapaian(t.target, satuan)}, ` +
-                    LABEL_STATUS_CAPAIAN[t.status!]}
-                </title>
-                <circle cx={x(i)} cy={y(t.capaian)} r={12} fill="transparent" />
-                {/* Titik hanya untuk bulan tanpa tetangga (tidak tergambar sebagai garis). */}
-                {titik[i - 1]?.capaian == null && titik[i + 1]?.capaian == null && (
-                  <circle cx={x(i)} cy={y(t.capaian)} r={3} className="fill-accent" />
-                )}
-              </g>
+              <span
+                key={t.bulan}
+                title={`${labelBulan(t.bulan)}: ${formatCapaian(t.capaian, satuan)}, Target ${formatCapaian(t.target, satuan)}, ${LABEL_STATUS_CAPAIAN[t.status!]}`}
+                className={`absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface ${t.status === "tercapai" ? "bg-success" : "bg-danger"}`}
+                style={{ left: `${x(i)}%`, top: `${y(t.capaian)}%` }}
+              />
             ),
         )}
-      </svg>
+      </KerangkaGrafik>
     </figure>
   );
 }
@@ -177,8 +176,9 @@ export const keteranganUnit = ({ kelengkapan: k }: TitikCapaian) =>
   k.wajib === 0 ? "bukan Unit Pelapor" : k.terverifikasi === 0 ? "belum Terverifikasi" : null;
 
 /**
- * Grafik dan tabel satu deret Capaian (Capaian RS atau Capaian satu Unit). `analisis` = tautan Analisis di bawah nama
- * bulan (Monitoring); `sorot` = periode uji coba PDSA yang ditandai di grafik dan tabel.
+ * Grafik dan tabel satu deret Capaian (Capaian RS atau Capaian satu Unit): grafik selebar kartu, tabel bulanan (terbaru
+ * di atas) di bawahnya. `analisis` = tautan Analisis di samping nama bulan (Monitoring); `sorot` = periode uji coba
+ * PDSA; `polos` = tanpa bingkai kartu sendiri, bila sudah berada di dalam kartu lain.
  */
 export function Tren(p: {
   judul: string;
@@ -188,48 +188,54 @@ export function Tren(p: {
   catatan: (t: TitikCapaian) => string | null;
   analisis?: (t: TitikCapaian) => React.ReactNode;
   sorot?: Sorot;
-  /** Tanpa bingkai kartu sendiri, bila sudah berada di dalam kartu lain (tidak lebih dari tiga tingkat). */
   polos?: boolean;
 }) {
   return (
-    <div className={p.polos ? undefined : kelasKartu}>
-      <div className={p.polos ? "pb-2" : "border-b border-border px-4 py-3"}>
-        <h2 className="text-[16px] font-medium">{p.judul}</h2>
+    <section className={p.polos ? "min-w-0" : `${kelasKartu} min-w-0`}>
+      <div className={p.polos ? "pb-3" : "px-5 pt-4 pb-2"}>
+        <h2 className="text-[16px] leading-6 font-semibold">{p.judul}</h2>
         <p className="mt-0.5 text-[13px] text-muted-foreground">{p.keterangan}</p>
       </div>
-      <div className={`grid gap-4 lg:grid-cols-2 lg:items-start ${p.polos ? "" : "p-3 sm:p-4"}`}>
+      <div className={p.polos ? "grid gap-5" : "grid gap-5 px-5 pb-5"}>
         <GrafikCapaian titik={p.titik} satuan={p.satuan} judul={p.judul} sorot={p.sorot} />
-        <div className="-mx-1.5 min-w-0 overflow-x-auto">
-          <table className="w-full border-collapse text-[13px] tabular-nums">
+        {/* relative: teks sr-only (posisi absolut) di sel tabel tetap di dalam area geser, tidak melebarkan halaman. */}
+        <div className="relative min-w-0 overflow-x-auto">
+          <table className="w-full min-w-[34rem] border-collapse text-[14px]">
             <thead>
               <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
-                <th className="px-1.5 py-2 font-normal">Bulan</th>
-                <th className="px-1.5 py-2 text-right font-normal">Capaian</th>
-                <th className="px-1.5 py-2 text-right font-normal">Target</th>
-                <th className="px-1.5 py-2 text-right font-normal">Selisih</th>
-                <th className="px-1.5 py-2 font-normal">Status</th>
+                <th className="py-2 pr-3 font-semibold">Bulan</th>
+                <th className="px-3 py-2 text-right font-semibold">Capaian</th>
+                <th className="px-3 py-2 text-right font-semibold">Target</th>
+                <th className="px-3 py-2 text-right font-semibold">Selisih</th>
+                <th className="py-2 pl-3 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-rule">
-              {p.titik.map((t) => {
+              {p.titik.toReversed().map((t) => {
                 const catatan = p.catatan(t);
                 return (
-                  <tr key={t.bulan} className="align-top">
-                    <td className="px-1.5 py-2">
-                      <span className="whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
-                      {p.sorot && dalamSorot(t.bulan, p.sorot) && <span className="block text-[12px] text-accent">uji coba</span>}
+                  <tr key={t.bulan} className={p.sorot && dalamSorot(t.bulan, p.sorot) ? "bg-area/5" : undefined}>
+                    <td className="py-2.5 pr-3">
+                      <span className="font-medium whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
+                      {p.sorot && dalamSorot(t.bulan, p.sorot) && (
+                        <span className="ml-2 text-[12px] font-semibold text-area-ink">uji coba</span>
+                      )}
                       {p.analisis?.(t)}
                     </td>
-                    <td className="px-1.5 py-2 text-right">
-                      <span className="whitespace-nowrap">
+                    <td className="px-3 py-2.5 text-right">
+                      <span className="font-semibold whitespace-nowrap">
                         {/* "kosong" hanya untuk ΣD = 0 dari Pengukuran Terverifikasi; tanpa Pengukuran Terverifikasi = "–". */}
-                        {t.kelengkapan.terverifikasi === 0 ? "–" : formatCapaian(t.capaian, p.satuan)}
+                        {t.kelengkapan.terverifikasi === 0 ? (
+                          <span className="text-muted-foreground">–</span>
+                        ) : (
+                          formatCapaian(t.capaian, p.satuan)
+                        )}
                       </span>
                       {catatan && <span className="block text-[12px] text-warning">{catatan}</span>}
                     </td>
-                    <td className="px-1.5 py-2 text-right whitespace-nowrap">{formatCapaian(t.target, p.satuan)}</td>
-                    <td className="px-1.5 py-2 text-right whitespace-nowrap">{formatSelisih(t.selisih)}</td>
-                    <td className="px-1.5 py-2">
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap text-muted-foreground">{formatCapaian(t.target, p.satuan)}</td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatSelisih(t.selisih)}</td>
+                    <td className="py-2.5 pl-3">
                       <LabelCapaian status={t.status} />
                     </td>
                   </tr>
@@ -239,6 +245,6 @@ export function Tren(p: {
           </table>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

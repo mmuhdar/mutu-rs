@@ -4,19 +4,8 @@ import { useActionState } from "react";
 
 import { LABEL_STATUS_TINDAK_LANJUT, STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perbaikan";
 
-import { kelasArea, kelasInput, PesanError, tombolUtama } from "../form";
+import { kelasArea, kelasInput, Kolom, PesanError, Segmen, tombolUtama } from "../form";
 import { tambahTindakLanjutAction, ubahTindakLanjutAction } from "./actions";
-
-function Kolom({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
-  return (
-    <div className="grid min-w-0 content-start gap-1.5">
-      <label htmlFor={htmlFor} className="text-[13px] font-medium">
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
 
 /** Tindakan, PIC, dan tenggat; `awal` = nilai bawaan, `id` = akhiran id unik per form. */
 function IsianDasar({ id, awal }: { id: string; awal: { tindakan?: string; pic?: string; tenggat?: string } }) {
@@ -29,24 +18,25 @@ function IsianDasar({ id, awal }: { id: string; awal: { tindakan?: string; pic?:
           rows={2}
           required
           maxLength={1000}
+          placeholder="Apa yang akan dilakukan"
           defaultValue={awal.tindakan}
           className={kelasArea}
         />
       </Kolom>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Kolom label="PIC (nama atau jabatan)" htmlFor={`pic-${id}`}>
-          <input id={`pic-${id}`} name="pic" required maxLength={120} defaultValue={awal.pic} className={kelasInput} />
-        </Kolom>
-        <Kolom label="Tenggat" htmlFor={`tenggat-${id}`}>
+        <Kolom label="PIC" htmlFor={`pic-${id}`}>
           <input
-            id={`tenggat-${id}`}
-            name="tenggat"
-            type="date"
+            id={`pic-${id}`}
+            name="pic"
             required
-            placeholder="YYYY-MM-DD"
-            defaultValue={awal.tenggat}
+            maxLength={120}
+            placeholder="Nama atau jabatan"
+            defaultValue={awal.pic}
             className={kelasInput}
           />
+        </Kolom>
+        <Kolom label="Tenggat" htmlFor={`tenggat-${id}`}>
+          <input id={`tenggat-${id}`} name="tenggat" type="date" required defaultValue={awal.tenggat} className={kelasInput} />
         </Kolom>
       </div>
     </>
@@ -58,7 +48,7 @@ export function FormTambahTindakLanjut({ analisisId }: { analisisId: string }) {
   const [state, action, pending] = useActionState(tambahTindakLanjutAction, {});
   return (
     <form action={action} className="grid gap-3">
-      <h3 className="font-semibold">Tambah Tindak Lanjut</h3>
+      <h3 className="text-[16px] font-bold text-tindak-ink">Tambah Tindak Lanjut</h3>
       <input type="hidden" name="analisisId" value={analisisId} />
       <IsianDasar id="baru" awal={state.nilai ?? {}} />
       <PesanError pesan={state.error} />
@@ -78,33 +68,23 @@ export function FormUbahTindakLanjut({
   const [state, action, pending] = useActionState(ubahTindakLanjutAction, {});
   const awal = state.nilai ?? t;
   return (
-    <details open={Boolean(state.error)}>
-      <summary className="cursor-pointer text-[13px] font-medium text-accent pointer-coarse:py-2">
-        Ubah atau perbarui status
-      </summary>
-      <form action={action} className="mt-2 grid gap-3">
+    <details open={Boolean(state.error)} className="group">
+      <summary className="cursor-pointer text-[13px] font-semibold text-tindak-ink pointer-coarse:py-2">Perbarui status atau ubah</summary>
+      <form action={action} className="mt-2 grid gap-3 rounded-2xl bg-tindak-tint p-4">
         <input type="hidden" name="id" value={t.id} />
+        {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
+        <Segmen
+          key={awal.status}
+          nama="status"
+          label="Status"
+          pilihan={STATUS_TINDAK_LANJUT.map((s) => ({ nilai: s, label: LABEL_STATUS_TINDAK_LANJUT[s] }))}
+          nilai={awal.status}
+          wajib
+        />
+        <Kolom label="Catatan" petunjuk="Hasil saat Selesai, alasan saat Dibatalkan." htmlFor={`catatan-${t.id}`}>
+          <textarea id={`catatan-${t.id}`} name="catatan" rows={2} maxLength={1000} defaultValue={awal.catatan} className={kelasArea} />
+        </Kolom>
         <IsianDasar id={t.id} awal={awal} />
-        <Kolom label="Status" htmlFor={`status-${t.id}`}>
-          {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
-          <select key={awal.status} id={`status-${t.id}`} name="status" defaultValue={awal.status} className={kelasInput}>
-            {STATUS_TINDAK_LANJUT.map((s) => (
-              <option key={s} value={s}>
-                {LABEL_STATUS_TINDAK_LANJUT[s]}
-              </option>
-            ))}
-          </select>
-        </Kolom>
-        <Kolom label="Catatan (hasil saat Selesai, alasan saat Dibatalkan)" htmlFor={`catatan-${t.id}`}>
-          <textarea
-            id={`catatan-${t.id}`}
-            name="catatan"
-            rows={2}
-            maxLength={1000}
-            defaultValue={awal.catatan}
-            className={kelasArea}
-          />
-        </Kolom>
         <PesanError pesan={state.error} />
         <button type="submit" disabled={pending} className={tombolUtama}>
           {pending ? "Menyimpan…" : "Simpan"}

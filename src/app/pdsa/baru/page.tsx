@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { bulanBerjalan, geserBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
@@ -9,7 +8,8 @@ import { ambilPdsa, bolehMulaiPdsa, bolehTulisLingkup } from "@/modules/perbaika
 import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasKartu, Pesan, pesanAtau } from "../../pengukuran/status";
+import { Pesan, pesanAtau } from "../../pengukuran/status";
+import { Halaman, Kartu, KepalaHalaman } from "../../ui";
 import { FormPdsaBaru } from "../form-pdsa";
 
 export const metadata: Metadata = { title: "Mulai PDSA" };
@@ -36,34 +36,32 @@ export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa
   const bulanMulai = bulanBerjalan();
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <Link href={sebelumnya ? `/pdsa/${sebelumnya.id}` : "/pdsa"} className="text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2">
-          ← {sebelumnya ? "PDSA sebelumnya" : "Daftar PDSA"}
-        </Link>
-        <h1 className="mt-2 text-[22px] leading-tight font-semibold tracking-[-0.02em]">
-          {sebelumnya ? `Siklus ke-${sebelumnya.siklus + 1}: ${sebelumnya.judul}` : "Mulai PDSA"}
-        </h1>
-        <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
-          {sebelumnya
+    <Halaman area="pdsa">
+      <KepalaHalaman
+        judul={sebelumnya ? `Siklus ke-${sebelumnya.siklus + 1}: ${sebelumnya.judul}` : "Mulai PDSA"}
+        kembali={[{ href: sebelumnya ? `/pdsa/${sebelumnya.id}` : "/pdsa", label: sebelumnya ? "PDSA sebelumnya" : "Daftar PDSA" }]}
+        sub={
+          sebelumnya
             ? `${sebelumnya.indikator.kode} · ${labelLingkup(sebelumnya.unit)}. Isi Plan siklus ini berdasarkan Act siklus sebelumnya.`
-            : "Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do."}
-        </p>
-      </div>
-      <div className={`${kelasKartu} p-4`}>
-        <FormPdsaBaru
-          sebelumnyaId={sebelumnya?.id}
-          indikator={indikator.filter((i) => i.aktif).map((i) => ({ id: i.id, label: `${i.kode} — ${i.nama}` }))}
-          lingkup={lingkup}
-          awal={{
-            indikatorId: teksAlamat(sp, "indikator") || undefined,
-            unitId: teksAlamat(sp, "unit") || lingkup[0]?.id,
-            judul: sebelumnya?.judul,
-            bulanMulai,
-            bulanAkhir: geserBulan(bulanMulai, 2),
-          }}
-        />
-      </div>
-    </section>
+            : "Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do."
+        }
+      />
+      <Kartu>
+        <div className="p-5">
+          <FormPdsaBaru
+            sebelumnyaId={sebelumnya?.id}
+            indikator={indikator.filter((i) => i.aktif).map((i) => ({ id: i.id, label: `${i.kode} — ${i.nama}` }))}
+            lingkup={lingkup}
+            awal={{
+              indikatorId: teksAlamat(sp, "indikator") || undefined,
+              unitId: teksAlamat(sp, "unit") || lingkup[0]?.id,
+              judul: sebelumnya?.judul,
+              bulanMulai,
+              bulanAkhir: geserBulan(bulanMulai, 2),
+            }}
+          />
+        </div>
+      </Kartu>
+    </Halaman>
   );
 }

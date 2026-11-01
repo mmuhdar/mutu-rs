@@ -2,30 +2,18 @@
 
 import { useActionState } from "react";
 
+import { kelasInput, kelasLabel, PesanError, tombolGaris, tombolUtama } from "../form";
+import { Pil } from "../ui";
 import { aturAktifUnitAction, gantiNamaUnitAction, tambahUnitAction } from "./actions";
-
-const kelasInput =
-  "h-10 w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-ring aria-invalid:border-danger pointer-coarse:h-11";
-const kelasTombol = "h-10 shrink-0 rounded-md px-4 font-semibold disabled:opacity-70 pointer-coarse:h-11";
-const tombolUtama = `${kelasTombol} bg-primary text-primary-foreground hover:bg-primary-hover`;
-const tombolGaris = `${kelasTombol} border border-border hover:bg-background`;
-
-function PesanError({ pesan }: { pesan?: string }) {
-  return pesan ? (
-    <p role="alert" className="text-[13px] text-danger">
-      {pesan}
-    </p>
-  ) : null;
-}
 
 export function FormTambahUnit() {
   const [state, action, pending] = useActionState(tambahUnitAction, {});
   return (
-    <form action={action} className="grid gap-1.5">
-      <label htmlFor="nama-unit-baru" className="text-[13px] font-medium">
+    <form action={action} className="mt-5 grid max-w-xl gap-1.5">
+      <label htmlFor="nama-unit-baru" className={kelasLabel}>
         Tambah Unit
       </label>
-      <div className="flex gap-2">
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
         <input
           id="nama-unit-baru"
           name="nama"
@@ -50,16 +38,12 @@ export function BarisUnit({ unit }: { unit: { id: string; nama: string; aktif: b
   const [ganti, gantiAction, gantiPending] = useActionState(gantiNamaUnitAction, {});
   const [status, statusAction, statusPending] = useActionState(aturAktifUnitAction, {});
   return (
-    <li className="grid gap-2 p-4">
+    <li className="grid gap-2 px-5 py-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="font-medium">{unit.nama}</span>
+        <span className="text-[16px] font-semibold">{unit.nama}</span>
         {/* Hanya yang nonaktif yang diberi tanda; aktif adalah keadaan biasa. */}
-        {!unit.aktif && (
-          <span className="inline-flex h-5 flex-none items-center rounded-full bg-active px-2 text-[12px] font-medium text-muted-foreground">
-            Nonaktif
-          </span>
-        )}
-        <form action={statusAction} className="ml-auto">
+        {!unit.aktif && <Pil nada="netral">Nonaktif</Pil>}
+        <form action={statusAction} className="w-full sm:ml-auto sm:w-auto">
           <input type="hidden" name="id" value={unit.id} />
           <input type="hidden" name="aktif" value={String(!unit.aktif)} />
           <button type="submit" disabled={statusPending} className={tombolGaris}>
@@ -69,10 +53,10 @@ export function BarisUnit({ unit }: { unit: { id: string; nama: string; aktif: b
       </div>
       <PesanError pesan={status.error} />
       <details>
-        <summary className="w-fit cursor-pointer text-[13px] font-medium text-accent">Ganti nama</summary>
-        <form action={gantiAction} className="mt-2 grid gap-1.5">
+        <summary className="w-fit cursor-pointer text-[14px] font-semibold text-area-ink pointer-coarse:py-1.5">Ganti nama</summary>
+        <form action={gantiAction} className="mt-2 grid max-w-xl gap-1.5">
           <input type="hidden" name="id" value={unit.id} />
-          <div className="flex gap-2">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <input
               name="nama"
               required

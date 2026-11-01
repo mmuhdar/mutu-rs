@@ -3,12 +3,11 @@ import type { Metadata } from "next";
 import { daftarUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
-import { pesanAtau } from "../pengukuran/status";
+import { Pesan, pesanAtau } from "../pengukuran/status";
+import { Halaman, Kartu, KepalaHalaman } from "../ui";
 import { BarisUnit, FormTambahUnit } from "./form-unit";
 
 export const metadata: Metadata = { title: "Unit" };
-
-const kelasKartu = "rounded-lg border border-border bg-surface";
 
 export default async function HalamanUnit() {
   const pengguna = await requireUser();
@@ -16,34 +15,34 @@ export default async function HalamanUnit() {
   const daftar = await pesanAtau(daftarUnit(pengguna));
   if (typeof daftar === "string") {
     return (
-      <p role="alert" className={`${kelasKartu} p-5`}>
-        {daftar}
-      </p>
+      <Halaman area="atur">
+        <KepalaHalaman judul="Unit" />
+        <Pesan>{daftar}</Pesan>
+      </Halaman>
     );
   }
+  const aktif = daftar.filter((u) => u.aktif).length;
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">Unit</h1>
-        <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
-          Daftar baku Unit. Unit nonaktif hilang dari pilihan Unit, tetapi datanya tetap ada.
-        </p>
-      </div>
-      <div className={`${kelasKartu} p-4`}>
+    <Halaman area="atur">
+      <KepalaHalaman
+        judul="Unit"
+        meta={`${aktif} Unit aktif${daftar.length > aktif ? ` · ${daftar.length - aktif} nonaktif` : ""}`}
+        sub="Daftar baku Unit. Unit nonaktif hilang dari pilihan Unit, tetapi datanya tetap ada."
+      >
         <FormTambahUnit />
-      </div>
-      <div className={kelasKartu}>
+      </KepalaHalaman>
+      <Kartu>
         {daftar.length === 0 ? (
-          <p className="p-4 text-muted-foreground">Belum ada Unit.</p>
+          <p className="p-5 text-muted-foreground">Belum ada Unit.</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-rule">
             {daftar.map((unit) => (
               <BarisUnit key={`${unit.id}:${unit.nama}`} unit={unit} />
             ))}
           </ul>
         )}
-      </div>
-    </section>
+      </Kartu>
+    </Halaman>
   );
 }

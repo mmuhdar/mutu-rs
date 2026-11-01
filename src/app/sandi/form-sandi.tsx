@@ -2,36 +2,27 @@
 
 import { useActionState } from "react";
 
+import { kelasInput, Kolom, PesanError, tombolUtama } from "../form";
 import { gantiSandiAction } from "./actions";
-
-const kelasInput =
-  "h-10 w-full rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-ring pointer-coarse:h-11";
 
 const KOLOM = [
   { name: "sandiLama", label: "Sandi lama", autoComplete: "current-password", minLength: undefined },
-  { name: "sandiBaru", label: "Sandi baru", autoComplete: "new-password", minLength: 8 },
+  { name: "sandiBaru", label: "Sandi baru", autoComplete: "new-password", minLength: 8, petunjuk: "Minimal 8 karakter." },
   { name: "ulangiSandi", label: "Ulangi sandi baru", autoComplete: "new-password", minLength: 8 },
 ];
 
 export function FormSandi() {
   const [state, action, pending] = useActionState(gantiSandiAction, {});
   return (
-    <form action={action} className="mt-5 grid gap-4">
-      {state.error && (
-        <p role="alert" className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger-ink">
-          {state.error}
-        </p>
-      )}
+    <form action={action} className="grid gap-4 p-5 sm:p-6">
+      <PesanError pesan={state.error} />
       {state.berhasil && (
-        <p role="status" className="rounded-md bg-success-soft px-3 py-2.5 text-[13px] text-success">
+        <p role="status" className="rounded-xl bg-success-soft px-3.5 py-2.5 text-[14px] text-success-ink">
           Sandi berhasil diganti. Sesi Anda di perangkat lain sudah diakhiri.
         </p>
       )}
       {KOLOM.map((k) => (
-        <div key={k.name} className="grid gap-1.5">
-          <label htmlFor={k.name} className="text-[13px] font-medium">
-            {k.label}
-          </label>
+        <Kolom key={k.name} label={k.label} htmlFor={k.name} petunjuk={k.petunjuk}>
           <input
             id={k.name}
             name={k.name}
@@ -41,14 +32,9 @@ export function FormSandi() {
             autoComplete={k.autoComplete}
             className={kelasInput}
           />
-        </div>
+        </Kolom>
       ))}
-      <p className="-mt-2 text-[12.5px] text-muted-foreground">Sandi baru minimal 8 karakter.</p>
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-1 h-11 rounded-md bg-primary font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-70"
-      >
+      <button type="submit" disabled={pending} className={`${tombolUtama} mt-1`}>
         {pending ? "Menyimpan…" : "Ganti sandi"}
       </button>
     </form>

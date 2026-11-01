@@ -4,7 +4,7 @@ import Link from "next/link";
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
-import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
+import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH } from "@/lib/indikator";
 import { punyaLingkupRs } from "@/lib/perbaikan";
 import { trenCapaian, type TitikCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
@@ -12,7 +12,10 @@ import { analisisTersedia } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
-import { kelasInput, kelasKartu, LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
+import { kelasInput, kelasLabel, tombolUtama } from "../form";
+import { BarTarget } from "../grafik-dashboard";
+import { LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
+import { BarKemajuan, Halaman, Kartu, KepalaHalaman, Ubin } from "../ui";
 import { keteranganRs, keteranganUnit, Tren } from "./grafik";
 
 export const metadata: Metadata = { title: "Monitoring" };
@@ -25,70 +28,85 @@ function TautanAnalisis({ href, ada }: { href: string; ada: boolean }) {
   return (
     <Link
       href={href}
-      className={`block text-[12px] font-medium whitespace-nowrap hover:underline pointer-coarse:py-1 ${ada ? "text-accent" : "text-muted-foreground"}`}
+      className={`ml-2 text-[12px] font-semibold whitespace-nowrap hover:underline pointer-coarse:py-1 ${ada ? "text-area-ink" : "text-muted-foreground"}`}
     >
       {ada ? "Analisis" : "Belum dianalisis"}
     </Link>
   );
 }
 
-/** Rincian Capaian per Unit, satu bagian per bulan (terbaru di atas dan terbuka). */
-function RincianPerUnit({ tren, tautan }: { tren: TrenCapaian; tautan: TautanTitik }) {
-  const { satuan } = tren.indikator;
+/** Ubin ringkasan bulan terakhir rentang: Capaian (hijau/merah menurut status), Target, dan Kelengkapan. */
+function RingkasanBulan(p: { t: TitikCapaian; satuan: string; arah: TrenCapaian["indikator"]["arah"]; label: string }) {
+  const { t, satuan } = p;
+  const ada = t.kelengkapan.terverifikasi > 0;
   return (
-    <div className={kelasKartu}>
-      <h2 className="border-b border-border px-4 py-3 text-[15px] font-semibold">Rincian Capaian per Unit</h2>
-      {tren.unit.length === 0 ? (
-        <p className="p-4 text-muted-foreground">Belum ada Unit Pelapor dalam rentang ini.</p>
-      ) : (
-        <div className="divide-y divide-border">
-          {tren.bulan
-            .map((bulan, i) => {
-              const unit = tren.unit.filter((u) => u.titik[i].kelengkapan.wajib > 0);
-              const k = tren.rs?.[i].kelengkapan;
-              return (
-                <details key={bulan} open={i === tren.bulan.length - 1} className="group">
-                  <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 py-2 hover:bg-background">
-                    <span aria-hidden className="text-muted-foreground transition-transform group-open:rotate-90">
-                      ›
-                    </span>
-                    <span className="font-medium">{labelBulan(bulan)}</span>
-                    <span className="ml-auto text-[13px] text-muted-foreground">
-                      {k && k.wajib > 0 ? `${k.terverifikasi}/${k.wajib} Unit Terverifikasi` : "tidak ada Unit Pelapor"}
-                    </span>
-                  </summary>
-                  <ul className="divide-y divide-border border-t border-border">
-                    {unit.map(({ unit: u, titik }) => {
-                      const t = titik[i];
-                      return (
-                        <li key={u.id} className="flex items-center gap-3 px-4 py-2.5">
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-medium">
-                              {u.nama}
-                              {!u.aktif && <span className="font-normal text-muted-foreground"> (nonaktif)</span>}
-                            </span>
-                            <span className="block text-[12.5px] text-muted-foreground tabular-nums">
-                              {t.kelengkapan.terverifikasi ? `N ${t.n} / D ${t.d}` : "belum Terverifikasi"}
-                            </span>
-                            {tautan(u.id, t)}
-                          </span>
-                          <span className="text-right tabular-nums">
-                            <span className="block whitespace-nowrap">
-                              {t.kelengkapan.terverifikasi ? formatCapaian(t.capaian, satuan) : "–"}
-                            </span>
-                            {t.kelengkapan.terverifikasi > 0 && <LabelCapaian status={t.status} />}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </details>
-              );
-            })
-            .toReversed()}
-        </div>
-      )}
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <Ubin
+        nada={t.status === "tercapai" ? "pos" : t.status === "belumTercapai" ? "neg" : "netral"}
+        label={`${p.label} · ${labelBulan(t.bulan, { pendek: true })}`}
+        nilai={ada ? formatCapaian(t.capaian, satuan) : "–"}
+        keterangan={t.status ? (t.status === "tercapai" ? "Tercapai" : "Belum Tercapai") : "belum ada Pengukuran Terverifikasi"}
+      />
+      <Ubin
+        nada="pantau"
+        label="Target"
+        nilai={`${TANDA_ARAH[p.arah]} ${formatCapaian(t.target, satuan)}`}
+        keterangan={t.selisih === null ? "selisih belum ada" : `selisih ${t.selisih > 0 ? "+" : ""}${formatCapaian(t.selisih, satuan)}`}
+      />
+      <div className="col-span-2 md:col-span-1">
+        <Ubin nada="ukur" label="Kelengkapan" nilai={`${t.kelengkapan.terverifikasi}/${t.kelengkapan.wajib}`} keterangan="Unit Pelapor yang sudah Terverifikasi">
+          <BarKemajuan nada="ukur" nilai={t.kelengkapan.terverifikasi} dari={t.kelengkapan.wajib} />
+        </Ubin>
+      </div>
     </div>
+  );
+}
+
+/** Capaian setiap Unit Pelapor pada bulan akhir rentang: satu baris per Unit dengan bar terhadap Target dan tautan Analisis. */
+function PerUnit({ tren, tautan }: { tren: TrenCapaian; tautan: TautanTitik }) {
+  const { satuan, arah } = tren.indikator;
+  const i = tren.bulan.length - 1;
+  const bulan = tren.bulan[i];
+  const unit = tren.unit.filter((u) => u.titik[i].kelengkapan.wajib > 0);
+  return (
+    <Kartu judul={`Capaian per Unit · ${labelBulan(bulan)}`} sub="Garis tegak = Target. Hanya Pengukuran Terverifikasi.">
+      {unit.length === 0 ? (
+        <div className="px-5 pb-5">
+          <Pesan>Tidak ada Unit Pelapor pada {labelBulan(bulan)}.</Pesan>
+        </div>
+      ) : (
+        <ul className="divide-y divide-rule border-t border-border">
+          {unit.map(({ unit: u, titik }) => {
+            const t = titik[i];
+            const ada = t.kelengkapan.terverifikasi > 0;
+            return (
+              <li
+                key={u.id}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_6rem_8rem]"
+              >
+                <span className="min-w-0">
+                  <span className="block font-semibold">
+                    {u.nama}
+                    {!u.aktif && <span className="font-normal text-muted-foreground"> (nonaktif)</span>}
+                  </span>
+                  <span className="block text-[13px] text-muted-foreground">
+                    {ada ? `N ${t.n} / D ${t.d}` : "belum Terverifikasi"}
+                    {tautan(u.id, t)}
+                  </span>
+                </span>
+                <span className="col-span-2 row-start-2 sm:col-span-1 sm:row-start-auto">
+                  <BarTarget capaian={ada ? t.capaian : null} target={t.target} satuan={satuan} arah={arah} tercapai={t.status === "tercapai"} />
+                </span>
+                <span className="text-right font-semibold">
+                  {ada ? formatCapaian(t.capaian, satuan) : <span className="text-muted-foreground">–</span>}
+                </span>
+                <span className="hidden sm:block sm:text-right">{ada && <LabelCapaian status={t.status} />}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Kartu>
   );
 }
 
@@ -115,38 +133,29 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
   };
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">Monitoring</h1>
-        <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
-          Tren Capaian 12 bulan dibanding Target yang berlaku setiap bulan. Hanya Pengukuran Terverifikasi yang dihitung.
-        </p>
-      </div>
-
-      <form method="get" className={`${kelasKartu} grid gap-3 p-4 sm:grid-cols-[2fr_1fr_auto] sm:items-end`}>
-        <div className="grid min-w-0 gap-1.5">
-          <label htmlFor="indikator" className="text-[13px] font-medium">
+    <Halaman area="pantau">
+      <KepalaHalaman judul="Monitoring" sub="Tren Capaian 12 bulan dibanding Target yang berlaku setiap bulan, dari Pengukuran Terverifikasi.">
+        <form method="get" className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-end">
+          <label className={`grid min-w-0 gap-1.5 ${kelasLabel}`}>
             Indikator
+            <select name="indikator" defaultValue={indikatorId} className={kelasInput}>
+              {daftar.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.kode} — {i.nama}
+                  {!i.aktif && " (nonaktif)"}
+                </option>
+              ))}
+            </select>
           </label>
-          <select id="indikator" name="indikator" defaultValue={indikatorId} className={kelasInput}>
-            {daftar.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.kode} — {i.nama}
-                {!i.aktif && " (nonaktif)"}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-1.5">
-          <label htmlFor="bulan" className="text-[13px] font-medium">
-            Bulan akhir
+          <label className={`grid gap-1.5 ${kelasLabel}`}>
+            Sampai bulan
+            <input name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
           </label>
-          <input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
-        </div>
-        <button type="submit" className="h-11 rounded-md border border-border px-4 font-semibold hover:bg-background">
-          Tampilkan
-        </button>
-      </form>
+          <button type="submit" className={tombolUtama}>
+            Tampilkan
+          </button>
+        </form>
+      </KepalaHalaman>
 
       <Pemberitahuan>{dariAlamat.pemberitahuan}</Pemberitahuan>
 
@@ -155,49 +164,44 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
       ) : (
         <>
           <div>
-            <h2 className="text-[16px] font-medium">{tren.indikator.nama}</h2>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              <span className="font-mono text-[12px]">{tren.indikator.kode}</span> · {tren.indikator.kelompok}
-              {!tren.indikator.aktif && " · nonaktif"} · {LABEL_ARAH[tren.indikator.arah]} ·{" "}
-              {LABEL_FREKUENSI[tren.indikator.frekuensi]} · satuan {tren.indikator.satuan}
+            <h2 className="text-[20px] leading-7 font-bold tracking-[-0.01em]">{tren.indikator.nama}</h2>
+            <p className="mt-0.5 text-[14px] text-muted-foreground">
+              <span className="font-mono text-[13px]">{tren.indikator.kode}</span> · {tren.indikator.kelompok}
+              {!tren.indikator.aktif && " · nonaktif"} · {LABEL_ARAH[tren.indikator.arah]} · {LABEL_FREKUENSI[tren.indikator.frekuensi]}
             </p>
           </div>
           <IsiTren tren={tren} bulanAkhir={bulan} tautan={tautan} />
         </>
       )}
-    </section>
+    </Halaman>
   );
 }
 
 function IsiTren({ tren, bulanAkhir, tautan }: { tren: TrenCapaian; bulanAkhir: string; tautan: TautanTitik }) {
-  const { satuan, frekuensi } = tren.indikator;
+  const { satuan, frekuensi, arah } = tren.indikator;
   const rentang = `${frekuensi === "semesteran" ? "Titik Juni dan Desember dalam " : ""}12 bulan sampai ${labelBulan(bulanAkhir)}`;
   // Petugas Input Data dan Kepala Unit: Capaian Unit-nya saja, tanpa Capaian RS.
   if (!tren.rs) {
     if (tren.unit.length === 0) return <Pesan>Unit Anda bukan Unit Pelapor Indikator ini dalam rentang ini.</Pesan>;
     return tren.unit.map((u) => (
-      <Tren
-        key={u.unit.id}
-        judul={`Capaian ${u.unit.nama}`}
-        keterangan={rentang}
-        titik={u.titik}
-        satuan={satuan}
-        catatan={keteranganUnit}
-        analisis={(t) => tautan(u.unit.id, t)}
-      />
+      <div key={u.unit.id} className="grid gap-5">
+        <RingkasanBulan t={u.titik.at(-1)!} satuan={satuan} arah={arah} label={`Capaian ${u.unit.nama}`} />
+        <Tren
+          judul={`Capaian ${u.unit.nama}`}
+          keterangan={rentang}
+          titik={u.titik}
+          satuan={satuan}
+          catatan={keteranganUnit}
+          analisis={(t) => tautan(u.unit.id, t)}
+        />
+      </div>
     ));
   }
   return (
     <>
-      <Tren
-        judul="Capaian RS"
-        keterangan={rentang}
-        titik={tren.rs}
-        satuan={satuan}
-        catatan={keteranganRs}
-        analisis={(t) => tautan(null, t)}
-      />
-      <RincianPerUnit tren={tren} tautan={tautan} />
+      <RingkasanBulan t={tren.rs.at(-1)!} satuan={satuan} arah={arah} label="Capaian RS" />
+      <Tren judul="Capaian RS" keterangan={rentang} titik={tren.rs} satuan={satuan} catatan={keteranganRs} analisis={(t) => tautan(null, t)} />
+      <PerUnit tren={tren} tautan={tautan} />
     </>
   );
 }

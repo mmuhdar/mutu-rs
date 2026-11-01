@@ -9,15 +9,17 @@ import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
-import { kelasInput, kelasKartu, Pesan, pesanAtau } from "../pengukuran/status";
+import { kelasInput, kelasLabel, Segmen, tombolUtama } from "../form";
+import { Pesan, pesanAtau } from "../pengukuran/status";
+import { Halaman, Kartu, KepalaHalaman, Ubin } from "../ui";
 import { TabelTindakLanjut } from "./tabel";
 
 export const metadata: Metadata = { title: "Tindak Lanjut" };
 
-const PILIHAN_STATUS: [SaringanStatusTindakLanjut, string][] = [
-  ["terbuka", "Direncanakan dan Berjalan"],
-  ...STATUS_TINDAK_LANJUT.map((s) => [s, LABEL_STATUS_TINDAK_LANJUT[s]] as [SaringanStatusTindakLanjut, string]),
-  ["semua", "Semua status"],
+const PILIHAN_STATUS: { nilai: SaringanStatusTindakLanjut; label: string }[] = [
+  { nilai: "terbuka", label: "Terbuka" },
+  ...STATUS_TINDAK_LANJUT.map((s) => ({ nilai: s, label: LABEL_STATUS_TINDAK_LANJUT[s] })),
+  { nilai: "semua", label: "Semua" },
 ];
 
 /** Daftar Tindak Lanjut yang boleh dilihat: lewat tenggat paling atas, lalu urut tenggat. `?status=&unit=` (unit "rs" = Lingkup RS). */
@@ -29,65 +31,66 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
   const semuaLingkup = melihatCapaianRs(pengguna);
   // Pilihan Lingkup: Unit aktif yang boleh dibaca aktor (dan Lingkup RS bagi yang melihat semua).
   const pilihan = (await pilihanUnit(pengguna)).filter((u) => bolehBacaLingkup(pengguna, u.id));
-  // Status dan Lingkup di luar hak/daftar ditolak service.
-  const daftar = await pesanAtau(
-    daftarTindakLanjut(pengguna, { status, lingkup: unit === "rs" ? null : unit || undefined }),
-  );
+  const lingkup = unit === "rs" ? null : unit || undefined;
+  // Status dan Lingkup di luar hak/daftar ditolak service. Ringkasan status dihitung dari semua status Lingkup itu.
+  const [daftar, semua] = await Promise.all([
+    pesanAtau(daftarTindakLanjut(pengguna, { status, lingkup })),
+    pesanAtau(daftarTindakLanjut(pengguna, { status: "semua", lingkup })),
+  ]);
+  const hitung = (cocok: (t: { status: string; lewatTenggat: boolean }) => boolean) =>
+    typeof semua === "string" ? 0 : semua.filter(cocok).length;
+  const alamat = (s: string) => `/tindak-lanjut?${new URLSearchParams({ status: s, unit })}`;
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">Tindak Lanjut</h1>
-        <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
-          Tindakan perbaikan dari Analisis. Yang lewat tenggat paling atas. Status diubah di halaman Analisis-nya.
-        </p>
-      </div>
-
-      <form method="get" className={`${kelasKartu} grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end`}>
-        <div className="grid min-w-0 gap-1.5">
-          <label htmlFor="status" className="text-[13px] font-medium">
-            Status
-          </label>
-          <select id="status" name="status" defaultValue={status} className={kelasInput}>
-            {PILIHAN_STATUS.map(([nilai, label]) => (
-              <option key={nilai} value={nilai}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid min-w-0 gap-1.5">
-          <label htmlFor="unit" className="text-[13px] font-medium">
+    <Halaman area="tindak">
+      <KepalaHalaman judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis. Yang lewat tenggat paling atas; status diubah di halaman Analisis-nya.">
+        <form method="get" className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem_auto] lg:items-end">
+          {/* key: pilihan saringan mengikuti alamat. */}
+          <Segmen key={status} nama="status" label="Status" pilihan={PILIHAN_STATUS} nilai={status} />
+          <label className={`grid min-w-0 gap-1.5 ${kelasLabel}`}>
             Lingkup
+            <select name="unit" defaultValue={unit} className={kelasInput}>
+              <option value="">{semuaLingkup ? "Semua Lingkup" : "Semua Unit saya"}</option>
+              {semuaLingkup && <option value="rs">{labelLingkup(null)}</option>}
+              {pilihan.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {labelLingkup(u)}
+                </option>
+              ))}
+            </select>
           </label>
-          <select id="unit" name="unit" defaultValue={unit} className={kelasInput}>
-            <option value="">{semuaLingkup ? "Semua Lingkup" : "Semua Unit saya"}</option>
-            {semuaLingkup && <option value="rs">{labelLingkup(null)}</option>}
-            {pilihan.map((u) => (
-              <option key={u.id} value={u.id}>
-                {labelLingkup(u)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" className="h-11 rounded-md border border-border px-4 font-semibold hover:bg-background">
-          Tampilkan
-        </button>
-      </form>
+          <button type="submit" className={tombolUtama}>
+            Tampilkan
+          </button>
+        </form>
+      </KepalaHalaman>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Ubin
+          nada={hitung((t) => t.lewatTenggat) > 0 ? "neg" : "netral"}
+          href={alamat("terbuka")}
+          label="Lewat tenggat"
+          nilai={hitung((t) => t.lewatTenggat)}
+          keterangan="masih Direncanakan atau Berjalan"
+        />
+        <Ubin nada="netral" href={alamat("direncanakan")} label="Direncanakan" nilai={hitung((t) => t.status === "direncanakan")} />
+        <Ubin nada="tindak" href={alamat("berjalan")} label="Berjalan" nilai={hitung((t) => t.status === "berjalan")} />
+        <Ubin nada="pos" href={alamat("selesai")} label="Selesai" nilai={hitung((t) => t.status === "selesai")} />
+      </div>
 
       {typeof daftar === "string" ? (
         <Pesan>{daftar}</Pesan>
       ) : daftar.length === 0 ? (
         <Pesan>Tidak ada Tindak Lanjut dengan saringan ini.</Pesan>
       ) : (
-        <div className={`${kelasKartu} overflow-hidden`}>
+        <Kartu judul={`${daftar.length} Tindak Lanjut`} sub={PILIHAN_STATUS.find((p) => p.nilai === status)?.label}>
           <TabelTindakLanjut
             daftar={daftar}
             atas={(t) => `${t.indikator.kode} · ${labelLingkup(t.unit)} · Analisis ${labelBulan(t.bulan, { pendek: true })}`}
             href={(t) => tautanAnalisis(t.indikator.id, t.unit?.id ?? null, t.bulan)}
           />
-        </div>
+        </Kartu>
       )}
-    </section>
+    </Halaman>
   );
 }

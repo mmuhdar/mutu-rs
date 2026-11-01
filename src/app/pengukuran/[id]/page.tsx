@@ -6,12 +6,12 @@ import { formatCapaian } from "@/lib/capaian";
 import { ambilPengukuran, bolehIsiPengukuran, bolehVerifikasi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { AlasanPengembalian, formatWaktu, kelasKartu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
+import { tombolUtama } from "../../form";
+import { Halaman, Kartu, KepalaHalaman, Ubin } from "../../ui";
+import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 import { FormVerifikasi } from "./form-verifikasi";
 
 export const metadata: Metadata = { title: "Detail Pengukuran" };
-
-const kelasTautan = "text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2";
 
 export default async function HalamanDetailPengukuran({ params }: PageProps<"/pengukuran/[id]">) {
   const pengguna = await requireUser();
@@ -23,80 +23,46 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
   const kunci = new URLSearchParams({ unit: unit.id, bulan: p.bulan });
   const kembali = bolehIsiPengukuran(pengguna)
     ? [
-        ...(bolehVerifikasi(pengguna) ? [["/pengukuran/verifikasi", "← Antrean Verifikasi"]] : []),
-        [`/pengukuran?${kunci}`, "← Daftar isian"],
+        ...(bolehVerifikasi(pengguna) ? [{ href: "/pengukuran/verifikasi", label: "Antrean Verifikasi" }] : []),
+        { href: `/pengukuran?${kunci}`, label: "Daftar isian" },
       ]
-    : [[`/pengukuran/pantau?${kunci}`, "← Status Pengukuran"]];
+    : [{ href: `/pengukuran/pantau?${kunci}`, label: "Status Pengukuran" }];
 
   return (
-    <section className="grid gap-4">
-      <div>
-        <p className="flex flex-wrap gap-x-4">
-          {kembali.map(([href, label]) => (
-            <Link key={href} href={href} className={kelasTautan}>
-              {label}
-            </Link>
-          ))}
-        </p>
-<h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-[-0.01em]">{indikator.nama}</h1>
-        <p className="mt-1 font-mono text-[12px] text-muted-foreground">{indikator.kode}</p>
-        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-medium">
-            {unit.nama} · {labelBulan(p.bulan)}
-          </span>
-          <LabelStatus status={p.status} />
-        </p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Terakhir disimpan oleh {p.pengisi}, {formatWaktu(p.disimpan)}
-        </p>
-      </div>
+    <Halaman area="ukur">
+      <KepalaHalaman
+        judul={indikator.nama}
+        kembali={kembali}
+        meta={
+          <>
+            <span className="font-mono text-[13px]">{indikator.kode}</span> · {unit.nama} · {labelBulan(p.bulan)}
+          </>
+        }
+        sub={`Terakhir disimpan oleh ${p.pengisi}, ${formatWaktu(p.disimpan)}.`}
+        aksi={<LabelStatus status={p.status} />}
+      />
 
       <AlasanPengembalian status={p.status} riwayat={p.riwayat} />
 
-      <dl className={`${kelasKartu} divide-y divide-border`}>
-        {(
-          [
-            ["Numerator (N)", indikator.definisiNumerator, p.n],
-            ["Denominator (D)", indikator.definisiDenominator, p.d],
-          ] as const
-        ).map(([label, definisi, nilai]) => (
-          <div key={label} className="grid grid-cols-[1fr_auto] gap-x-4 px-4 py-3">
-            <dt>
-              <span className="font-semibold">{label}</span>
-              <span className="block text-[13px] whitespace-pre-line text-muted-foreground">{definisi}</span>
-            </dt>
-            <dd className="text-lg font-semibold tabular-nums">{nilai}</dd>
-          </div>
-        ))}
-        <div className="grid grid-cols-[1fr_auto] gap-x-4 px-4 py-3">
-          <dt>
-            <span className="font-semibold">Capaian</span>
-            <span className="block text-[13px] text-muted-foreground">N/D × {indikator.faktor}</span>
-          </dt>
-          <dd className="text-lg font-semibold tabular-nums">
-            {formatCapaian(p.capaian, indikator.satuan)}
-          </dd>
-        </div>
-        <div className="grid gap-1 px-4 py-3">
-          <dt className="font-semibold">Catatan</dt>
-          <dd className="whitespace-pre-line">{p.catatan || "–"}</dd>
-        </div>
-      </dl>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Ubin nada="ukur" label="Numerator (N)" nilai={p.n} keterangan={indikator.definisiNumerator} />
+        <Ubin nada="ukur" label="Denominator (D)" nilai={p.d} keterangan={indikator.definisiDenominator} />
+        <Ubin nada="pantau" label="Capaian" nilai={formatCapaian(p.capaian, indikator.satuan)} keterangan={`N ÷ D × ${indikator.faktor}`} />
+      </div>
 
-      {p.status === "draf" ? (
-        bolehIsiPengukuran(pengguna) && (
-          <Link
-            href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan: p.bulan })}`}
-            className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-4 font-semibold text-primary-foreground hover:bg-primary-hover sm:justify-self-start"
-          >
-            Ubah isian
-          </Link>
-        )
-      ) : (
-        bolehVerifikasi(pengguna) && <FormVerifikasi id={p.id} status={p.status} />
-      )}
+      <Kartu judul="Catatan">
+        <p className="px-5 pb-5 whitespace-pre-line">{p.catatan || <span className="text-muted-foreground">Tidak ada catatan.</span>}</p>
+      </Kartu>
+
+      {p.status === "draf"
+        ? bolehIsiPengukuran(pengguna) && (
+            <Link href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan: p.bulan })}`} className={tombolUtama}>
+              Ubah isian
+            </Link>
+          )
+        : bolehVerifikasi(pengguna) && <FormVerifikasi id={p.id} status={p.status} />}
 
       <RiwayatStatus riwayat={p.riwayat} />
-    </section>
+    </Halaman>
   );
 }

@@ -6,8 +6,7 @@ import { LABEL_STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perba
 
 /* Bagian tampilan bersama halaman Pengukuran, Monitoring, Dashboard, dan Perbaikan (server component). */
 
-export const kelasKartu = "rounded-lg border border-border bg-surface";
-export { kelasInput } from "../form";
+import { kelasKartu, Pil, type Nada } from "../ui";
 
 export const formatWaktu = (waktu: Date) =>
   new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: config.zonaWaktu }).format(waktu);
@@ -22,7 +21,7 @@ export const pesanAtau = <T,>(janji: Promise<T>) =>
 /** Pesan pengganti isi bagian (penolakan service, daftar kosong): satu kalimat di dalam bingkai bagian itu. */
 export function Pesan({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="rounded-lg border border-dashed border-border px-4 py-3 text-muted-foreground">
+    <p role="alert" className="rounded-2xl border border-dashed border-input/60 bg-surface px-5 py-4 text-muted-foreground">
       {children}
     </p>
   );
@@ -32,21 +31,18 @@ export function Pesan({ children }: { children: React.ReactNode }) {
 export function Pemberitahuan({ children }: { children?: React.ReactNode }) {
   if (!children) return null;
   return (
-    <p role="status" className="rounded-md border border-warning-border bg-warning-soft px-3 py-2 text-[13px] text-warning">
+    <p role="status" className="rounded-xl border border-warning-border bg-warning-soft px-4 py-2.5 text-[14px] text-warning">
       {children}
     </p>
   );
 }
 
-/** Label status: pasangan pucat bernada sama (teks gelap di atas warna muda), tidak pernah terjepit. */
-const kelasPil = "inline-flex h-5 flex-none items-center rounded-full px-2 text-[12px] font-medium whitespace-nowrap";
-
-const WARNA: Record<StatusPengukuran | "belum" | "dikembalikan", string> = {
-  belum: "bg-warning-soft text-warning",
-  draf: "bg-active text-foreground",
-  dikembalikan: "bg-warning-soft text-warning",
-  diajukan: "bg-accent/10 text-accent",
-  terverifikasi: "bg-success-soft text-success-ink",
+const NADA_PENGUKURAN: Record<StatusPengukuran | "belum" | "dikembalikan", Nada> = {
+  belum: "warn",
+  draf: "netral",
+  dikembalikan: "warn",
+  diajukan: "ukur",
+  terverifikasi: "pos",
 };
 
 /**
@@ -56,10 +52,10 @@ const WARNA: Record<StatusPengukuran | "belum" | "dikembalikan", string> = {
 export function LabelStatus({ status, dikembalikan = false }: { status: StatusPengukuran | null; dikembalikan?: boolean }) {
   const kembali = dikembalikan && status === "draf";
   return (
-    <span className={`${kelasPil} ${WARNA[kembali ? "dikembalikan" : (status ?? "belum")]}`}>
+    <Pil nada={NADA_PENGUKURAN[kembali ? "dikembalikan" : (status ?? "belum")]}>
       {status ? LABEL_STATUS_PENGUKURAN[status] : "Belum diisi"}
       {kembali && " · dikembalikan"}
-    </span>
+    </Pil>
   );
 }
 
@@ -76,8 +72,8 @@ export function AlasanPengembalian({ status, riwayat }: { status: StatusPengukur
   const akhir = riwayat.at(-1);
   if (status !== "draf" || akhir?.statusAsal !== "diajukan") return null;
   return (
-    <div role="status" className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
-      <p className="font-semibold text-warning">Dikembalikan untuk diperbaiki</p>
+    <div role="status" className="rounded-2xl border border-warning-border bg-warning-soft px-5 py-4">
+      <p className="font-bold text-warning">Dikembalikan untuk diperbaiki</p>
       <p className="mt-1 whitespace-pre-line">{akhir.alasan}</p>
       <p className="mt-1 text-[13px] text-muted-foreground">
         {akhir.oleh}, {formatWaktu(akhir.waktu)}
@@ -90,30 +86,32 @@ export function AlasanPengembalian({ status, riwayat }: { status: StatusPengukur
 export function RiwayatStatus({ riwayat }: { riwayat: Riwayat }) {
   if (riwayat.length === 0) return null;
   return (
-    <div className={kelasKartu}>
-      <h2 className="border-b border-border px-4 py-3 text-[15px] font-semibold">Riwayat Status</h2>
-      <ol className="divide-y divide-border">
+    <section className={kelasKartu}>
+      <h2 className="px-5 pt-4 pb-2 text-[16px] leading-6 font-semibold">Riwayat Status</h2>
+      <ol className="grid gap-0 px-5 pb-4">
         {riwayat.map((r, i) => (
-          <li key={i} className="px-4 py-3">
-            <span className="font-medium">
-              {r.statusAsal ? LABEL_STATUS_PENGUKURAN[r.statusAsal] : "Belum diisi"} →{" "}
-              {LABEL_STATUS_PENGUKURAN[r.statusTujuan]}
+          <li key={i} className="relative border-l-2 border-ukur/25 pb-4 pl-5 last:pb-0">
+            <span aria-hidden className="absolute top-1.5 -left-[7px] size-3 rounded-full border-2 border-surface bg-ukur" />
+            <span className="flex flex-wrap items-center gap-1.5">
+              <LabelStatus status={r.statusAsal} />
+              <span aria-hidden className="text-muted-foreground">
+                →
+              </span>
+              <span className="sr-only">menjadi</span>
+              <LabelStatus status={r.statusTujuan} />
             </span>
-            <span className="block text-[13px] text-muted-foreground">
+            <span className="mt-1 block text-[13px] text-muted-foreground">
               {r.oleh}, {formatWaktu(r.waktu)}
             </span>
             {r.alasan && <span className="mt-1 block whitespace-pre-line">Alasan: {r.alasan}</span>}
           </li>
         ))}
       </ol>
-    </div>
+    </section>
   );
 }
 
-const WARNA_STATUS_CAPAIAN: Record<StatusCapaian, string> = {
-  tercapai: "bg-success-soft text-success-ink",
-  belumTercapai: "bg-danger-soft text-danger-ink",
-};
+const NADA_CAPAIAN: Record<StatusCapaian, Nada> = { tercapai: "pos", belumTercapai: "neg" };
 
 /** Status Capaian sebagai teks (warna hanya pelengkap); Capaian kosong tidak punya status. */
 export function LabelCapaian({ status }: { status: StatusCapaian | null }) {
@@ -126,20 +124,18 @@ export function LabelCapaian({ status }: { status: StatusCapaian | null }) {
     );
   }
   return (
-    <span className={`${kelasPil} ${WARNA_STATUS_CAPAIAN[status]}`}>
-      {LABEL_STATUS_CAPAIAN[status]}
-    </span>
+    <Pil nada={NADA_CAPAIAN[status]}>{LABEL_STATUS_CAPAIAN[status]}</Pil>
   );
 }
 
-const WARNA_TINDAK_LANJUT: Record<StatusTindakLanjut, string> = {
-  direncanakan: "bg-active text-foreground",
-  berjalan: "bg-accent/10 text-accent",
-  selesai: "bg-success-soft text-success-ink",
-  dibatalkan: "bg-active text-muted-foreground",
+const NADA_TINDAK_LANJUT: Record<StatusTindakLanjut, Nada> = {
+  direncanakan: "netral",
+  berjalan: "tindak",
+  selesai: "pos",
+  dibatalkan: "netral",
 };
 
 /** Status Tindak Lanjut sebagai label pucat (teksnya tetap ditulis). */
 export function LabelTindakLanjut({ status }: { status: StatusTindakLanjut }) {
-  return <span className={`${kelasPil} ${WARNA_TINDAK_LANJUT[status]}`}>{LABEL_STATUS_TINDAK_LANJUT[status]}</span>;
+  return <Pil nada={NADA_TINDAK_LANJUT[status]}>{LABEL_STATUS_TINDAK_LANJUT[status]}</Pil>;
 }
