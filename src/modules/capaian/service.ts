@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { indikator, pengukuran, unit, unitPelapor } from "@/db/schema";
-import { bulanBerjalan, bulanLalu, geserBulan, keTanggal, labelBulan, wajibBulan } from "@/lib/bulan";
+import { bulanLalu, geserBulan, keTanggal, wajibBulanBerjalan } from "@/lib/bulan";
 import { capaianDari } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan, targetPadaBulan } from "@/lib/indikator";
@@ -64,12 +64,6 @@ const unitPelaporBulan = (bulan: string, saring: SQL | undefined) =>
     .where(and(bersinggungan(bulan, bulan), saring))
     .orderBy(asc(indikator.kode), asc(unit.nama));
 
-/** Bulan "YYYY-MM" yang boleh dilihat: valid dan tidak setelah bulan berjalan (bulan depan belum punya Pengukuran). */
-function periksaBulan(bulan: unknown, sekarang: Date): asserts bulan is string {
-  wajibBulan(bulan);
-  if (bulan > bulanBerjalan(sekarang)) throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan.`);
-}
-
 /** Riwayat Target beberapa Indikator dibaca sekali; hasilnya = Target yang berlaku untuk Indikator pada suatu bulan. */
 async function targetUntuk(indikatorIds: string[]) {
   const riwayat = await riwayatTarget(indikatorIds);
@@ -91,7 +85,8 @@ async function targetUntuk(indikatorIds: string[]) {
  */
 export async function trenCapaian(aktor: Pengguna | null, indikatorId: string, bulanAkhir: string, sekarang = new Date()) {
   wajibPengguna(aktor);
-  periksaBulan(bulanAkhir, sekarang);
+  // Bulan depan belum punya Pengukuran.
+  wajibBulanBerjalan(bulanAkhir, sekarang);
   const [ind] = apakahUuid(indikatorId)
     ? await db.select(kolomIndikator).from(indikator).where(eq(indikator.id, indikatorId))
     : [];
@@ -133,7 +128,7 @@ export type TitikCapaian = TrenCapaian["unit"][number]["titik"][number];
 export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, sekarang = new Date()) {
   wajibPengguna(aktor);
   bulan ||= bulanLalu(sekarang);
-  periksaBulan(bulan, sekarang);
+  wajibBulanBerjalan(bulan, sekarang);
   const pelapor = (await unitPelaporBulan(bulan, and(eq(indikator.aktif, true), saringUnit(aktor)))).filter((p) =>
     diukurPadaBulan(p.indikator.frekuensi, bulan),
   );

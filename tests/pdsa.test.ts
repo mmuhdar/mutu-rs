@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-import { ServiceError } from "@/lib/errors";
 import type { KeputusanPdsa } from "@/lib/perbaikan";
 import type { Pengguna } from "@/modules/auth/service";
 import { aturAktifIndikator, tambahUnitPelapor } from "@/modules/indikator/service";
@@ -22,9 +21,6 @@ let komite: Pengguna;
 before(async () => {
   komite = await komiteMutu();
 });
-
-const ditolak = (status: number, pesan?: RegExp) => (e: unknown) =>
-  e instanceof ServiceError && e.status === status && (!pesan || pesan.test(e.message));
 
 const plan = (ubahan: Partial<PlanPdsa> = {}): PlanPdsa => ({
   judul: "Uji coba handrub di setiap tempat tidur",
@@ -68,10 +64,10 @@ describe("memulai PDSA", () => {
     const lain = await unitPelapor(indikatorId, "IGD");
     const kepala = await sebagai("kepalaUnit", [unit.id]);
     await buatPdsa(kepala, { indikatorId, unitId: unit.id, ...plan() });
-    await assert.rejects(buatPdsa(kepala, { indikatorId, unitId: null, ...plan() }), ditolak(403));
-    await assert.rejects(buatPdsa(kepala, { indikatorId, unitId: lain.id, ...plan() }), ditolak(403));
+    await assert.rejects(buatPdsa(kepala, { indikatorId, unitId: null, ...plan() }), { status: 403 });
+    await assert.rejects(buatPdsa(kepala, { indikatorId, unitId: lain.id, ...plan() }), { status: 403 });
     for (const aktor of [await sebagai("petugasInputData", [unit.id]), await sebagai("direktur")]) {
-      await assert.rejects(buatPdsa(aktor, { indikatorId, unitId: unit.id, ...plan() }), ditolak(403));
+      await assert.rejects(buatPdsa(aktor, { indikatorId, unitId: unit.id, ...plan() }), { status: 403 });
     }
     await buatPdsa(await adminSistem(), { indikatorId, unitId: lain.id, ...plan() });
   });
@@ -79,23 +75,23 @@ describe("memulai PDSA", () => {
   it("judul dan isian Plan wajib; bulan akhir tidak boleh sebelum bulan mulai; bulan mulai boleh di masa depan", async () => {
     const { indikatorId } = await siapkan();
     for (const kosong of ["judul", "masalah", "tujuan", "prediksi", "rencana"] as const) {
-      await assert.rejects(buatPdsa(komite, { indikatorId, unitId: null, ...plan({ [kosong]: " " }) }), ditolak(400), kosong);
+      await assert.rejects(buatPdsa(komite, { indikatorId, unitId: null, ...plan({ [kosong]: " " }) }), { status: 400 }, kosong);
     }
     await assert.rejects(
       buatPdsa(komite, { indikatorId, unitId: null, ...plan({ bulanMulai: "2026-05", bulanAkhir: "2026-04" }) }),
-      ditolak(400, /bulan akhir/i),
+      { status: 400, message: /bulan akhir/i },
     );
-    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: null, ...plan({ bulanAkhir: "April" }) }), ditolak(400));
+    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: null, ...plan({ bulanAkhir: "April" }) }), { status: 400 });
     await buatPdsa(komite, { indikatorId, unitId: null, ...plan({ bulanMulai: "2030-01", bulanAkhir: "2030-03" }) });
   });
 
   it("Indikator nonaktif dan IMP-Unit dengan Lingkup RS ditolak", async () => {
     const { indikatorId } = await siapkan();
     await aturAktifIndikator(komite, indikatorId, false);
-    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: null, ...plan() }), ditolak(400, /nonaktif/));
+    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: null, ...plan() }), { status: 400, message: /nonaktif/ });
     const impUnit = await indikatorBaru({ kelompok: "IMP-Unit" });
     const unit = await unitPelapor(impUnit, "ICU");
-    await assert.rejects(buatPdsa(komite, { indikatorId: impUnit, unitId: null, ...plan() }), ditolak(400, /IMP-Unit/));
+    await assert.rejects(buatPdsa(komite, { indikatorId: impUnit, unitId: null, ...plan() }), { status: 400, message: /IMP-Unit/ });
     await buatPdsa(komite, { indikatorId: impUnit, unitId: unit.id, ...plan() });
   });
 
@@ -104,14 +100,14 @@ describe("memulai PDSA", () => {
     const icu = await unitPelapor(indikatorId, "ICU", "2026-05");
     await assert.rejects(
       buatPdsa(komite, { indikatorId, unitId: icu.id, ...plan({ bulanMulai: "2026-04", bulanAkhir: "2026-06" }) }),
-      ditolak(400, /bukan Unit Pelapor/),
+      { status: 400, message: /bukan Unit Pelapor/ },
     );
     await buatPdsa(komite, { indikatorId, unitId: icu.id, ...plan({ bulanMulai: "2026-05", bulanAkhir: "2026-06" }) });
 
     const tutup = await unitBaru("Bangsal Lama");
     await tambahUnitPelapor(komite, indikatorId, { unitId: tutup.id, bulanMulai: "2026-01", bulanBerhenti: "2026-03" });
     await aturAktifUnit(await adminSistem(), tutup.id, false);
-    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: tutup.id, ...plan() }), ditolak(400, /nonaktif/));
+    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: tutup.id, ...plan() }), { status: 400, message: /nonaktif/ });
   });
 });
 
@@ -119,8 +115,8 @@ describe("tahap PDSA", () => {
   it("tahap diisi berurutan: lanjut hanya dari tahap aktif dengan isian wajibnya, Act berakhir di Selesai", async () => {
     const { indikatorId } = await siapkan();
     const { id } = await buatPdsa(komite, { indikatorId, unitId: null, ...plan() });
-    await assert.rejects(simpanTahapPdsa(komite, id, "study", { hasil: "terlalu cepat" }, false), ditolak(409, /Do/));
-    await assert.rejects(simpanTahapPdsa(komite, id, "do", { pelaksanaan: " " }, true), ditolak(400));
+    await assert.rejects(simpanTahapPdsa(komite, id, "study", { hasil: "terlalu cepat" }, false), { status: 409, message: /Do/ });
+    await assert.rejects(simpanTahapPdsa(komite, id, "do", { pelaksanaan: " " }, true), { status: 400 });
     await simpanTahapPdsa(komite, id, "do", { pelaksanaan: "Draf catatan" }, false);
     assert.equal((await ambilPdsa(komite, id)).tahap, "do");
     await simpanTahapPdsa(komite, id, "do", { pelaksanaan: "Handrub dipasang." }, true);
@@ -128,9 +124,9 @@ describe("tahap PDSA", () => {
     await simpanTahapPdsa(komite, id, "study", { hasil: "Naik 7 poin." }, true);
     await assert.rejects(
       simpanTahapPdsa(komite, id, "act", { keputusan: "lanjutkan" as KeputusanPdsa, penjelasan: "x" }, true),
-      ditolak(400),
+      { status: 400 },
     );
-    await assert.rejects(simpanTahapPdsa(komite, id, "act", { keputusan: "adopsi", penjelasan: "" }, true), ditolak(400));
+    await assert.rejects(simpanTahapPdsa(komite, id, "act", { keputusan: "adopsi", penjelasan: "" }, true), { status: 400 });
     await simpanTahapPdsa(komite, id, "act", { keputusan: "adopsi", penjelasan: "SPO handrub di tempat tidur." }, true);
 
     const p = await ambilPdsa(komite, id);
@@ -138,10 +134,10 @@ describe("tahap PDSA", () => {
       [p.tahap, p.pelaksanaan, p.hasil, p.keputusan, p.penjelasan],
       ["selesai", "Handrub dipasang.", "Naik 7 poin.", "adopsi", "SPO handrub di tempat tidur."],
     );
-    await assert.rejects(simpanTahapPdsa(komite, id, "act", { keputusan: "adopsi", penjelasan: "x" }, true), ditolak(409));
+    await assert.rejects(simpanTahapPdsa(komite, id, "act", { keputusan: "adopsi", penjelasan: "x" }, true), { status: 409 });
     await assert.rejects(
       simpanTahapPdsa(komite, id, "selesai" as "act", { keputusan: "adopsi", penjelasan: "x" }, false),
-      ditolak(400),
+      { status: 400 },
     );
   });
 
@@ -153,7 +149,7 @@ describe("tahap PDSA", () => {
     await simpanTahapPdsa(komite, id, "do", { pelaksanaan: "Dipasang di 6 tempat tidur." }, false);
     const p = await ambilPdsa(komite, id);
     assert.deepEqual([p.judul, p.bulanAkhir, p.pelaksanaan, p.tahap], ["Handrub v2", "2026-06", "Dipasang di 6 tempat tidur.", "study"]);
-    await assert.rejects(simpanTahapPdsa(komite, id, "plan", plan({ bulanAkhir: "2026-01" }), false), ditolak(400));
+    await assert.rejects(simpanTahapPdsa(komite, id, "plan", plan({ bulanAkhir: "2026-01" }), false), { status: 400 });
   });
 
   it("hak tulis tahap mengikuti Lingkup PDSA", async () => {
@@ -162,7 +158,7 @@ describe("tahap PDSA", () => {
     const { id } = await buatPdsa(kepala, { indikatorId, unitId: unit.id, ...plan() });
     await simpanTahapPdsa(kepala, id, "do", { pelaksanaan: "Dipasang." }, true);
     for (const aktor of [await sebagai("kepalaUnit"), await sebagai("petugasInputData", [unit.id]), await sebagai("direktur")]) {
-      await assert.rejects(simpanTahapPdsa(aktor, id, "study", { hasil: "x" }, false), ditolak(403));
+      await assert.rejects(simpanTahapPdsa(aktor, id, "study", { hasil: "x" }, false), { status: 403 });
     }
     await simpanTahapPdsa(komite, id, "study", { hasil: "Dibantu Komite Mutu." }, false);
   });
@@ -175,7 +171,7 @@ describe("siklus berikutnya", () => {
     const lanjutan = plan({ judul: "diabaikan", bulanMulai: "2026-05", bulanAkhir: "2026-06" });
     await assert.rejects(
       buatPdsa(komite, { indikatorId, unitId: unit.id, sebelumnyaId: id, ...lanjutan }),
-      ditolak(409, /Selesai/),
+      { status: 409, message: /Selesai/ },
     );
     await selesaikan(komite, id);
 
@@ -186,7 +182,7 @@ describe("siklus berikutnya", () => {
       [indikatorId, unit.id, "Handrub", 2, id, "do"],
     );
     assert.equal((await ambilPdsa(komite, id)).berikutnya?.id, kedua.id);
-    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: unit.id, sebelumnyaId: id, ...lanjutan }), ditolak(409));
+    await assert.rejects(buatPdsa(komite, { indikatorId, unitId: unit.id, sebelumnyaId: id, ...lanjutan }), { status: 409 });
   });
 
   it("Kepala Unit lain tidak bisa melanjutkan siklus PDSA Unit lain", async () => {
@@ -195,7 +191,7 @@ describe("siklus berikutnya", () => {
     await selesaikan(komite, id, "tinggalkan");
     await assert.rejects(
       buatPdsa(await sebagai("kepalaUnit"), { indikatorId, unitId: null, sebelumnyaId: id, ...plan() }),
-      ditolak(403),
+      { status: 403 },
     );
   });
 });
@@ -229,12 +225,12 @@ describe("membaca PDSA", () => {
     const petugas = await sebagai("petugasInputData", [unit.id]);
     assert.deepEqual((await daftarPdsa(petugas)).map((p) => p.id), [milikUnit]);
     assert.deepEqual((await daftarPdsa(petugas, { semua: true })).map((p) => p.id).sort(), [milikUnit, selesai].sort());
-    await assert.rejects(ambilPdsa(petugas, milikRs), ditolak(403));
+    await assert.rejects(ambilPdsa(petugas, milikRs), { status: 403 });
     assert.equal((await ambilPdsa(petugas, milikUnit)).bolehTulis, false);
 
     const direktur = (await daftarPdsa(await sebagai("direktur"))).map((p) => p.id);
     assert.ok(direktur.includes(milikUnit) && direktur.includes(milikRs) && !direktur.includes(selesai));
-    await assert.rejects(ambilPdsa(komite, "bukan-uuid"), ditolak(404));
+    await assert.rejects(ambilPdsa(komite, "bukan-uuid"), { status: 404 });
   });
 
   it("halaman Analisis menampilkan PDSA yang belum Selesai untuk Indikator dan Lingkup yang sama", async () => {

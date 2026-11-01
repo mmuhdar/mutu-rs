@@ -46,6 +46,12 @@ export function wajibBulan(bulan: unknown, pesan = "Bulan tidak valid."): assert
   if (typeof bulan !== "string" || !bulanValid(bulan)) throw new ServiceError(400, pesan);
 }
 
+/** Penjaga di service: bulan "YYYY-MM" yang valid dan tidak setelah bulan berjalan; selain itu ditolak 400. */
+export function wajibBulanBerjalan(bulan: unknown, sekarang: Date): asserts bulan is string {
+  wajibBulan(bulan);
+  if (bulan > bulanBerjalan(sekarang)) throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan.`);
+}
+
 /**
  * Bulan dari alamat halaman (`?bulan=`) di halaman yang hanya menampilkan bulan yang sudah berjalan (Dashboard,
  * Monitoring, Status Pengukuran). Kosong = tanpa `bulan` (halaman memakai bulan bawaannya). Tidak valid atau setelah

@@ -1,4 +1,13 @@
+import type { Kelompok } from "./indikator";
+
 /* Konstanta dan aturan murni modul Perbaikan (Analisis, Tindak Lanjut, PDSA); service di `src/modules/perbaikan`. */
+
+/** IMP-Unit hanya punya Lingkup Unit Pelapor-nya; INM dan IMP-RS juga punya Lingkup RS. */
+export const punyaLingkupRs = (kelompok: Kelompok) => kelompok !== "IMP-Unit";
+
+/** Nama Lingkup untuk tampilan: "Lingkup RS", atau "Unit ICU" (+ "(nonaktif)" bila Unit itu kini nonaktif). */
+export const labelLingkup = (unit: { nama: string; aktif?: boolean } | null) =>
+  unit ? `Unit ${unit.nama}${unit.aktif === false ? " (nonaktif)" : ""}` : "Lingkup RS";
 
 /** Status Tindak Lanjut. */
 export const STATUS_TINDAK_LANJUT = ["direncanakan", "berjalan", "selesai", "dibatalkan"] as const;

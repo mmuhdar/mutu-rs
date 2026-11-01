@@ -6,11 +6,11 @@
 
 **Status:** selesai (2026-11-01, branch `rilis-2-pdsa`)
 
-- [ ] Tabel `pdsa`: Indikator, Unit (null = RS), judul, siklus, sebelumnya (unik), tahap, bulan mulai, bulan akhir, masalah, tujuan, prediksi, rencana, pelaksanaan, hasil, keputusan, penjelasan, diubah oleh, diubah pada.
-- [ ] `TAHAP_PDSA`, `KEPUTUSAN_PDSA` + label di `src/lib/perbaikan.ts`.
-- [ ] `buatPdsa`: judul dan Plan wajib; bulan akhir ≥ bulan mulai; Indikator aktif; Lingkup Unit = Unit aktif dan Unit Pelapor pada bulan mulai; IMP-Unit Lingkup RS ditolak; tahap aktif langsung `do`.
-- [ ] `daftarPdsa` (Lingkup yang boleh dibaca; bawaan belum Selesai) dan `ambilPdsa` (detail).
-- [ ] Halaman `/pdsa`, `/pdsa/baru?indikator=&unit=`, `/pdsa/[id]` (Plan); menu "PDSA" untuk semua peran.
-- [ ] Halaman Analisis: PDSA berjalan untuk Indikator + Lingkup sama, dan tautan "Mulai PDSA" bila boleh menulis.
-- [ ] Dicek manual di browser, termasuk 390 px.
-- [ ] Tes service: aturan pembuatan, hak akses, daftar bawaan dan saringan Lingkup.
+- [x] Tabel `pdsa`: Indikator, Unit (null = RS), judul, siklus, sebelumnya (unik), tahap, bulan mulai, bulan akhir, masalah, tujuan, prediksi, rencana, pelaksanaan, hasil, keputusan, penjelasan, diubah oleh, diubah pada.
+- [x] `TAHAP_PDSA`, `KEPUTUSAN_PDSA` + label di `src/lib/perbaikan.ts`.
+- [x] `buatPdsa`: judul dan Plan wajib; bulan akhir ≥ bulan mulai; Indikator aktif; Lingkup Unit = Unit aktif dan Unit Pelapor pada bulan mulai; IMP-Unit Lingkup RS ditolak; tahap aktif langsung `do`.
+- [x] `daftarPdsa` (Lingkup yang boleh dibaca; bawaan belum Selesai) dan `ambilPdsa` (detail).
+- [x] Halaman `/pdsa`, `/pdsa/baru?indikator=&unit=`, `/pdsa/[id]` (Plan); menu "PDSA" untuk semua peran.
+- [x] Halaman Analisis: PDSA berjalan untuk Indikator + Lingkup sama, dan tautan "Mulai PDSA" bila boleh menulis.
+- [x] Dicek manual di browser, termasuk 390 px.
+- [x] Tes service: aturan pembuatan, hak akses, daftar bawaan dan saringan Lingkup.

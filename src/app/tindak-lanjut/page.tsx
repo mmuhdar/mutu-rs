@@ -3,9 +3,9 @@ import Link from "next/link";
 
 import { labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
-import { LABEL_STATUS_TINDAK_LANJUT, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
+import { LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
 import { melihatCapaianRs } from "@/modules/capaian/service";
-import { daftarTindakLanjut, type SaringanStatusTindakLanjut } from "@/modules/perbaikan/service";
+import { bolehBacaLingkup, daftarTindakLanjut, type SaringanStatusTindakLanjut } from "@/modules/perbaikan/service";
 import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
@@ -27,8 +27,8 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
   const status = (teksAlamat(sp, "status") || "terbuka") as SaringanStatusTindakLanjut;
   const unit = teksAlamat(sp, "unit");
   const semuaLingkup = melihatCapaianRs(pengguna);
-  // Pilihan Lingkup: semua Unit aktif (dan RS) bagi yang melihat semua; selain itu Unit milik aktor saja.
-  const pilihan = (await pilihanUnit(pengguna)).filter((u) => semuaLingkup || pengguna.unitIds.includes(u.id));
+  // Pilihan Lingkup: Unit aktif yang boleh dibaca aktor (dan Lingkup RS bagi yang melihat semua).
+  const pilihan = (await pilihanUnit(pengguna)).filter((u) => bolehBacaLingkup(pengguna, u.id));
   // Status dan Lingkup di luar hak/daftar ditolak service.
   const daftar = await pesanAtau(
     daftarTindakLanjut(pengguna, { status, lingkup: unit === "rs" ? null : unit || undefined }),
@@ -62,10 +62,10 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
           </label>
           <select id="unit" name="unit" defaultValue={unit} className={kelasInput}>
             <option value="">{semuaLingkup ? "Semua Lingkup" : "Semua Unit saya"}</option>
-            {semuaLingkup && <option value="rs">Lingkup RS</option>}
+            {semuaLingkup && <option value="rs">{labelLingkup(null)}</option>}
             {pilihan.map((u) => (
               <option key={u.id} value={u.id}>
-                Unit {u.nama}
+                {labelLingkup(u)}
               </option>
             ))}
           </select>
@@ -89,7 +89,7 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
               >
                 <span className="grid min-w-0 flex-1 gap-1">
                   <span className="text-[12.5px] font-medium text-muted-foreground">
-                    {t.indikator.kode} · {t.unit ? `Unit ${t.unit.nama}` : "Lingkup RS"} · Analisis{" "}
+                    {t.indikator.kode} · {labelLingkup(t.unit)} · Analisis{" "}
                     {labelBulan(t.bulan, { pendek: true })}
                   </span>
                   <RincianTindakLanjut t={t} />

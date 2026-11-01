@@ -11,6 +11,7 @@ import {
   bolehVerifikasi,
   pengukuranDikembalikan,
 } from "@/modules/pengukuran/service";
+import { labelLingkup } from "@/lib/perbaikan";
 import { belumDianalisis, bolehTulisLingkup, daftarPdsa, daftarTindakLanjut } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
@@ -290,7 +291,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                       >
                         <span className="min-w-0 flex-1">
                           <span className="block text-[12.5px] font-medium text-muted-foreground">
-                            {i.kode} · {unit ? `Unit ${unit.nama}` : "Lingkup RS"}
+                            {i.kode} · {labelLingkup(unit)}
                           </span>
                           <span className="block font-medium">{i.nama}</span>
                         </span>

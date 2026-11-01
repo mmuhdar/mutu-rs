@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { bulanBerjalan, geserBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
+import { labelLingkup } from "@/lib/perbaikan";
 import { daftarIndikator } from "@/modules/indikator/service";
 import { ambilPdsa, bolehMulaiPdsa, bolehTulisLingkup } from "@/modules/perbaikan/service";
 import { pilihanUnit } from "@/modules/unit/service";
@@ -29,8 +30,8 @@ export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa
 
   const [indikator, unit] = await Promise.all([daftarIndikator(pengguna), pilihanUnit(pengguna)]);
   const lingkup = [
-    ...(bolehTulisLingkup(pengguna, null) ? [{ id: "", label: "Lingkup RS" }] : []),
-    ...unit.filter((u) => bolehTulisLingkup(pengguna, u.id)).map((u) => ({ id: u.id, label: `Unit ${u.nama}` })),
+    ...(bolehTulisLingkup(pengguna, null) ? [{ id: "", label: labelLingkup(null) }] : []),
+    ...unit.filter((u) => bolehTulisLingkup(pengguna, u.id)).map((u) => ({ id: u.id, label: labelLingkup(u) })),
   ];
   const bulanMulai = bulanBerjalan();
 
@@ -45,7 +46,7 @@ export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa
         </h1>
         <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
           {sebelumnya
-            ? `${sebelumnya.indikator.kode} · ${sebelumnya.unit ? `Unit ${sebelumnya.unit.nama}` : "Lingkup RS"}. Isi Plan siklus ini berdasarkan Act siklus sebelumnya.`
+            ? `${sebelumnya.indikator.kode} · ${labelLingkup(sebelumnya.unit)}. Isi Plan siklus ini berdasarkan Act siklus sebelumnya.`
             : "Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do."}
         </p>
       </div>

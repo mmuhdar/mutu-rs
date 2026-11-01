@@ -6,7 +6,7 @@
 
 **Status:** selesai (2026-11-01, branch `rilis-2-pdsa`)
 
-- [ ] `belumDianalisis(aktor, bulan?, sekarang?)`: Komite Mutu, Direktur, Admin Sistem = Lingkup RS untuk INM dan IMP-RS yang dinilai bulan itu + IMP-Unit Lingkup Unit Pelapor-nya; Kepala Unit dan Petugas Input Data = IMP-Unit Unit-nya. Tanpa Analisis. Bulan bawaan = bulan lalu.
-- [ ] Dashboard: daftar "Belum dianalisis" yang menaut ke halaman Analisis; kartu Tindak Lanjut lewat tenggat (menaut ke `/tindak-lanjut`) dan PDSA berjalan (menaut ke `/pdsa`), angkanya dari service.
-- [ ] Dicek manual di browser, termasuk 390 px.
-- [ ] Tes service: harapan per kelompok Indikator, Semesteran, Unit nonaktif yang masih Unit Pelapor, saringan Unit untuk Kepala Unit, Analisis yang sudah ada tidak muncul.
+- [x] `belumDianalisis(aktor, bulan?, sekarang?)`: Komite Mutu, Direktur, Admin Sistem = Lingkup RS untuk INM dan IMP-RS yang dinilai bulan itu + IMP-Unit Lingkup Unit Pelapor-nya; Kepala Unit dan Petugas Input Data = IMP-Unit Unit-nya. Tanpa Analisis. Bulan bawaan = bulan lalu.
+- [x] Dashboard: daftar "Belum dianalisis" yang menaut ke halaman Analisis; kartu Tindak Lanjut lewat tenggat (menaut ke `/tindak-lanjut`) dan PDSA berjalan (menaut ke `/pdsa`), angkanya dari service.
+- [x] Dicek manual di browser, termasuk 390 px.
+- [x] Tes service: harapan per kelompok Indikator, Semesteran, Unit nonaktif yang masih Unit Pelapor, saringan Unit untuk Kepala Unit, Analisis yang sudah ada tidak muncul.

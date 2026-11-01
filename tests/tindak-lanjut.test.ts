@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { before, describe, it } from "node:test";
 
-import { ServiceError } from "@/lib/errors";
 import type { StatusTindakLanjut } from "@/lib/perbaikan";
 import type { Pengguna } from "@/modules/auth/service";
+import { aturAktifIndikator } from "@/modules/indikator/service";
 import {
   ambilAnalisis,
   daftarTindakLanjut,
@@ -21,9 +21,6 @@ let komite: Pengguna;
 before(async () => {
   komite = await komiteMutu();
 });
-
-const ditolak = (status: number, pesan?: RegExp) => (e: unknown) =>
-  e instanceof ServiceError && e.status === status && (!pesan || pesan.test(e.message));
 
 const isian = (ubahan: Partial<IsianTindakLanjut> = {}): IsianTindakLanjut => ({
   tindakan: "Sosialisasi 5 momen kebersihan tangan di setiap shift",
@@ -57,17 +54,17 @@ describe("menambah dan mengubah Tindak Lanjut", () => {
   });
 
   it("Tindak Lanjut hanya untuk Analisis yang sudah ada", async () => {
-    await assert.rejects(tambahTindakLanjut(komite, randomUUID(), isian()), ditolak(404));
-    await assert.rejects(tambahTindakLanjut(komite, "bukan-uuid", isian()), ditolak(404));
-    await assert.rejects(ubahStatus(komite, randomUUID(), "berjalan"), ditolak(404));
+    await assert.rejects(tambahTindakLanjut(komite, randomUUID(), isian()), { status: 404 });
+    await assert.rejects(tambahTindakLanjut(komite, "bukan-uuid", isian()), { status: 404 });
+    await assert.rejects(ubahStatus(komite, randomUUID(), "berjalan"), { status: 404 });
   });
 
   it("tindakan dan PIC wajib; tenggat harus tanggal yang valid", async () => {
     const a = await analisisBaru();
-    await assert.rejects(tambahTindakLanjut(komite, a.id, isian({ tindakan: " " })), ditolak(400, /Tindakan/));
-    await assert.rejects(tambahTindakLanjut(komite, a.id, isian({ pic: "" })), ditolak(400, /PIC/));
+    await assert.rejects(tambahTindakLanjut(komite, a.id, isian({ tindakan: " " })), { status: 400, message: /Tindakan/ });
+    await assert.rejects(tambahTindakLanjut(komite, a.id, isian({ pic: "" })), { status: 400, message: /PIC/ });
     for (const tenggat of ["", "2026-02-30", "30/04/2026"]) {
-      await assert.rejects(tambahTindakLanjut(komite, a.id, isian({ tenggat })), ditolak(400, /Tenggat/));
+      await assert.rejects(tambahTindakLanjut(komite, a.id, isian({ tenggat })), { status: 400, message: /Tenggat/ });
     }
   });
 
@@ -75,14 +72,23 @@ describe("menambah dan mengubah Tindak Lanjut", () => {
     const a = await analisisBaru();
     const { id } = await tambahTindakLanjut(komite, a.id, isian());
     await ubahStatus(komite, id, "berjalan");
-    await assert.rejects(ubahStatus(komite, id, "selesai", "  "), ditolak(400, /hasil/));
-    await assert.rejects(ubahStatus(komite, id, "dibatalkan"), ditolak(400, /alasan/i));
-    await assert.rejects(ubahStatus(komite, id, "dihapus" as StatusTindakLanjut), ditolak(400));
+    await assert.rejects(ubahStatus(komite, id, "selesai", "  "), { status: 400, message: /hasil/ });
+    await assert.rejects(ubahStatus(komite, id, "dibatalkan"), { status: 400, message: /alasan/i });
+    await assert.rejects(ubahStatus(komite, id, "dihapus" as StatusTindakLanjut), { status: 400 });
     await ubahStatus(komite, id, "selesai", "Kepatuhan naik menjadi 90%.");
     // Status boleh diubah lagi, mis. dibuka kembali karena ternyata belum tuntas.
     await ubahStatus(komite, id, "berjalan");
     const [tl] = (await ambilAnalisis(komite, { indikatorId: a.indikatorId, unitId: a.unitId, bulan: "2026-03" })).tindakLanjut;
     assert.equal(tl.status, "berjalan");
+  });
+
+  it("Tindak Lanjut tetap bisa diubah dan ditutup walau Indikator-nya kini nonaktif", async () => {
+    const a = await analisisBaru();
+    const { id } = await tambahTindakLanjut(komite, a.id, isian());
+    await aturAktifIndikator(komite, a.indikatorId, false);
+    await ubahStatus(komite, id, "dibatalkan", "Indikator diganti");
+    const [tl] = (await ambilAnalisis(komite, { indikatorId: a.indikatorId, unitId: a.unitId, bulan: "2026-03" })).tindakLanjut;
+    assert.equal(tl.status, "dibatalkan");
   });
 
   it("hak tulis mengikuti Lingkup Analisis-nya", async () => {
@@ -91,13 +97,13 @@ describe("menambah dan mengubah Tindak Lanjut", () => {
     const kepala = await sebagai("kepalaUnit", [unitLingkup.unit.id]);
     const { id } = await tambahTindakLanjut(kepala, unitLingkup.id, isian());
     await ubahStatus(kepala, id, "berjalan");
-    await assert.rejects(tambahTindakLanjut(kepala, rs.id, isian()), ditolak(403));
+    await assert.rejects(tambahTindakLanjut(kepala, rs.id, isian()), { status: 403 });
     for (const aktor of [await sebagai("petugasInputData", [unitLingkup.unit.id]), await sebagai("direktur")]) {
-      await assert.rejects(tambahTindakLanjut(aktor, unitLingkup.id, isian()), ditolak(403));
-      await assert.rejects(ubahStatus(aktor, id, "selesai", "x"), ditolak(403));
+      await assert.rejects(tambahTindakLanjut(aktor, unitLingkup.id, isian()), { status: 403 });
+      await assert.rejects(ubahStatus(aktor, id, "selesai", "x"), { status: 403 });
     }
-    await assert.rejects(tambahTindakLanjut(await sebagai("kepalaUnit"), unitLingkup.id, isian()), ditolak(403));
-    await assert.rejects(tambahTindakLanjut(null, unitLingkup.id, isian()), ditolak(401));
+    await assert.rejects(tambahTindakLanjut(await sebagai("kepalaUnit"), unitLingkup.id, isian()), { status: 403 });
+    await assert.rejects(tambahTindakLanjut(null, unitLingkup.id, isian()), { status: 401 });
   });
 });
 
@@ -136,7 +142,7 @@ describe("daftar Tindak Lanjut", () => {
     assert.deepEqual(await urutan(), ["lewat 1", "lewat 2", "akhir April"]);
     assert.deepEqual(await urutan("semua"), ["lewat 1", "lewat 2", "selesai paling awal", "dibatalkan", "akhir April"]);
     assert.deepEqual(await urutan("dibatalkan"), ["dibatalkan"]);
-    await assert.rejects(urutan("hilang" as "semua"), ditolak(400));
+    await assert.rejects(urutan("hilang" as "semua"), { status: 400 });
   });
 
   it("baris daftar membawa Indikator, Lingkup, dan bulan Analisis-nya", async () => {
@@ -157,7 +163,7 @@ describe("daftar Tindak Lanjut", () => {
     ]) {
       const ids = (await daftarTindakLanjut(aktor, {})).map((t) => t.id);
       assert.deepEqual(ids, [milikUnit]);
-      await assert.rejects(daftarTindakLanjut(aktor, { lingkup: null }), ditolak(403));
+      await assert.rejects(daftarTindakLanjut(aktor, { lingkup: null }), { status: 403 });
     }
     const direktur = (await daftarTindakLanjut(await sebagai("direktur"), {})).map((t) => t.id);
     assert.ok(direktur.includes(milikUnit) && direktur.includes(milikRs));

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { hasilAtauError } from "@/lib/errors";
-import { teks } from "@/lib/form";
+import { ditolak, teks, type StateForm } from "@/lib/form";
 import type { Arah, Frekuensi } from "@/lib/indikator";
 import {
   akhiriUnitPelapor,
@@ -19,8 +19,7 @@ import {
 } from "@/modules/indikator/service";
 import { getSessionUser } from "@/server/sesi";
 
-/** `nilai` = isian yang dikirim, dikembalikan saat gagal supaya form tidak kosong (React mengosongkan form setelah action). */
-export type StateIndikator = { error?: string; nilai?: Record<string, string> };
+export type StateIndikator = StateForm;
 
 /** Angka dari form: koma desimal diterima; isian kosong menjadi NaN (bukan 0) sehingga ditolak service. */
 function angka(isian: string) {
@@ -43,12 +42,6 @@ function isianDariForm(formData: FormData): IsianIndikator {
     pic: teks(formData, "pic"),
   };
 }
-
-/** Penolakan service menjadi pesan form beserta isian yang dikirim. */
-const ditolak = (formData: FormData, error: string): StateIndikator => ({
-  error,
-  nilai: Object.fromEntries(formData) as Record<string, string>,
-});
 
 /** Menyimpan Indikator (`id` hasilnya); penolakan menjadi pesan form, sukses diarahkan ke detail Indikator. */
 async function simpan(formData: FormData, id: Promise<string>): Promise<StateIndikator> {

@@ -8,8 +8,7 @@ import { LABEL_STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perba
 /* Bagian tampilan bersama halaman Pengukuran, Monitoring, Dashboard, dan Perbaikan (server component). */
 
 export const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
-export const kelasInput =
-  "h-11 w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring";
+export { kelasInput } from "../form";
 
 export const formatWaktu = (waktu: Date) =>
   new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: config.zonaWaktu }).format(waktu);

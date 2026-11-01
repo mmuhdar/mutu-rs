@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { labelBulan, labelPeriode } from "@/lib/bulan";
-import { LABEL_KEPUTUSAN_PDSA, LABEL_TAHAP_PDSA, sudahDicapai, type TahapIsianPdsa } from "@/lib/perbaikan";
+import { LABEL_KEPUTUSAN_PDSA, LABEL_TAHAP_PDSA, labelLingkup, sudahDicapai, type TahapIsianPdsa } from "@/lib/perbaikan";
 import { ambilPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
@@ -67,7 +67,7 @@ export default async function HalamanDetailPdsa({ params }: PageProps<"/pdsa/[id
   const p = await pesanAtau(ambilPdsa(pengguna, (await params).id));
   if (typeof p === "string") return <Pesan>{p}</Pesan>;
 
-  const lingkup = p.unit ? `Unit ${p.unit.nama}${p.unit.aktif ? "" : " (nonaktif)"}` : "Lingkup RS";
+  const lingkup = labelLingkup(p.unit);
   const bagian = (tahap: TahapIsianPdsa) => ({
     tahap,
     aktif: p.tahap === tahap,
@@ -76,9 +76,11 @@ export default async function HalamanDetailPdsa({ params }: PageProps<"/pdsa/[id
   });
   const { judul, masalah, tujuan, prediksi, rencana, bulanMulai, bulanAkhir, pelaksanaan, hasil, keputusan, penjelasan } = p;
   const awal = { judul, masalah, tujuan, prediksi, rencana, bulanMulai, bulanAkhir, pelaksanaan, hasil, keputusan, penjelasan };
-  // Form dibuat ulang setiap tahap aktif berpindah, supaya pesan penolakan lama dari form lain hilang.
+  // Setiap simpan yang berhasil mengubah data ini, jadi semua form dibuat ulang dan pesan penolakan lama dari form lain
+  // hilang; "Terakhir diubah oleh" di bawah menjadi tanda tersimpan.
+  const versi = p.diubahPada.toISOString();
   const form = (tahap: TahapIsianPdsa) => (
-    <FormTahap key={p.tahap} id={p.id} tahap={tahap} aktif={p.tahap === tahap} awal={awal} />
+    <FormTahap key={versi} id={p.id} tahap={tahap} aktif={p.tahap === tahap} awal={awal} />
   );
 
   return (
@@ -131,7 +133,7 @@ export default async function HalamanDetailPdsa({ params }: PageProps<"/pdsa/[id
             <p className="text-muted-foreground">Belum ada data Capaian {lingkup} dalam 12 bulan ini.</p>
           ) : (
             <Tren
-              judul={p.unit ? `Capaian Unit ${p.unit.nama}` : "Capaian RS"}
+              judul={p.unit ? `Capaian ${lingkup}` : "Capaian RS"}
               keterangan={`12 bulan sampai ${labelBulan(p.study.at(-1)!.bulan)}, dari Pengukuran Terverifikasi`}
               titik={p.study}
               satuan={p.indikator.satuan}

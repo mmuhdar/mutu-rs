@@ -94,6 +94,7 @@ Dasar regulasi dan bukti surveior: `docs/research/pdsa-tindak-lanjut-evaluasi.md
 - Lingkup Unit: Unit itu Unit Pelapor Indikator pada bulan itu (Unit yang kini nonaktif tetap boleh). IMP-Unit dengan Lingkup RS ditolak.
 - Yang diharapkan ada (hanya untuk daftar "Belum dianalisis", tidak memblokir apa pun): Lingkup RS untuk INM dan IMP-RS yang dinilai bulan itu, termasuk yang Tercapai; Lingkup Unit untuk IMP-Unit (Unit Pelapor-nya). Analisis Lingkup Unit untuk INM/IMP-RS opsional.
 - Halaman Analisis menampilkan Capaian terkini, bukan salinan angka saat Analisis ditulis.
+- Mengubah Analisis yang sudah ada juga hanya selama bulan itu bisa dianalisis. Bila tidak lagi (Indikator dinonaktifkan, periode Unit Pelapor diakhiri), Analisis tampil hanya-baca, sedangkan Tindak Lanjut-nya tetap bisa diubah dan ditutup oleh yang berhak.
 
 ### Aturan Tindak Lanjut
 
@@ -104,7 +105,7 @@ Dasar regulasi dan bukti surveior: `docs/research/pdsa-tindak-lanjut-evaluasi.md
 
 ### Aturan PDSA
 
-| Tahap aktif | Diisi | Syarat lanjut ke tahap berikutnya |
+| Tahap aktif | Diisi | Isian wajib (setiap simpan, juga "Simpan dan lanjut") |
 |---|---|---|
 | (dibuat) | judul + Plan | judul, masalah, tujuan, prediksi, rencana wajib; bulan akhir ≥ bulan mulai |
 | `do` | pelaksanaan | pelaksanaan wajib |
@@ -112,9 +113,9 @@ Dasar regulasi dan bukti surveior: `docs/research/pdsa-tindak-lanjut-evaluasi.md
 | `act` | keputusan + penjelasan | keputusan dan penjelasan wajib |
 | `selesai` | – | boleh memulai siklus berikutnya (sekali) |
 
-- Membuat PDSA = Plan tersimpan, tahap aktif langsung `do`. Tahap hanya maju berurutan, tanpa syarat waktu. Teks tahap yang sudah lewat tetap bisa diperbaiki; teks tahap yang belum dicapai tidak bisa diisi.
+- Membuat PDSA = Plan tersimpan, tahap aktif langsung `do`. Tahap hanya maju berurutan, tanpa syarat waktu. Isian tahap selalu wajib saat disimpan; "Simpan dan lanjut" hanya untuk tahap aktif. Teks tahap yang sudah lewat tetap bisa diperbaiki; teks tahap yang belum dicapai tidak bisa diisi.
 - Saat dibuat: Indikator aktif; Lingkup Unit = Unit aktif dan Unit Pelapor Indikator pada bulan mulai; IMP-Unit dengan Lingkup RS ditolak. Bulan mulai boleh di masa depan.
-- Siklus berikutnya: dari PDSA `selesai`, Indikator, Lingkup, dan judul disalin, siklus ke-n + 1, Plan baru diisi. Satu siklus hanya punya satu siklus berikutnya.
+- Siklus berikutnya: dari PDSA `selesai`, Indikator, Lingkup, dan judul disalin, siklus ke-n + 1, Plan baru diisi. Satu siklus hanya punya satu siklus berikutnya. Judul setiap siklus tetap bisa diperbaiki sendiri lewat Plan.
 - Grafik Study: `trenCapaian` 12 bulan yang berakhir di bulan akhir uji coba (atau bulan berjalan bila belum lewat), deret RS atau Unit Lingkup itu, periode uji coba ditandai. Ponytail: uji coba lebih dari 12 bulan hanya terlihat sebagian.
 
 ### Tampilan

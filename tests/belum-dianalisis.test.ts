@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-import { ServiceError } from "@/lib/errors";
 import type { Pengguna } from "@/modules/auth/service";
 import { aturAktifIndikator, tambahUnitPelapor } from "@/modules/indikator/service";
 import { belumDianalisis, simpanAnalisis } from "@/modules/perbaikan/service";
@@ -93,8 +92,8 @@ describe("Belum dianalisis", () => {
     assert.equal((await belumDianalisis(komite, undefined, sekarang)).bulan, "2026-02");
     await assert.rejects(
       belumDianalisis(komite, "2026-04", sekarang),
-      (e: unknown) => e instanceof ServiceError && e.status === 400,
+      { status: 400 },
     );
-    await assert.rejects(belumDianalisis(null, "2026-01"), (e: unknown) => e instanceof ServiceError && e.status === 401);
+    await assert.rejects(belumDianalisis(null, "2026-01"), { status: 401 });
   });
 });

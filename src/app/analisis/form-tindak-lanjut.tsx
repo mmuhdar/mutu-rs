@@ -4,10 +4,8 @@ import { useActionState } from "react";
 
 import { LABEL_STATUS_TINDAK_LANJUT, STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perbaikan";
 
+import { kelasArea, kelasInput, PesanError, tombolUtama } from "../form";
 import { tambahTindakLanjutAction, ubahTindakLanjutAction } from "./actions";
-import { HasilForm, kelasArea, tombolUtama } from "./form-analisis";
-
-const kelasBaris = `${kelasArea} h-11 py-0`;
 
 function Kolom({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (
@@ -37,7 +35,7 @@ function IsianDasar({ id, awal }: { id: string; awal: { tindakan?: string; pic?:
       </Kolom>
       <div className="grid gap-3 sm:grid-cols-2">
         <Kolom label="PIC (nama atau jabatan)" htmlFor={`pic-${id}`}>
-          <input id={`pic-${id}`} name="pic" required maxLength={120} defaultValue={awal.pic} className={kelasBaris} />
+          <input id={`pic-${id}`} name="pic" required maxLength={120} defaultValue={awal.pic} className={kelasInput} />
         </Kolom>
         <Kolom label="Tenggat" htmlFor={`tenggat-${id}`}>
           <input
@@ -47,7 +45,7 @@ function IsianDasar({ id, awal }: { id: string; awal: { tindakan?: string; pic?:
             required
             placeholder="YYYY-MM-DD"
             defaultValue={awal.tenggat}
-            className={kelasBaris}
+            className={kelasInput}
           />
         </Kolom>
       </div>
@@ -63,7 +61,7 @@ export function FormTambahTindakLanjut({ analisisId }: { analisisId: string }) {
       <h3 className="font-semibold">Tambah Tindak Lanjut</h3>
       <input type="hidden" name="analisisId" value={analisisId} />
       <IsianDasar id="baru" awal={state.nilai ?? {}} />
-      <HasilForm state={state} tersimpan="Tindak Lanjut ditambahkan." />
+      <PesanError pesan={state.error} />
       <button type="submit" disabled={pending} className={tombolUtama}>
         {pending ? "Menyimpan…" : "Tambah Tindak Lanjut"}
       </button>
@@ -89,7 +87,7 @@ export function FormUbahTindakLanjut({
         <IsianDasar id={t.id} awal={awal} />
         <Kolom label="Status" htmlFor={`status-${t.id}`}>
           {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
-          <select key={awal.status} id={`status-${t.id}`} name="status" defaultValue={awal.status} className={kelasBaris}>
+          <select key={awal.status} id={`status-${t.id}`} name="status" defaultValue={awal.status} className={kelasInput}>
             {STATUS_TINDAK_LANJUT.map((s) => (
               <option key={s} value={s}>
                 {LABEL_STATUS_TINDAK_LANJUT[s]}
@@ -107,7 +105,7 @@ export function FormUbahTindakLanjut({
             className={kelasArea}
           />
         </Kolom>
-        <HasilForm state={state} tersimpan="Tindak Lanjut tersimpan." />
+        <PesanError pesan={state.error} />
         <button type="submit" disabled={pending} className={tombolUtama}>
           {pending ? "Menyimpan…" : "Simpan"}
         </button>

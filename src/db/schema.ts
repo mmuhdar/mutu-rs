@@ -22,6 +22,7 @@ import { ARAH, FREKUENSI, KELOMPOK, type Arah, type Frekuensi, type Kelompok } f
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
 import {
   KEPUTUSAN_PDSA,
+  STATUS_TERBUKA,
   STATUS_TINDAK_LANJUT,
   TAHAP_PDSA,
   type KeputusanPdsa,
@@ -282,7 +283,7 @@ export const tindakLanjut = pgTable(
   (t) => [
     index("tindak_lanjut_analisis_idx").on(t.analisisId),
     check("tindak_lanjut_status_check", salahSatu(t.status, STATUS_TINDAK_LANJUT)),
-    check("tindak_lanjut_catatan_check", sql`${t.status} in ('direncanakan', 'berjalan') or ${t.catatan} <> ''`),
+    check("tindak_lanjut_catatan_check", sql`${salahSatu(t.status, STATUS_TERBUKA)} or ${t.catatan} <> ''`),
   ],
 );
 

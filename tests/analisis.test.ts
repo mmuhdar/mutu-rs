@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-import { ServiceError } from "@/lib/errors";
 import type { Pengguna } from "@/modules/auth/service";
 import { aturAktifIndikator, tambahUnitPelapor } from "@/modules/indikator/service";
 import { bukaKembaliPengukuran } from "@/modules/pengukuran/service";
@@ -16,10 +15,6 @@ let direktur: Pengguna;
 before(async () => {
   [admin, komite, direktur] = [await adminSistem(), await komiteMutu(), await sebagai("direktur")];
 });
-
-/** Penolakan service dengan status tertentu. */
-const ditolak = (status: number, pesan?: RegExp) => (e: unknown) =>
-  e instanceof ServiceError && e.status === status && (!pesan || pesan.test(e.message));
 
 /** IMP-RS baru dengan satu Unit Pelapor mulai Januari 2026. */
 async function siapkan(ubahan: Parameters<typeof indikatorBaru>[0] = {}) {
@@ -48,8 +43,8 @@ describe("menulis Analisis", () => {
     const lain = await unitPelapor(indikatorId, "IGD");
     const kepala = await sebagai("kepalaUnit", [unit.id]);
     await simpanAnalisis(kepala, { indikatorId, unitId: unit.id, bulan: "2026-03", teks: "Analisis ICU" });
-    await assert.rejects(simpanAnalisis(kepala, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }), ditolak(403));
-    await assert.rejects(simpanAnalisis(kepala, { indikatorId, unitId: lain.id, bulan: "2026-03", teks: "x" }), ditolak(403));
+    await assert.rejects(simpanAnalisis(kepala, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }), { status: 403 });
+    await assert.rejects(simpanAnalisis(kepala, { indikatorId, unitId: lain.id, bulan: "2026-03", teks: "x" }), { status: 403 });
     // Komite Mutu juga boleh menulis Analisis Lingkup Unit.
     await simpanAnalisis(komite, { indikatorId, unitId: lain.id, bulan: "2026-03", teks: "Analisis IGD" });
   });
@@ -58,15 +53,15 @@ describe("menulis Analisis", () => {
     const { indikatorId, unit } = await siapkan();
     const petugas = await sebagai("petugasInputData", [unit.id]);
     for (const aktor of [petugas, direktur]) {
-      await assert.rejects(simpanAnalisis(aktor, { indikatorId, unitId: unit.id, bulan: "2026-03", teks: "x" }), ditolak(403));
-      await assert.rejects(simpanAnalisis(aktor, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }), ditolak(403));
+      await assert.rejects(simpanAnalisis(aktor, { indikatorId, unitId: unit.id, bulan: "2026-03", teks: "x" }), { status: 403 });
+      await assert.rejects(simpanAnalisis(aktor, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }), { status: 403 });
     }
-    await assert.rejects(simpanAnalisis(null, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }), ditolak(401));
+    await assert.rejects(simpanAnalisis(null, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }), { status: 401 });
   });
 
   it("teks Analisis wajib diisi", async () => {
     const { indikatorId } = await siapkan();
-    await assert.rejects(simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-03", teks: "   " }), ditolak(400));
+    await assert.rejects(simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-03", teks: "   " }), { status: 400 });
   });
 
   it("bulan yang belum berjalan dan bulan tidak valid ditolak", async () => {
@@ -74,27 +69,27 @@ describe("menulis Analisis", () => {
     const pertengahanMaret = new Date("2026-03-15T03:00:00Z");
     await assert.rejects(
       simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-04", teks: "x" }, pertengahanMaret),
-      ditolak(400, /belum berjalan/),
+      { status: 400, message: /belum berjalan/ },
     );
     await simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }, pertengahanMaret);
-    await assert.rejects(simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-13", teks: "x" }), ditolak(400));
+    await assert.rejects(simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-13", teks: "x" }), { status: 400 });
   });
 
   it("Analisis hanya untuk bulan yang dinilai: ada Unit Pelapor, dan Unit Lingkup adalah Unit Pelapor bulan itu", async () => {
     const indikatorId = await indikatorBaru();
     await assert.rejects(
       simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }),
-      ditolak(400, /tidak punya Unit Pelapor/),
+      { status: 400, message: /tidak punya Unit Pelapor/ },
     );
     const icu = await unitPelapor(indikatorId, "ICU", "2026-05");
     await assert.rejects(
       simpanAnalisis(komite, { indikatorId, unitId: icu.id, bulan: "2026-04", teks: "x" }),
-      ditolak(400, /bukan Unit Pelapor/),
+      { status: 400, message: /bukan Unit Pelapor/ },
     );
     const bukanPelapor = await unitBaru("Farmasi");
     await assert.rejects(
       simpanAnalisis(komite, { indikatorId, unitId: bukanPelapor.id, bulan: "2026-05", teks: "x" }),
-      ditolak(400, /bukan Unit Pelapor/),
+      { status: 400, message: /bukan Unit Pelapor/ },
     );
     await simpanAnalisis(komite, { indikatorId, unitId: icu.id, bulan: "2026-05", teks: "x" });
   });
@@ -103,7 +98,7 @@ describe("menulis Analisis", () => {
     const { indikatorId } = await siapkan({ frekuensi: "semesteran" });
     await assert.rejects(
       simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-05", teks: "x" }),
-      ditolak(400, /Juni dan Desember/),
+      { status: 400, message: /Juni dan Desember/ },
     );
     await simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-06", teks: "x" });
   });
@@ -112,24 +107,21 @@ describe("menulis Analisis", () => {
     const { indikatorId, unit } = await siapkan({ kelompok: "IMP-Unit" });
     await assert.rejects(
       simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" }),
-      ditolak(400, /IMP-Unit/),
+      { status: 400, message: /IMP-Unit/ },
     );
     await simpanAnalisis(await sebagai("kepalaUnit", [unit.id]), { indikatorId, unitId: unit.id, bulan: "2026-03", teks: "x" });
   });
 
-  it("Indikator nonaktif tidak bisa dianalisis lagi, tetapi Analisis lamanya tetap terbaca", async () => {
+  it("Indikator nonaktif tidak bisa dianalisis lagi, tetapi Analisis lamanya tetap terbaca dan Tindak Lanjut-nya tetap dikelola", async () => {
     const { indikatorId } = await siapkan();
     const kunci = { indikatorId, unitId: null, bulan: "2026-03" };
     await simpanAnalisis(komite, { ...kunci, teks: "Analisis lama" });
     await aturAktifIndikator(komite, indikatorId, false);
-    try {
-      await assert.rejects(simpanAnalisis(komite, { ...kunci, teks: "baru" }), ditolak(400, /nonaktif/));
-      const a = await ambilAnalisis(komite, kunci);
-      assert.equal(a.analisis?.teks, "Analisis lama");
-      assert.equal(a.bolehTulis, false);
-    } finally {
-      await aturAktifIndikator(komite, indikatorId, true);
-    }
+    await assert.rejects(simpanAnalisis(komite, { ...kunci, teks: "baru" }), { status: 400, message: /nonaktif/ });
+    const a = await ambilAnalisis(komite, kunci);
+    assert.deepEqual([a.analisis?.teks, a.bolehTulisAnalisis, a.bolehTulis], ["Analisis lama", false, true]);
+    // Bulan tanpa Analisis milik Indikator nonaktif tidak bisa dibuka.
+    await assert.rejects(ambilAnalisis(komite, { ...kunci, bulan: "2026-04" }), { status: 400, message: /nonaktif/ });
   });
 
   it("Unit yang kini nonaktif tetap bisa dianalisis untuk bulan saat ia menjadi Unit Pelapor", async () => {
@@ -145,11 +137,11 @@ describe("menulis Analisis", () => {
     const { indikatorId } = await siapkan();
     await assert.rejects(
       simpanAnalisis(komite, { indikatorId: "bukan-uuid", unitId: null, bulan: "2026-03", teks: "x" }),
-      ditolak(404),
+      { status: 404 },
     );
     await assert.rejects(
       ambilAnalisis(komite, { indikatorId, unitId: "00000000-0000-0000-0000-000000000000", bulan: "2026-03" }),
-      ditolak(404),
+      { status: 404 },
     );
   });
 });
@@ -164,21 +156,20 @@ describe("membaca Analisis", () => {
     for (const aktor of [await sebagai("petugasInputData", [unit.id]), await sebagai("kepalaUnit", [unit.id])]) {
       const a = await ambilAnalisis(aktor, { indikatorId, unitId: unit.id, bulan: "2026-03" });
       assert.equal(a.analisis?.teks, "ICU");
-      assert.equal(a.bolehTulis, aktor.peran === "kepalaUnit");
-      await assert.rejects(ambilAnalisis(aktor, { indikatorId, unitId: null, bulan: "2026-03" }), ditolak(403));
-      await assert.rejects(ambilAnalisis(aktor, { indikatorId, unitId: lain.id, bulan: "2026-03" }), ditolak(403));
+      assert.equal(a.bolehTulisAnalisis, aktor.peran === "kepalaUnit");
+      await assert.rejects(ambilAnalisis(aktor, { indikatorId, unitId: null, bulan: "2026-03" }), { status: 403 });
+      await assert.rejects(ambilAnalisis(aktor, { indikatorId, unitId: lain.id, bulan: "2026-03" }), { status: 403 });
     }
     const d = await ambilAnalisis(direktur, { indikatorId, unitId: null, bulan: "2026-03" });
     assert.equal(d.analisis?.teks, "RS");
-    assert.equal(d.bolehTulis, false);
+    assert.deepEqual([d.bolehTulis, d.bolehTulisAnalisis], [false, false]);
   });
 
   it("bulan tanpa Analisis tetap bisa dibuka untuk ditulis; bulan yang tidak dinilai ditolak", async () => {
     const { indikatorId, unit } = await siapkan();
     const a = await ambilAnalisis(komite, { indikatorId, unitId: unit.id, bulan: "2026-03" });
-    assert.equal(a.analisis, null);
-    assert.equal(a.bolehTulis, true);
-    await assert.rejects(ambilAnalisis(komite, { indikatorId, unitId: unit.id, bulan: "2025-12" }), ditolak(400));
+    assert.deepEqual([a.analisis, a.bolehTulis, a.bolehTulisAnalisis], [null, true, true]);
+    await assert.rejects(ambilAnalisis(komite, { indikatorId, unitId: unit.id, bulan: "2025-12" }), { status: 400 });
   });
 
   it("Capaian yang tampil adalah Capaian terkini, ikut berubah saat Pengukuran dibuka kembali", async () => {

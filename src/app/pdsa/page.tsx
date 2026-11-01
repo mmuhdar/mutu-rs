@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
+import { labelLingkup } from "@/lib/perbaikan";
 import { bolehMulaiPdsa, daftarPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
@@ -56,7 +57,7 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
               <Link href={`/pdsa/${p.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-background">
                 <span className="grid min-w-0 flex-1 gap-1">
                   <span className="text-[12.5px] font-medium text-muted-foreground">
-                    {p.indikator.kode} · {p.unit ? `Unit ${p.unit.nama}` : "Lingkup RS"} · siklus ke-{p.siklus}
+                    {p.indikator.kode} · {labelLingkup(p.unit)} · siklus ke-{p.siklus}
                   </span>
                   <span className="font-medium">{p.judul}</span>
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">

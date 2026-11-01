@@ -5,12 +5,14 @@ import { labelBulan, labelPeriode } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
 import { TANDA_ARAH } from "@/lib/indikator";
+import { labelLingkup } from "@/lib/perbaikan";
 import { ambilAnalisis } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
 import { formatWaktu, kelasKartu, LabelCapaian, Pesan, pesanAtau, RincianTindakLanjut } from "../pengukuran/status";
 import { FormAnalisis } from "./form-analisis";
 import { FormTambahTindakLanjut, FormUbahTindakLanjut } from "./form-tindak-lanjut";
+import { keteranganRs, keteranganUnit } from "../monitoring/grafik";
 import { LabelTahap } from "../pdsa/tahap";
 import { tautanAnalisis } from "./tautan";
 
@@ -33,10 +35,11 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
   if (typeof a === "string") return <Pesan>{a}</Pesan>;
 
   const { indikator: ind, unit, capaian: c } = a;
-  const lingkup = unit ? `Unit ${unit.nama}${unit.aktif ? "" : " (nonaktif)"}` : "Lingkup RS";
-  // Setiap perubahan Tindak Lanjut yang berhasil mengubah data ini, jadi semua form dibuat ulang dan pesan penolakan lama
-  // dari form lain hilang. Simpan Analisis tidak ikut, supaya konfirmasinya tetap terlihat.
-  const versi = JSON.stringify(a.tindakLanjut.map((t) => [t.id, t.diubahPada]));
+  const lingkup = labelLingkup(unit);
+  // Setiap perubahan yang berhasil mengubah data ini, jadi semua form dibuat ulang dan pesan penolakan lama dari form
+  // lain hilang. Tanda tersimpan = "Terakhir diubah oleh" dan daftar Tindak Lanjut yang ikut berubah.
+  const versi = JSON.stringify([a.analisis?.diubahPada, a.tindakLanjut.map((t) => [t.id, t.diubahPada])]);
+  const catatan = c && (unit ? keteranganUnit : keteranganRs)(c);
 
   return (
     <section className="grid gap-4">
@@ -80,9 +83,7 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
           <dt className="text-[12.5px] font-medium text-muted-foreground">Kelengkapan</dt>
           <dd className="font-semibold tabular-nums">
             {c ? `${c.kelengkapan.terverifikasi}/${c.kelengkapan.wajib} Unit` : "–"}
-            {c && c.kelengkapan.terverifikasi < c.kelengkapan.wajib && (
-              <span className="block text-[12.5px] font-normal text-warning">belum lengkap, Capaian masih sementara</span>
-            )}
+            {catatan && <span className="block text-[12.5px] font-normal text-warning">{catatan}</span>}
           </dd>
         </div>
         <p className="col-span-full text-[12.5px] text-muted-foreground">
@@ -91,7 +92,7 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
       </dl>
 
       <div className={`${kelasKartu} grid gap-2 p-4`}>
-        {a.bolehTulis ? (
+        {a.bolehTulisAnalisis ? (
           <FormAnalisis
             key={versi}
             indikatorId={ind.id}

@@ -2,13 +2,14 @@ import { and, asc, eq, inArray, isNull, lt, ne, type AnyColumn } from "drizzle-o
 
 import { db } from "@/db";
 import { analisis, indikator, pdsa, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
-import { bulanBerjalan, bulanLalu, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan } from "@/lib/bulan";
+import { bulanBerjalan, bulanLalu, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan, wajibBulanBerjalan } from "@/lib/bulan";
 import { kodePg, ServiceError } from "@/lib/errors";
 import { diukurPadaBulan } from "@/lib/indikator";
 import {
   KEPUTUSAN_PDSA,
   LABEL_TAHAP_PDSA,
   lewatTenggat,
+  punyaLingkupRs,
   STATUS_TERBUKA,
   STATUS_TINDAK_LANJUT,
   sudahDicapai,
@@ -21,7 +22,7 @@ import {
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
-import { melihatCapaianRs, trenCapaian } from "@/modules/capaian/service";
+import { melihatCapaianRs, trenCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { bersinggungan } from "@/modules/indikator/service";
 
 /*
@@ -115,7 +116,7 @@ async function ambilLingkup(q: Kueri, indikatorId: string, unitId: Lingkup) {
       : [];
     if (!u) throw new ServiceError(404, "Unit tidak ditemukan.");
   }
-  if (ind.kelompok === "IMP-Unit" && !u) {
+  if (!punyaLingkupRs(ind.kelompok) && !u) {
     throw new ServiceError(400, `${ind.kode} adalah IMP-Unit, jadi Lingkup-nya Unit Pelapor-nya, bukan RS.`);
   }
   return { indikator: ind, unit: u };
@@ -139,9 +140,13 @@ async function wajibUnitPelapor(q: Kueri, { indikator: ind, unit: u }: DataLingk
   );
 }
 
-/** Bulan yang bisa dianalisis untuk Lingkup ini: sudah berjalan, sesuai Frekuensi, dan ada Unit Pelapor-nya. */
-async function wajibBulanDinilai(q: Kueri, l: DataLingkup, bulan: string, sekarang: Date) {
-  if (bulan > bulanBerjalan(sekarang)) throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan.`);
+/**
+ * Bisa dianalisis: Indikator aktif dan dinilai pada bulan itu (sudah berjalan, sesuai Frekuensi, ada Unit Pelapor-nya;
+ * Lingkup Unit = Unit itu Unit Pelapor bulan itu, walau kini nonaktif).
+ */
+async function wajibBisaDianalisis(q: Kueri, l: DataLingkup, bulan: string, sekarang: Date) {
+  if (!l.indikator.aktif) throw new ServiceError(400, `Indikator ${l.indikator.kode} nonaktif, jadi tidak bisa dianalisis.`);
+  wajibBulanBerjalan(bulan, sekarang);
   if (!diukurPadaBulan(l.indikator.frekuensi, bulan)) {
     throw new ServiceError(400, `Indikator ${l.indikator.kode} Semesteran hanya dinilai pada bulan Juni dan Desember.`);
   }
@@ -185,8 +190,8 @@ const denganLewat = (hari: string) => (t: Awaited<ReturnType<typeof pilihTindakL
 });
 
 /**
- * Menulis Analisis; menulis ulang Indikator + Lingkup + bulan yang sama mengubah Analisis yang sama. Indikator harus
- * aktif dan dinilai bulan itu; Lingkup Unit harus Unit Pelapor bulan itu (Unit yang kini nonaktif boleh).
+ * Menulis Analisis; menulis ulang Indikator + Lingkup + bulan yang sama mengubah Analisis yang sama. Hanya selama
+ * bulan itu bisa dianalisis (`wajibBisaDianalisis`), juga untuk mengubah Analisis yang sudah ada.
  */
 export async function simpanAnalisis(aktor: Pengguna | null, isian: KunciAnalisis & { teks: string }, sekarang = new Date()) {
   wajibTulis(aktor, isian.unitId);
@@ -194,10 +199,7 @@ export async function simpanAnalisis(aktor: Pengguna | null, isian: KunciAnalisi
   const teks = wajibTeks(isian.teks, "Analisis", MAKS_ANALISIS);
   return db.transaction(async (tx) => {
     const l = await ambilLingkup(tx, isian.indikatorId, isian.unitId);
-    if (!l.indikator.aktif) {
-      throw new ServiceError(400, `Indikator ${l.indikator.kode} nonaktif, jadi tidak bisa dianalisis.`);
-    }
-    await wajibBulanDinilai(tx, l, isian.bulan, sekarang);
+    await wajibBisaDianalisis(tx, l, isian.bulan, sekarang);
     const data = { teks, diubahOlehId: aktor.id, diubahPada: new Date() };
     const [baris] = await tx
       .insert(analisis)
@@ -208,10 +210,15 @@ export async function simpanAnalisis(aktor: Pengguna | null, isian: KunciAnalisi
   });
 }
 
+/** Deret Capaian satu Lingkup dari `trenCapaian`: Capaian RS, atau Unit itu (undefined bila bukan Unit Pelapor). */
+const deretLingkup = (tren: TrenCapaian, unitId: Lingkup) =>
+  unitId === null ? tren.rs : tren.unit.find((u) => u.unit.id === unitId)?.titik;
+
 /**
  * Bahan halaman Analisis: Indikator, Unit (null = RS), Analisis yang ada (null = belum), Capaian terkini Lingkup itu
- * pada bulan itu dari modul Capaian (null bila tidak ada), dan apakah aktor boleh menulisnya. Analisis yang sudah ada
- * selalu terbaca; bulan tanpa Analisis hanya bisa dibuka bila memang bisa dianalisis.
+ * pada bulan itu dari modul Capaian (null bila tidak ada), Tindak Lanjut, dan PDSA berjalan. Analisis yang sudah ada
+ * selalu terbaca; bulan tanpa Analisis hanya bisa dibuka bila bisa dianalisis. `bolehTulis` = hak tulis Lingkup
+ * (Tindak Lanjut tetap bisa dikelola walau Indikator kini nonaktif); `bolehTulisAnalisis` = juga bisa dianalisis.
  */
 export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, sekarang = new Date()) {
   wajibBaca(aktor, k.unitId);
@@ -222,7 +229,13 @@ export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, se
     .from(analisis)
     .innerJoin(pengguna, eq(pengguna.id, analisis.diubahOlehId))
     .where(analisisUntuk(l.indikator.id, k.unitId, k.bulan));
-  if (!ada) await wajibBulanDinilai(db, l, k.bulan, sekarang);
+  let bisaDianalisis = true;
+  try {
+    await wajibBisaDianalisis(db, l, k.bulan, sekarang);
+  } catch (error) {
+    if (ada && error instanceof ServiceError) bisaDianalisis = false;
+    else throw error;
+  }
   const [tren, milik, sebelumnya, pdsaBerjalan] = await Promise.all([
     trenCapaian(aktor, l.indikator.id, k.bulan, sekarang),
     ada ? pilihTindakLanjut().where(eq(tindakLanjut.analisisId, ada.id)).orderBy(asc(tindakLanjut.createdAt)) : [],
@@ -238,14 +251,14 @@ export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, se
       .orderBy(asc(analisis.bulan), asc(tindakLanjut.createdAt)),
     daftarPdsa(aktor, { indikatorId: l.indikator.id, lingkup: k.unitId }),
   ]);
-  const deret = l.unit ? tren.unit.find((u) => u.unit.id === l.unit!.id)?.titik : tren.rs;
   const hari = hariIni(sekarang);
   return {
     ...l,
     bulan: k.bulan,
-    capaian: deret?.find((t) => t.bulan === k.bulan) ?? null,
+    capaian: deretLingkup(tren, k.unitId)?.find((t) => t.bulan === k.bulan) ?? null,
     analisis: ada ?? null,
-    bolehTulis: bolehTulisLingkup(aktor, k.unitId) && l.indikator.aktif,
+    bolehTulis: bolehTulisLingkup(aktor, k.unitId),
+    bolehTulisAnalisis: bolehTulisLingkup(aktor, k.unitId) && bisaDianalisis,
     /** Tindak Lanjut milik Analisis ini. */
     tindakLanjut: milik.map(denganLewat(hari)),
     /** Tindak Lanjut bulan-bulan sebelumnya (Indikator + Lingkup sama) yang masih Direncanakan atau Berjalan. */
@@ -435,7 +448,7 @@ export async function buatPdsa(
 ) {
   wajibPengguna(aktor);
   return db.transaction(async (tx) => {
-    let asal = { indikatorId: isian.indikatorId, unitId: isian.unitId, judul: isian.judul, siklus: 1, sebelumnyaId: null as string | null };
+    let baru = { indikatorId: isian.indikatorId, unitId: isian.unitId, judul: isian.judul, siklus: 1, sebelumnyaId: null as string | null };
     if (isian.sebelumnyaId !== undefined) {
       const [s] = apakahUuid(isian.sebelumnyaId)
         ? await tx
@@ -449,31 +462,31 @@ export async function buatPdsa(
       if (s.tahap !== "selesai") {
         throw new ServiceError(409, "Siklus berikutnya hanya bisa dimulai dari PDSA yang sudah Selesai.");
       }
-      asal = { indikatorId: s.indikatorId, unitId: s.unitId, judul: s.judul, siklus: s.siklus + 1, sebelumnyaId: s.id };
+      baru = { indikatorId: s.indikatorId, unitId: s.unitId, judul: s.judul, siklus: s.siklus + 1, sebelumnyaId: s.id };
     } else {
       wajibTulis(aktor, isian.unitId);
     }
-    const data = periksaPlan({ ...isian, judul: asal.judul });
-    const l = await ambilLingkup(tx, asal.indikatorId, asal.unitId);
+    const data = periksaPlan({ ...isian, judul: baru.judul });
+    const l = await ambilLingkup(tx, baru.indikatorId, baru.unitId);
     if (!l.indikator.aktif) throw new ServiceError(400, `Indikator ${l.indikator.kode} nonaktif, jadi tidak bisa dibuat PDSA-nya.`);
     if (l.unit) {
       if (!l.unit.aktif) throw new ServiceError(400, `Unit ${l.unit.nama} nonaktif, jadi tidak bisa dibuat PDSA-nya.`);
       await wajibUnitPelapor(tx, l, isian.bulanMulai);
     }
     try {
-      const [baru] = await tx
+      const [dibuat] = await tx
         .insert(pdsa)
         .values({
           ...data,
           indikatorId: l.indikator.id,
           unitId: l.unit?.id ?? null,
-          siklus: asal.siklus,
-          sebelumnyaId: asal.sebelumnyaId,
+          siklus: baru.siklus,
+          sebelumnyaId: baru.sebelumnyaId,
           tahap: "do",
           diubahOlehId: aktor.id,
         })
         .returning({ id: pdsa.id });
-      return { id: baru.id };
+      return { id: dibuat.id };
     } catch (error) {
       if (kodePg(error) === "23505") throw new ServiceError(409, "Siklus berikutnya dari PDSA ini sudah dimulai.");
       throw error;
@@ -574,7 +587,7 @@ export async function ambilPdsa(aktor: Pengguna | null, id: string, sekarang = n
     db.select(siklus).from(pdsa).where(eq(pdsa.sebelumnyaId, p.id)),
     trenCapaian(aktor, p.indikator.id, [p.bulanAkhir, bulanBerjalan(sekarang)].sort()[0], sekarang),
   ]);
-  const study = (unitId ? tren.unit.find((u) => u.unit.id === unitId)?.titik : tren.rs) ?? [];
+  const study = deretLingkup(tren, unitId) ?? [];
   return {
     ...p,
     sebelumnya: sebelumnya ?? null,
@@ -630,8 +643,7 @@ export async function daftarPdsa(
 export async function belumDianalisis(aktor: Pengguna | null, bulan?: string, sekarang = new Date()) {
   wajibPengguna(aktor);
   bulan ||= bulanLalu(sekarang);
-  wajibBulan(bulan);
-  if (bulan > bulanBerjalan(sekarang)) throw new ServiceError(400, `${labelBulan(bulan)} belum berjalan.`);
+  wajibBulanBerjalan(bulan, sekarang);
   const [pelapor, ada] = await Promise.all([
     db
       .select({
@@ -649,7 +661,7 @@ export async function belumDianalisis(aktor: Pengguna | null, bulan?: string, se
   const harapan = new Map<string, { indikator: (typeof pelapor)[number]["indikator"]; unit: (typeof pelapor)[number]["unit"] | null }>();
   for (const p of pelapor) {
     if (!diukurPadaBulan(p.indikator.frekuensi, bulan)) continue;
-    const perUnit = p.indikator.kelompok === "IMP-Unit";
+    const perUnit = !punyaLingkupRs(p.indikator.kelompok);
     // Lingkup RS hanya untuk yang melihat Capaian RS.
     if (!perUnit && !melihatCapaianRs(aktor)) continue;
     const unitId = perUnit ? p.unit.id : null;

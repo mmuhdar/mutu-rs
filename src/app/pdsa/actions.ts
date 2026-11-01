@@ -4,18 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { hasilAtauError } from "@/lib/errors";
-import { teks } from "@/lib/form";
+import { ditolak, teks, type StateForm } from "@/lib/form";
 import type { KeputusanPdsa, TahapIsianPdsa } from "@/lib/perbaikan";
 import { buatPdsa, simpanTahapPdsa, type IsianTahapPdsa } from "@/modules/perbaikan/service";
 import { getSessionUser } from "@/server/sesi";
-
-import type { StateAnalisis } from "../analisis/actions";
-
-/** Penolakan service menjadi pesan form beserta isian yang dikirim. */
-const ditolak = (formData: FormData, error: string): StateAnalisis => ({
-  error,
-  nilai: Object.fromEntries(formData) as Record<string, string>,
-});
 
 const isianPlan = (formData: FormData) => ({
   judul: teks(formData, "judul"),
@@ -28,7 +20,7 @@ const isianPlan = (formData: FormData) => ({
 });
 
 /** Memulai PDSA (atau siklus berikutnya bila ada `sebelumnyaId`); sukses diarahkan ke detail PDSA. */
-export async function buatPdsaAction(_prev: StateAnalisis, formData: FormData): Promise<StateAnalisis> {
+export async function buatPdsaAction(_prev: StateForm, formData: FormData): Promise<StateForm> {
   const hasil = await hasilAtauError(
     buatPdsa(await getSessionUser(), {
       indikatorId: teks(formData, "indikatorId"),
@@ -44,7 +36,7 @@ export async function buatPdsaAction(_prev: StateAnalisis, formData: FormData): 
 }
 
 /** Menyimpan isian satu tahap (`tahap`), lalu maju ke tahap berikutnya bila tombol `lanjut` = "ya". */
-export async function simpanTahapPdsaAction(_prev: StateAnalisis, formData: FormData): Promise<StateAnalisis> {
+export async function simpanTahapPdsaAction(_prev: StateForm, formData: FormData): Promise<StateForm> {
   // Tahap di luar daftar ditolak service.
   const tahap = teks(formData, "tahap") as TahapIsianPdsa;
   const isian: IsianTahapPdsa = {
@@ -58,5 +50,5 @@ export async function simpanTahapPdsaAction(_prev: StateAnalisis, formData: Form
   );
   if ("error" in hasil) return ditolak(formData, hasil.error);
   revalidatePath("/", "layout");
-  return { tersimpan: true };
+  return {};
 }

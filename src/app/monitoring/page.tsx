@@ -5,6 +5,7 @@ import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } fr
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
 import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
+import { punyaLingkupRs } from "@/lib/perbaikan";
 import { trenCapaian, type TitikCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
 import { analisisTersedia } from "@/modules/perbaikan/service";
@@ -103,11 +104,15 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
     typeof tren === "string"
       ? new Set<string>()
       : new Set((await analisisTersedia(pengguna, tren.indikator.id, tren.bulan)).map((a) => `${a.unitId}|${a.bulan}`));
-  // Bulan tanpa Unit Pelapor tidak bisa dianalisis; IMP-Unit hanya dianalisis pada Lingkup Unit Pelapor-nya.
-  const tautan: TautanTitik = (unitId, t) =>
-    typeof tren === "string" || t.kelengkapan.wajib === 0 || (unitId === null && tren.indikator.kelompok === "IMP-Unit") ? null : (
-      <TautanAnalisis href={tautanAnalisis(tren.indikator.id, unitId, t.bulan)} ada={ada.has(`${unitId}|${t.bulan}`)} />
-    );
+  // Analisis yang ada selalu ditautkan; "Belum dianalisis" hanya bila bulan itu bisa dianalisis (Indikator aktif, ada
+  // Unit Pelapor; IMP-Unit hanya pada Lingkup Unit Pelapor-nya). Aturan lengkapnya tetap diperiksa service.
+  const tautan: TautanTitik = (unitId, t) => {
+    if (typeof tren === "string") return null;
+    const sudah = ada.has(`${unitId}|${t.bulan}`);
+    const bisa =
+      tren.indikator.aktif && t.kelengkapan.wajib > 0 && (unitId !== null || punyaLingkupRs(tren.indikator.kelompok));
+    return sudah || bisa ? <TautanAnalisis href={tautanAnalisis(tren.indikator.id, unitId, t.bulan)} ada={sudah} /> : null;
+  };
 
   return (
     <section className="grid gap-4">

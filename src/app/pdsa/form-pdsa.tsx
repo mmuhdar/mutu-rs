@@ -12,12 +12,10 @@ import {
   type TahapIsianPdsa,
 } from "@/lib/perbaikan";
 
-import { HasilForm, kelasArea, tombolUtama } from "../analisis/form-analisis";
-import { buatPdsaAction, simpanTahapPdsaAction } from "./actions";
+import type { PlanPdsa } from "@/modules/perbaikan/service";
 
-const kelasBaris = `${kelasArea} h-11 py-0`;
-const tombolGaris =
-  "h-11 w-full rounded-md border border-border bg-surface px-4 font-semibold hover:bg-background disabled:opacity-70 sm:w-auto";
+import { kelasArea, kelasInput, PesanError, tombolGaris, tombolUtama } from "../form";
+import { buatPdsaAction, simpanTahapPdsaAction } from "./actions";
 
 function Kolom(p: { label: string; htmlFor: string; petunjuk?: string; children: React.ReactNode }) {
   return (
@@ -39,7 +37,7 @@ function Teks({ nama, label, petunjuk, awal, baris = 3 }: { nama: string; label:
   );
 }
 
-type AwalPlan = Partial<Record<"judul" | "masalah" | "tujuan" | "prediksi" | "rencana" | "bulanMulai" | "bulanAkhir", string>>;
+type AwalPlan = Partial<PlanPdsa>;
 
 /** Isian Plan. `judulTetap` = siklus berikutnya: judul disalin dari siklus sebelumnya, tidak diisi. */
 function IsianPlan({ awal, judulTetap = false }: { awal: AwalPlan; judulTetap?: boolean }) {
@@ -49,7 +47,7 @@ function IsianPlan({ awal, judulTetap = false }: { awal: AwalPlan; judulTetap?: 
         <input type="hidden" name="judul" value={awal.judul ?? ""} />
       ) : (
         <Kolom label="Judul" htmlFor="judul" petunjuk="Perubahan yang diuji coba, mis. Uji coba handrub di setiap tempat tidur ICU.">
-          <input id="judul" name="judul" required maxLength={200} defaultValue={awal.judul} className={kelasBaris} />
+          <input id="judul" name="judul" required maxLength={200} defaultValue={awal.judul} className={kelasInput} />
         </Kolom>
       )}
       <Teks nama="masalah" label="Masalah" petunjuk="Apa yang ingin diperbaiki, dari Analisis atau data Capaian." awal={awal.masalah} />
@@ -63,10 +61,10 @@ function IsianPlan({ awal, judulTetap = false }: { awal: AwalPlan; judulTetap?: 
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <Kolom label="Bulan mulai uji coba" htmlFor="bulanMulai">
-          <input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={awal.bulanMulai} className={kelasBaris} />
+          <input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={awal.bulanMulai} className={kelasInput} />
         </Kolom>
         <Kolom label="Bulan akhir uji coba" htmlFor="bulanAkhir">
-          <input id="bulanAkhir" name="bulanAkhir" {...INPUT_BULAN} required defaultValue={awal.bulanAkhir} className={kelasBaris} />
+          <input id="bulanAkhir" name="bulanAkhir" {...INPUT_BULAN} required defaultValue={awal.bulanAkhir} className={kelasInput} />
         </Kolom>
       </div>
     </>
@@ -93,7 +91,7 @@ export function FormPdsaBaru(p: {
         <div className="grid gap-3 sm:grid-cols-2">
           <Kolom label="Indikator" htmlFor="indikatorId">
             {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
-            <select key={awal.indikatorId} id="indikatorId" name="indikatorId" required defaultValue={awal.indikatorId ?? ""} className={kelasBaris}>
+            <select key={awal.indikatorId} id="indikatorId" name="indikatorId" required defaultValue={awal.indikatorId ?? ""} className={kelasInput}>
               <option value="" disabled>
                 Pilih Indikator
               </option>
@@ -105,7 +103,7 @@ export function FormPdsaBaru(p: {
             </select>
           </Kolom>
           <Kolom label="Lingkup" htmlFor="unitId">
-            <select key={awal.unitId} id="unitId" name="unitId" defaultValue={awal.unitId} className={kelasBaris}>
+            <select key={awal.unitId} id="unitId" name="unitId" defaultValue={awal.unitId} className={kelasInput}>
               {p.lingkup.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.label}
@@ -116,7 +114,7 @@ export function FormPdsaBaru(p: {
         </div>
       )}
       <IsianPlan awal={awal} judulTetap={Boolean(p.sebelumnyaId)} />
-      <HasilForm state={state} tersimpan="" />
+      <PesanError pesan={state.error} />
       <button type="submit" disabled={pending} className={tombolUtama}>
         {pending ? "Menyimpan…" : "Simpan Plan dan mulai Do"}
       </button>
@@ -200,7 +198,7 @@ export function FormTahap({
       ) : (
         <IsianTahap tahap={tahap} awal={nilai} />
       )}
-      <HasilForm state={state} tersimpan={`${LABEL_TAHAP_PDSA[tahap]} tersimpan.`} />
+      <PesanError pesan={state.error} />
       <div className="flex flex-wrap gap-2">
         {aktif && (
           <button type="submit" name="lanjut" value="ya" disabled={pending} className={tombolUtama}>
