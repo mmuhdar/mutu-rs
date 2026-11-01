@@ -6,9 +6,13 @@ import { LABEL_STATUS_PENGUKURAN, STATUS_PENGUKURAN } from "@/lib/pengukuran";
 import { statusPengukuranBulan } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, kelasLabel, tombolUtama } from "../../form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+
+import { Kolom } from "../../form";
 import type { NamaIkon } from "../../ikon";
-import { Halaman, Kartu, KepalaHalaman, kelasTd, kelasTh, type Nada, Pil, Tabel, TautanIkon, Ubin } from "../../ui";
+import { Halaman, Kartu, KepalaHalaman, type Nada, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon, Ubin } from "../../ui";
 import { LabelStatus, Pemberitahuan, Pesan, pesanAtau } from "../status";
 
 export const metadata: Metadata = { title: "Status Pengukuran" };
@@ -47,25 +51,23 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
       <KepalaHalaman judul="Status Pengukuran" sub={`Semua Pengukuran di semua Unit pada ${labelBulan(bulan)}, termasuk Unit Pelapor yang belum mengisi.`}>
         <form method="get" className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)_auto] sm:items-end">
           <input type="hidden" name="status" value={status} />
-          <label className={`grid gap-1.5 ${kelasLabel}`}>
-            Bulan
-            <input name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
-          </label>
-          <label className={`grid min-w-0 gap-1.5 ${kelasLabel}`}>
-            Unit
-            <select name="unit" defaultValue={unitId} className={kelasInput}>
-              <option value="">Semua Unit</option>
+          <Kolom label="Bulan" htmlFor="bulan">
+            <Input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} />
+          </Kolom>
+          <Kolom label="Unit" htmlFor="unit">
+            <NativeSelect id="unit" name="unit" defaultValue={unitId} className="w-full">
+              <NativeSelectOption value="">Semua Unit</NativeSelectOption>
               {pilihanUnit.map((u) => (
-                <option key={u.id} value={u.id}>
+                <NativeSelectOption key={u.id} value={u.id}>
                   {u.nama}
                   {!u.aktif && " (nonaktif)"}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
-          </label>
-          <button type="submit" className={tombolUtama}>
+            </NativeSelect>
+          </Kolom>
+          <Button type="submit" size="lg" className="w-full sm:w-auto">
             Tampilkan
-          </button>
+          </Button>
         </form>
       </KepalaHalaman>
 
@@ -93,15 +95,15 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
         ) : (
           // Di HP Unit dan status pindah ke bawah nama Indikator supaya tabel tidak perlu digeser.
           <Tabel label="Status Pengukuran" lebarMin="min-w-0">
-            <thead>
-              <tr>
-                <th className={kelasTh}>Indikator</th>
-                <th className={`${kelasTh} max-sm:hidden`}>Unit</th>
-                <th className={`${kelasTh} max-sm:hidden`}>Status</th>
-                <th className={`${kelasTh} text-right`}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Indikator</TableHead>
+                <TableHead className="max-sm:hidden">Unit</TableHead>
+                <TableHead className="max-sm:hidden">Status</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {tampil.map((b) => {
                 const unit = (
                   <>
@@ -110,22 +112,22 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
                   </>
                 );
                 return (
-                  <tr key={`${b.indikator.id}-${b.unit.id}`}>
-                    <td className={kelasTd}>
+                  <TableRow key={`${b.indikator.id}-${b.unit.id}`}>
+                    <TableCell>
                       <span className="block font-semibold">{b.indikator.nama}</span>
                       <span className="font-mono text-[12px] text-muted-foreground">{b.indikator.kode}</span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
                         {unit}
                         <LabelStatus status={b.status} />
                       </span>
-                    </td>
-                    <td className={`${kelasTd} max-sm:hidden`}>
+                    </TableCell>
+                    <TableCell className="max-sm:hidden">
                       <span className="flex flex-wrap items-center gap-2">{unit}</span>
-                    </td>
-                    <td className={`${kelasTd} max-sm:hidden`}>
+                    </TableCell>
+                    <TableCell className="max-sm:hidden">
                       <LabelStatus status={b.status} />
-                    </td>
-                    <td className={`${kelasTd} text-right`}>
+                    </TableCell>
+                    <TableCell className="text-right">
                       {/* Unit Pelapor yang belum mengisi belum punya Pengukuran untuk dibuka. */}
                       {b.id ? (
                         <TautanIkon href={`/pengukuran/${b.id}`} ikon="lihat" label={`Lihat ${b.indikator.kode}, ${b.unit.nama}`} />
@@ -135,11 +137,11 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
                           <span className="sr-only">Belum ada Pengukuran</span>
                         </span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
+            </TableBody>
           </Tabel>
         )}
       </Kartu>

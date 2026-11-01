@@ -2,7 +2,10 @@
 
 import { useActionState } from "react";
 
-import { kelasInput, Kolom, PesanError, tombolUtama } from "../form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+import { Kolom, PesanError } from "../form";
 import { gantiSandiAction } from "./actions";
 
 const KOLOM = [
@@ -23,20 +26,12 @@ export function FormSandi() {
       )}
       {KOLOM.map((k) => (
         <Kolom key={k.name} label={k.label} htmlFor={k.name} petunjuk={k.petunjuk}>
-          <input
-            id={k.name}
-            name={k.name}
-            type="password"
-            required
-            minLength={k.minLength}
-            autoComplete={k.autoComplete}
-            className={kelasInput}
-          />
+          <Input id={k.name} name={k.name} type="password" required minLength={k.minLength} autoComplete={k.autoComplete} />
         </Kolom>
       ))}
-      <button type="submit" disabled={pending} className={`${tombolUtama} mt-1`}>
+      <Button type="submit" size="lg" disabled={pending} className="mt-1 w-full sm:w-auto sm:justify-self-start">
         {pending ? "Menyimpan…" : "Ganti sandi"}
-      </button>
+      </Button>
     </form>
   );
 }

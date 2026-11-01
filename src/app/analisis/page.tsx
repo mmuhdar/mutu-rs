@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import { labelBulan, labelPeriode } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
@@ -132,13 +133,12 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
             sub="Uji coba perbaikan untuk Indikator dan Lingkup ini."
             aksi={
               a.bolehTulis && (
-                <Link
-                  href={`/pdsa/baru?${new URLSearchParams({ indikator: ind.id, ...(unit ? { unit: unit.id } : {}) })}`}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-active"
-                >
-                  <Ikon nama="tambah" className="size-4" />
-                  Mulai PDSA
-                </Link>
+                <Button asChild variant="outline" size="sm" className="shadow-none">
+                  <Link href={`/pdsa/baru?${new URLSearchParams({ indikator: ind.id, ...(unit ? { unit: unit.id } : {}) })}`}>
+                    <Ikon nama="tambah" className="size-4" />
+                    Mulai PDSA
+                  </Link>
+                </Button>
               )
             }
           >
@@ -148,7 +148,7 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
               <ul className="grid gap-1 px-3 pb-3">
                 {a.pdsa.map((p) => (
                   <li key={p.id}>
-                    <Link href={`/pdsa/${p.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-active">
+                    <Link href={`/pdsa/${p.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-muted">
                       <KotakIkon nada="pdsa" ikon="pdsa" kecil />
                       <span className="grid min-w-0 flex-1 gap-1">
                         <span className="font-semibold">{p.judul}</span>

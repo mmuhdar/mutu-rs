@@ -10,8 +10,10 @@ import { antreanVerifikasi, bolehIsiPengukuran, bolehVerifikasi, pengukuranDikem
 import { belumDianalisis, bolehTulisLingkup, daftarPdsa, daftarTindakLanjut } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import { tautanAnalisis } from "./analisis/tautan";
-import { kelasInput, tombolGaris, tombolUtama } from "./form";
 import { BarTarget, GrafikTercapai } from "./grafik-dashboard";
 import { LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "./pengukuran/status";
 import { Ikon, type NamaIkon } from "./ikon";
@@ -21,13 +23,16 @@ import {
   Halaman,
   Kartu,
   KepalaHalaman,
-  kelasTd,
-  kelasTh,
   KotakIkon,
   type Nada,
   Pil,
   Rincian,
   Tabel,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
   TautanIkon,
   Ubin,
 } from "./ui";
@@ -131,24 +136,26 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         aksi={
           <>
             <form method="get" className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:flex-none">
-              <input
+              <Input
                 name="bulan"
                 aria-label="Bulan"
                 {...INPUT_BULAN}
                 required
                 max={bulanBerjalan()}
                 defaultValue={ringkasan.bulan}
-                className={`${kelasInput} shadow-kartu sm:w-44`}
+                className="shadow-kartu sm:w-44"
               />
-              <button type="submit" className={tombolGaris}>
+              <Button type="submit" variant="outline" size="lg">
                 Tampilkan
-              </button>
+              </Button>
             </form>
             {aksi && (
-              <Link href={aksi.href} className={tombolUtama}>
-                <Ikon nama={aksi.ikon} className="size-[18px]" />
-                {aksi.label}
-              </Link>
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link href={aksi.href}>
+                  <Ikon nama={aksi.ikon} className="size-[18px]" />
+                  {aksi.label}
+                </Link>
+              </Button>
             )}
           </>
         }
@@ -226,7 +233,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <ul className="grid gap-1 px-3 pb-3">
             {perluTindakan.map((t) => (
               <li key={t.label}>
-                <Link href={t.href} className="flex min-h-14 items-center gap-3 rounded-xl px-2 py-2 hover:bg-active">
+                <Link href={t.href} className="flex min-h-14 items-center gap-3 rounded-xl px-2 py-2 hover:bg-muted">
                   <KotakIkon nada={t.nada} ikon={t.ikon} kecil />
                   <span className="min-w-0 flex-1 text-[14px] font-medium">{t.label}</span>
                   <span className={`text-[18px] font-bold ${t.nilai > 0 && t.nada === "neg" ? "text-danger" : ""}`}>{t.nilai}</span>
@@ -249,20 +256,20 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           </div>
         ) : (
           <Tabel label="Capaian per Indikator" lebarMin="min-w-[54rem]">
-            <thead>
-              <tr>
-                <th className={kelasTh}>Indikator</th>
-                <th className={kelasTh}>{perUnit ? "Unit" : "Kelengkapan"}</th>
-                <th className={`${kelasTh} w-[26%]`}>Capaian</th>
-                <th className={`${kelasTh} text-right`}>Target</th>
-                <th className={kelasTh}>Status</th>
-                <th className={`${kelasTh} text-right`}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Indikator</TableHead>
+                <TableHead>{perUnit ? "Unit" : "Kelengkapan"}</TableHead>
+                <TableHead className="w-[26%]">Capaian</TableHead>
+                <TableHead className="text-right">Target</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {urut.map(({ indikator: i, unit, capaian, target, status, kelengkapan: kb }) => (
-                <tr key={`${i.id}-${unit?.id}`}>
-                  <td className={kelasTd}>
+                <TableRow key={`${i.id}-${unit?.id}`}>
+                  <TableCell>
                     <span className="flex items-center gap-3">
                       <KotakIkon nada={nadaKelompok[i.kelompok]} ikon="indikator" kecil />
                       <span className="min-w-0">
@@ -270,15 +277,15 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                         <span className="font-mono text-[12px] text-muted-foreground">{i.kode}</span>
                       </span>
                     </span>
-                  </td>
-                  <td className={`${kelasTd} whitespace-nowrap`}>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {unit && <span className="block font-medium">{unit.nama}</span>}
                     <span className={`text-[13px] ${kb.terverifikasi < kb.wajib ? "text-warning" : "text-muted-foreground"}`}>
                       {kb.terverifikasi < kb.wajib ? "belum lengkap " : ""}
                       {kb.terverifikasi}/{kb.wajib} Unit
                     </span>
-                  </td>
-                  <td className={kelasTd}>
+                  </TableCell>
+                  <TableCell>
                     <span className="flex items-center gap-3">
                       <span className="min-w-0 flex-1">
                         <BarTarget capaian={capaian} target={target} satuan={i.satuan} arah={i.arah} tercapai={status === "tercapai"} />
@@ -289,14 +296,14 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                         {kb.terverifikasi === 0 ? <span className="text-muted-foreground">–</span> : formatCapaian(capaian, i.satuan)}
                       </span>
                     </span>
-                  </td>
-                  <td className={`${kelasTd} text-right whitespace-nowrap text-muted-foreground`}>
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap text-muted-foreground">
                     {TANDA_ARAH[i.arah]} {formatCapaian(target, i.satuan)}
-                  </td>
-                  <td className={kelasTd}>
+                  </TableCell>
+                  <TableCell>
                     <LabelCapaian status={status} />
-                  </td>
-                  <td className={`${kelasTd} text-right`}>
+                  </TableCell>
+                  <TableCell className="text-right">
                     <span className="inline-flex items-center gap-2">
                       {belumRs.has(i.id) && unit === null && (
                         <Link
@@ -312,10 +319,10 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                         label={`Monitoring ${i.kode}`}
                       />
                     </span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
+            </TableBody>
           </Tabel>
         )}
       </Kartu>
@@ -325,33 +332,33 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           {dikembalikan.length > 0 && (
             <Kartu judul="Dikembalikan untuk diperbaiki" sub="Perbaiki lalu ajukan lagi.">
               <Tabel label="Pengukuran dikembalikan" lebarMin="min-w-[32rem]">
-                <thead>
-                  <tr>
-                    <th className={kelasTh}>Pengukuran</th>
-                    <th className={kelasTh}>Alasan</th>
-                    <th className={`${kelasTh} text-right`}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Pengukuran</TableHead>
+                    <TableHead>Alasan</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {dikembalikan.slice(0, 5).map((p) => (
-                    <tr key={p.id}>
-                      <td className={kelasTd}>
+                    <TableRow key={p.id}>
+                      <TableCell>
                         <span className="block font-semibold">
                           {p.unit.nama} · {labelBulan(p.bulan, { pendek: true })}
                         </span>
                         <span className="font-mono text-[12px] text-muted-foreground">{p.indikator.kode}</span>
-                      </td>
-                      <td className={`${kelasTd} text-[14px] whitespace-pre-line text-muted-foreground`}>{p.alasan}</td>
-                      <td className={`${kelasTd} text-right`}>
+                      </TableCell>
+                      <TableCell className="text-[14px] whitespace-pre-line text-muted-foreground">{p.alasan}</TableCell>
+                      <TableCell className="text-right">
                         <TautanIkon
                           href={`/pengukuran/isi?${new URLSearchParams({ indikator: p.indikator.id, unit: p.unit.id, bulan: p.bulan })}`}
                           ikon="isi"
                           label={`Perbaiki ${p.indikator.kode}`}
                         />
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
+                </TableBody>
               </Tabel>
             </Kartu>
           )}
@@ -366,17 +373,17 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             >
               {daftarBelum.length > 0 && (
                 <Tabel label="Analisis yang belum ditulis" lebarMin="min-w-[30rem]">
-                  <thead>
-                    <tr>
-                      <th className={kelasTh}>Indikator</th>
-                      <th className={kelasTh}>Lingkup</th>
-                      <th className={`${kelasTh} text-right`}>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Indikator</TableHead>
+                      <TableHead>Lingkup</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {daftarBelum.slice(0, 6).map(({ indikator: i, unit }) => (
-                      <tr key={`${i.id}-${unit?.id}`}>
-                        <td className={kelasTd}>
+                      <TableRow key={`${i.id}-${unit?.id}`}>
+                        <TableCell>
                           <span className="flex items-center gap-3">
                             <KotakIkon nada={nadaKelompok[i.kelompok]} ikon="dokumen" kecil />
                             <span className="min-w-0">
@@ -384,19 +391,19 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                               <span className="font-mono text-[12px] text-muted-foreground">{i.kode}</span>
                             </span>
                           </span>
-                        </td>
-                        <td className={`${kelasTd} whitespace-nowrap`}>{labelLingkup(unit)}</td>
-                        <td className={`${kelasTd} text-right`}>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{labelLingkup(unit)}</TableCell>
+                        <TableCell className="text-right">
                           <Link
                             href={tautanAnalisis(i.id, unit?.id ?? null, belum.bulan)}
                             className="text-[13px] font-semibold whitespace-nowrap text-primary-ink hover:underline"
                           >
                             {bolehTulisLingkup(pengguna, unit?.id ?? null) ? "Tulis Analisis →" : "Lihat →"}
                           </Link>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
+                  </TableBody>
                 </Tabel>
               )}
             </Kartu>
@@ -427,12 +434,9 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 /** Tautan kecil di kepala kartu, mis. "Monitoring →". */
 function TautanKecil({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link
-      href={href}
-      className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-active"
-    >
-      {children} →
-    </Link>
+    <Button asChild variant="outline" size="sm" className="shadow-none">
+      <Link href={href}>{children} →</Link>
+    </Button>
   );
 }
 

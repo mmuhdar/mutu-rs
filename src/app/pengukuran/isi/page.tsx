@@ -7,6 +7,10 @@ import { targetBerlaku } from "@/modules/indikator/service";
 import { ambilIsian } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+import { Ikon } from "../../ikon";
 import { Halaman, Kartu, KepalaHalaman, KotakIkon } from "../../ui";
 import { FormPengukuran } from "../form-pengukuran";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
@@ -64,10 +68,17 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
               <dd className="mt-0.5 font-medium whitespace-pre-line">{indikator.sumberData}</dd>
             </div>
           </div>
-          <details className="min-w-0">
-            <summary className="cursor-pointer text-[13px] font-semibold text-primary-ink pointer-coarse:py-1">Definisi operasional</summary>
-            <p className="mt-2 whitespace-pre-line">{indikator.definisiOperasional}</p>
-          </details>
+          <Collapsible className="min-w-0">
+            <CollapsibleTrigger asChild>
+              <Button variant="link" size="sm" className="group/definisi h-auto gap-1 px-0 text-[13px] text-primary-ink pointer-coarse:py-1">
+                <Ikon nama="kanan" className="size-4 transition-transform group-data-[state=open]/definisi:rotate-90" />
+                Definisi operasional
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <p className="mt-2 whitespace-pre-line">{indikator.definisiOperasional}</p>
+            </CollapsibleContent>
+          </Collapsible>
         </dl>
       </Kartu>
 

@@ -3,7 +3,9 @@ import { formatAngka, formatCapaian, LABEL_STATUS_CAPAIAN } from "@/lib/capaian"
 import type { TitikCapaian } from "@/modules/capaian/service";
 
 import { LabelCapaian } from "../pengukuran/status";
-import { kelasKartu, kelasTd, kelasTh, Tabel } from "../ui";
+import { Card } from "@/components/ui/card";
+
+import { Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui";
 
 /*
  * Grafik tren Capaian vs Target, dirender di server tanpa pustaka grafik dan tanpa JavaScript. Garis dan bidang
@@ -117,7 +119,7 @@ export function Gelembung({ x, y, judul, nilai }: { x: number; y: number; judul:
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute z-10 rounded-lg border border-border bg-surface px-2.5 py-1.5 whitespace-nowrap shadow-kartu ${
+      className={`pointer-events-none absolute z-10 rounded-lg border border-border bg-card px-2.5 py-1.5 whitespace-nowrap shadow-kartu ${
         x > 65 ? "-translate-x-[calc(100%-1rem)]" : "-translate-x-1/2"
       } ${y < 30 ? "translate-y-3.5" : "-translate-y-[calc(100%+0.875rem)]"}`}
       style={{ left: `${x}%`, top: `${y}%` }}
@@ -196,7 +198,7 @@ export function GrafikCapaian({ titik, satuan, judul, sorot }: { titik: TitikCap
               <span
                 key={t.bulan}
                 title={`${labelBulan(t.bulan)}: ${formatCapaian(t.capaian, satuan)}, Target ${formatCapaian(t.target, satuan)}, ${LABEL_STATUS_CAPAIAN[t.status!]}`}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface ${t.status === "tercapai" ? "bg-success" : "bg-danger"} ${
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card ${t.status === "tercapai" ? "bg-success" : "bg-danger"} ${
                   i === terakhir ? "size-4 ring-4 ring-primary/20" : "size-3"
                 }`}
                 style={{ left: `${x(i)}%`, top: `${y(t.capaian)}%` }}
@@ -243,7 +245,7 @@ export function Tren(p: {
 }) {
   const disorot = (t: TitikCapaian) => p.sorot !== undefined && dalamSorot(t.bulan, p.sorot);
   return (
-    <section className={p.polos ? "min-w-0" : `${kelasKartu} min-w-0`}>
+    <Card className={p.polos ? "min-w-0 gap-0 py-0 shadow-none ring-0" : "min-w-0 gap-0 py-0"}>
       <div className={p.polos ? "pb-4" : "px-5 pt-5 pb-4"}>
         <h2 className="text-[16px] leading-6 font-bold">{p.judul}</h2>
         <p className="mt-0.5 text-[13px] text-muted-foreground">{p.keterangan}</p>
@@ -253,27 +255,27 @@ export function Tren(p: {
           <GrafikCapaian titik={p.titik} satuan={p.satuan} judul={p.judul} sorot={p.sorot} />
         </div>
         <Tabel label={`Tabel ${p.judul}`} lebarMin="min-w-[34rem]">
-          <thead>
-            <tr>
-              <th className={kelasTh}>Bulan</th>
-              <th className={`${kelasTh} text-right`}>Capaian</th>
-              <th className={`${kelasTh} text-right`}>Target</th>
-              <th className={`${kelasTh} text-right`}>Selisih</th>
-              <th className={kelasTh}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Bulan</TableHead>
+              <TableHead className="text-right">Capaian</TableHead>
+              <TableHead className="text-right">Target</TableHead>
+              <TableHead className="text-right">Selisih</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {p.titik.toReversed().map((t) => {
               const catatan = p.catatan(t);
-              const kelas = `${kelasTd} py-3 ${disorot(t) ? "bg-primary-tint/50" : ""}`;
+              const kelas = `py-3 ${disorot(t) ? "bg-primary-tint/50" : ""}`;
               return (
-                <tr key={t.bulan}>
-                  <td className={kelas}>
+                <TableRow key={t.bulan}>
+                  <TableCell className={kelas}>
                     <span className="font-semibold whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
                     {disorot(t) && <span className="ml-2 text-[12px] font-semibold text-primary-ink">uji coba</span>}
                     {p.analisis?.(t)}
-                  </td>
-                  <td className={`${kelas} text-right`}>
+                  </TableCell>
+                  <TableCell className={`${kelas} text-right`}>
                     <span className="font-bold whitespace-nowrap">
                       {/* "kosong" hanya untuk ΣD = 0 dari Pengukuran Terverifikasi; tanpa Pengukuran Terverifikasi = "–". */}
                       {t.kelengkapan.terverifikasi === 0 ? (
@@ -283,18 +285,20 @@ export function Tren(p: {
                       )}
                     </span>
                     {catatan && <span className="block text-[12px] text-warning">{catatan}</span>}
-                  </td>
-                  <td className={`${kelas} text-right whitespace-nowrap text-muted-foreground`}>{formatCapaian(t.target, p.satuan)}</td>
-                  <td className={`${kelas} text-right whitespace-nowrap`}>{formatSelisih(t.selisih)}</td>
-                  <td className={kelas}>
+                  </TableCell>
+                  <TableCell className={`${kelas} text-right whitespace-nowrap text-muted-foreground`}>
+                    {formatCapaian(t.target, p.satuan)}
+                  </TableCell>
+                  <TableCell className={`${kelas} text-right whitespace-nowrap`}>{formatSelisih(t.selisih)}</TableCell>
+                  <TableCell className={kelas}>
                     <LabelCapaian status={t.status} />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
+          </TableBody>
         </Tabel>
       </div>
-    </section>
+    </Card>
   );
 }

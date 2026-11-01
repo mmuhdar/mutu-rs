@@ -5,7 +5,7 @@ import { formatCapaian } from "@/lib/capaian";
 import { antreanVerifikasi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { Halaman, Kartu, KepalaHalaman, kelasTd, kelasTh, KotakIkon, Tabel, TautanIkon, Ubin } from "../../ui";
+import { Halaman, Kartu, KepalaHalaman, KotakIkon, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon, Ubin } from "../../ui";
 import { Pesan, pesanAtau } from "../status";
 
 export const metadata: Metadata = { title: "Antrean Verifikasi" };
@@ -42,20 +42,20 @@ export default async function HalamanAntreanVerifikasi() {
         <Kartu judul="Pengukuran Diajukan" sub="Terlama lebih dulu.">
           {/* Di HP Unit, bulan, dan pengisi pindah ke bawah nama Indikator supaya tabel tidak perlu digeser. */}
           <Tabel label="Antrean Verifikasi" lebarMin="min-w-0">
-            <thead>
-              <tr>
-                <th className={kelasTh}>Indikator</th>
-                <th className={`${kelasTh} max-sm:hidden`}>Unit</th>
-                <th className={`${kelasTh} max-sm:hidden`}>Bulan</th>
-                <th className={`${kelasTh} max-sm:hidden`}>Diisi oleh</th>
-                <th className={`${kelasTh} text-right`}>Capaian</th>
-                <th className={`${kelasTh} text-right`}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Indikator</TableHead>
+                <TableHead className="max-sm:hidden">Unit</TableHead>
+                <TableHead className="max-sm:hidden">Bulan</TableHead>
+                <TableHead className="max-sm:hidden">Diisi oleh</TableHead>
+                <TableHead className="text-right">Capaian</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {antrean.map((p) => (
-                <tr key={p.id}>
-                  <td className={kelasTd}>
+                <TableRow key={p.id}>
+                  <TableCell>
                     <span className="flex items-center gap-3">
                       <span className="max-sm:hidden">
                         <KotakIkon nada="ukur" ikon="kotakMasuk" kecil />
@@ -68,22 +68,22 @@ export default async function HalamanAntreanVerifikasi() {
                         </span>
                       </span>
                     </span>
-                  </td>
-                  <td className={`${kelasTd} whitespace-nowrap max-sm:hidden`}>{p.unit.nama}</td>
-                  <td className={`${kelasTd} whitespace-nowrap max-sm:hidden`}>{labelBulan(p.bulan)}</td>
-                  <td className={`${kelasTd} text-muted-foreground max-sm:hidden`}>{p.pengisi}</td>
-                  <td className={`${kelasTd} text-right whitespace-nowrap`}>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap max-sm:hidden">{p.unit.nama}</TableCell>
+                  <TableCell className="whitespace-nowrap max-sm:hidden">{labelBulan(p.bulan)}</TableCell>
+                  <TableCell className="text-muted-foreground max-sm:hidden">{p.pengisi}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
                     <span className="block font-bold text-primary-ink">{formatCapaian(p.capaian, p.indikator.satuan)}</span>
                     <span className="block text-[13px] text-muted-foreground">
                       {p.n} ÷ {p.d}
                     </span>
-                  </td>
-                  <td className={`${kelasTd} text-right`}>
+                  </TableCell>
+                  <TableCell className="text-right">
                     <TautanIkon href={`/pengukuran/${p.id}`} ikon="lihat" label={`Periksa ${p.indikator.kode}, ${p.unit.nama}, ${labelBulan(p.bulan)}`} />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
+            </TableBody>
           </Tabel>
         </Kartu>
       )}

@@ -1,36 +1,60 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 /*
- * Token MutuRS: sidebar navy gelap, isi di atas latar abu terang dengan kartu putih berbayang lembut, aksen ungu
- * (tombol utama, tautan, grafik). Menu aktif bergradasi merah muda ke oranye. Kotak ikon dan label status memakai warna
- * bernama (ungu, biru, sian, oranye, merah muda, indigo) plus warna status (hijau Tercapai/Selesai, merah Belum
- * Tercapai/lewat tenggat, kuning peringatan); status selalu juga ditulis. Komponen hanya memakai token, bukan hex.
+ * Token MutuRS memakai nama variabel shadcn/ui (komponen di `src/components/ui` membacanya): latar abu muda, kartu putih,
+ * aksen ungu (`primary`), sidebar navy dengan menu aktif bergradasi merah muda→oranye. Tambahan di luar shadcn: warna
+ * bernama untuk kotak ikon dan label (brand ungu, ukur biru, pantau sian, tindak oranye, pdsa merah muda, atur indigo),
+ * warna status (success, danger, warning), dan token grafik. Status selalu juga ditulis. Komponen hanya memakai token.
  */
 :root {
+  --radius: 0.625rem;
   --background: #f5f6fa;
-  --surface: #ffffff;
   --foreground: #111833;
+  --card: #ffffff;
+  --card-foreground: #111833;
+  --popover: #ffffff;
+  --popover-foreground: #111833;
+  --primary: #5b3df5;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f4f7;
+  --secondary-foreground: #111833;
+  --muted: #f2f4f7;
   --muted-foreground: #667085;
+  --accent: #f2f4f7;
+  --accent-foreground: #111833;
+  /* Teks merah ≥ 4.5:1 terhadap putih. */
+  --destructive: #d92d20;
   --border: #eaecf0;
-  --rule: #f0f2f5;
   /* Tepi isian ≥ 3:1 terhadap putih. */
   --input: #8a94a6;
-  --active: #f2f4f7;
-  --head: #f8f9fc;
+  --ring: #5b3df5;
 
-  /* Aksen: tombol utama, tautan, pilihan aktif, garis grafik. */
-  --primary: #5b3df5;
+  --chart-1: #5b3df5;
+  --chart-2: #2e7cf6;
+  --chart-3: #0ba5c4;
+  --chart-4: #f38b10;
+  --chart-5: #ee46bc;
+
+  --sidebar: #0f1533;
+  --sidebar-foreground: #c3c8de;
+  --sidebar-primary: #ff4f8b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b2246;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #232b4f;
+  --sidebar-ring: #5b3df5;
+
+  /* Tambahan MutuRS. */
   --primary-ink: #4527d9;
   --primary-tint: #efebff;
-
-  /* Sidebar. */
-  --sidebar: #0f1533;
-  --sidebar-ink: #c3c8de;
+  --head: #f8f9fc;
+  --rule: #f0f2f5;
   --sidebar-muted: #6c7497;
   --aktif-dari: #ff4f8b;
   --aktif-ke: #ff8a3d;
 
-  /* Warna bernama untuk kotak ikon dan label (solid, ink = teks di atas tint, tint = bidang pucat). */
   --brand: #7a5af8;
   --brand-ink: #5925dc;
   --brand-tint: #f4f0ff;
@@ -50,7 +74,6 @@
   --atur-ink: #3538cd;
   --atur-tint: #eef4ff;
 
-  /* Status. */
   --success: #12a05c;
   --success-ink: #027a48;
   --success-soft: #e7f8ef;
@@ -68,22 +91,45 @@
 
 @theme inline {
   --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-heading: var(--font-sans);
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+
   --color-background: var(--background);
-  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-border: var(--border);
-  --color-rule: var(--rule);
-  --color-input: var(--input);
-  --color-active: var(--active);
-  --color-head: var(--head);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
   --color-primary-ink: var(--primary-ink);
   --color-primary-tint: var(--primary-tint);
-  --color-primary-foreground: #ffffff;
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-ink: var(--sidebar-ink);
+  --color-head: var(--head);
+  --color-rule: var(--rule);
   --color-sidebar-muted: var(--sidebar-muted);
   --color-aktif-dari: var(--aktif-dari);
   --color-aktif-ke: var(--aktif-ke);
@@ -117,38 +163,40 @@
   --color-warning-border: var(--warning-border);
   --color-grid: var(--grid);
   --color-chart-target: var(--chart-target);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
   --shadow-kartu: 0 1px 2px rgb(16 24 40 / 0.04), 0 2px 8px rgb(16 24 40 / 0.04);
   --shadow-tombol: 0 6px 14px -6px rgb(91 61 245 / 0.6);
   --shadow-aktif: 0 8px 18px -8px rgb(255 79 139 / 0.7);
 }
 
 @layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
   body {
+    @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     font-variant-numeric: tabular-nums;
     /* Spasi kata Plus Jakarta Sans sempit; sedikit dilebarkan supaya kalimat panjang mudah dibaca. */
     word-spacing: 0.06em;
-  }
-  a,
-  button,
-  summary,
-  label {
-    transition:
-      background-color 140ms ease,
-      color 140ms ease,
-      border-color 140ms ease,
-      box-shadow 140ms ease,
-      transform 140ms ease;
-  }
-  :focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
       transition: none !important;
+      animation: none !important;
     }
   }
 }

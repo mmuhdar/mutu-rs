@@ -4,9 +4,14 @@ import { useActionState, useState } from "react";
 
 import type { AksiVerifikasi } from "@/lib/pengukuran";
 
-import { kelasArea, kelasLabel, kelasPetunjuk, PesanError, tombolGaris, tombolUtama } from "../../form";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Textarea } from "@/components/ui/textarea";
+
+import { Kolom, PesanError } from "../../form";
 import { Ikon } from "../../ikon";
-import { kelasKartu, KotakIkon } from "../../ui";
+import { KotakIkon } from "../../ui";
 import { ubahStatusPengukuranAction } from "../actions";
 
 /** Nilai tombol `aksi` = kunci `PERPINDAHAN` (`src/lib/pengukuran.ts`). */
@@ -25,7 +30,7 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
       : ["bukaKembali", "Buka kembali", "Statusnya kembali Diajukan sehingga bisa dikembalikan ke Draf untuk dikoreksi."];
 
   return (
-    <section className={`${kelasKartu} grid gap-4 p-5`}>
+    <Card className="gap-4 p-5">
       <div className="flex items-start gap-3.5">
         <KotakIkon nada="ukur" ikon="verifikasi" />
         <div className="min-w-0">
@@ -40,43 +45,45 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
       {status === "diajukan" && (
         <form action={action} className="grid">
           <input type="hidden" name="id" value={id} />
-          <button type="submit" name="aksi" value={VERIFIKASI} disabled={pending} className={tombolUtama}>
+          <Button type="submit" size="lg" name="aksi" value={VERIFIKASI} disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
             <Ikon nama="verifikasi" className="size-[18px]" />
             {pending ? "Memproses…" : "Verifikasi"}
-          </button>
+          </Button>
         </form>
       )}
-      <details className="group rounded-xl border border-border px-4 py-3">
-        <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold pointer-coarse:py-2 [&::-webkit-details-marker]:hidden">
-          <Ikon nama="kembalikan" className="size-[18px] text-muted-foreground" />
-          <span className="flex-1">{label}</span>
-          <Ikon nama="bawah" className="size-4 text-muted-foreground group-open:rotate-180" />
-        </summary>
-        <form action={action} className="mt-3 grid gap-2">
-          <input type="hidden" name="id" value={id} />
-          <label htmlFor="alasan" className={kelasLabel}>
-            Alasan
-          </label>
-          <p id="alasan-petunjuk" className={kelasPetunjuk}>
-            {petunjuk} Jangan menulis identitas pasien.
-          </p>
-          <textarea
-            id="alasan"
-            name="alasan"
-            rows={3}
-            required
-            maxLength={1000}
-            aria-describedby="alasan-petunjuk"
-            value={alasan}
-            onChange={(e) => setAlasan(e.target.value)}
-            className={kelasArea}
-          />
-          <button type="submit" name="aksi" value={aksi} disabled={pending} className={`${tombolGaris} mt-1`}>
-            {label}
-          </button>
-        </form>
-      </details>
+      <Collapsible className="rounded-xl border border-border">
+        <CollapsibleTrigger asChild>
+          <Button
+            variant="ghost"
+            className="group/buka h-auto w-full justify-start rounded-xl px-4 py-3 text-[15px] aria-expanded:bg-transparent pointer-coarse:py-4"
+          >
+            <Ikon nama="kembalikan" className="size-[18px] text-muted-foreground" />
+            <span className="flex-1 text-left">{label}</span>
+            <Ikon nama="bawah" className="size-4 text-muted-foreground group-data-[state=open]/buka:rotate-180" />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <form action={action} className="grid gap-3 px-4 pb-4">
+            <input type="hidden" name="id" value={id} />
+            <Kolom label="Alasan" htmlFor="alasan" petunjuk={<span id="alasan-petunjuk">{petunjuk} Jangan menulis identitas pasien.</span>}>
+              <Textarea
+                id="alasan"
+                name="alasan"
+                rows={3}
+                required
+                maxLength={1000}
+                aria-describedby="alasan-petunjuk"
+                value={alasan}
+                onChange={(e) => setAlasan(e.target.value)}
+              />
+            </Kolom>
+            <Button type="submit" variant="outline" size="lg" name="aksi" value={aksi} disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+              {label}
+            </Button>
+          </form>
+        </CollapsibleContent>
+      </Collapsible>
       <PesanError pesan={state.error} />
-    </section>
+    </Card>
   );
 }

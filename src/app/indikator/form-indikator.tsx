@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { kelasArea, kelasInput, kelasLabel, kelasPetunjuk, Kolom, PesanError, Segmen, tombolGaris, tombolUtama } from "../form";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+
+import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import type { NamaIkon } from "../ikon";
 import { KotakIkon, type Nada } from "../ui";
 
@@ -33,9 +40,8 @@ function JudulBagian({ nada, ikon, children }: { nada: Nada; ikon: NamaIkon; chi
   );
 }
 
-/** Tombol kecil bertepi untuk aksi satu baris (Akhiri, Hapus). */
-const tombolBaris =
-  "inline-flex h-9 cursor-pointer items-center rounded-lg border border-border bg-surface px-3 text-[13px] font-semibold hover:bg-active disabled:opacity-60 pointer-coarse:h-11";
+/** Tombol kecil bertepi untuk aksi satu baris (Akhiri, Hapus); lebih tinggi di layar sentuh. */
+const kelasTombolBaris = "shadow-none pointer-coarse:h-11";
 
 /**
  * Formulir tambah IMP (tanpa `indikator`) atau ubah Indikator. Kode, kelompok, dan Target awal hanya diisi saat
@@ -46,18 +52,18 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
   const [state, action, pending] = useActionState(indikator ? ubahIndikatorAction : tambahIndikatorAction, {});
   const awal = (nama: keyof Indikator, bawaan = "") => state.nilai?.[nama] ?? String(indikator?.[nama] ?? bawaan);
   const kunci = (nama: keyof Indikator) => terkunci && nama in FIELD_CARA_HITUNG;
-  const kelasKunci = (nama: keyof Indikator) => (kunci(nama) ? " bg-active! text-muted-foreground" : "");
+  const kelasKunci = (nama: keyof Indikator) => (kunci(nama) ? "bg-muted! text-muted-foreground" : "");
 
   const teks = (nama: keyof Indikator, label: string, petunjuk?: string) => (
     <Kolom label={label} htmlFor={nama} petunjuk={petunjuk}>
-      <textarea
+      <Textarea
         id={nama}
         name={nama}
         required
         rows={3}
         readOnly={kunci(nama)}
         defaultValue={awal(nama)}
-        className={`${kelasArea}${kelasKunci(nama)}`}
+        className={`leading-6 ${kelasKunci(nama)}`}
       />
     </Kolom>
   );
@@ -99,7 +105,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           <Kolom label="Kode" htmlFor="kode" petunjuk="Unik, mis. IMP-RS-01. Tidak bisa diubah setelah disimpan.">
-            <input id="kode" name="kode" required maxLength={32} defaultValue={state.nilai?.kode} className={`${kelasInput} font-mono`} />
+            <Input id="kode" name="kode" required maxLength={32} defaultValue={state.nilai?.kode} className="font-mono" />
           </Kolom>
           <Segmen
             key={state.nilai?.kelompok}
@@ -115,7 +121,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
         </div>
       )}
       <Kolom label="Nama" htmlFor="nama">
-        <input id="nama" name="nama" required maxLength={200} defaultValue={awal("nama")} className={kelasInput} />
+        <Input id="nama" name="nama" required maxLength={200} defaultValue={awal("nama")} />
       </Kolom>
       <div className={kelasBagian}>
         <p>
@@ -137,32 +143,32 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
           </JudulBagian>
         </p>
         <Kolom label="Faktor" htmlFor="faktor" petunjuk="Capaian = N/D × faktor: 100 persen, 1 rata-rata, 1000 per seribu.">
-          <input
+          <Input
             id="faktor"
             name="faktor"
             required
             inputMode="numeric"
             readOnly={kunci("faktor")}
             defaultValue={awal("faktor", "100")}
-            className={`${kelasInput}${kelasKunci("faktor")}`}
+            className={kelasKunci("faktor")}
           />
         </Kolom>
         <Kolom label="Satuan" htmlFor="satuan">
-          <input
+          <Input
             id="satuan"
             name="satuan"
             required
             maxLength={32}
             readOnly={kunci("satuan")}
             defaultValue={awal("satuan", "%")}
-            className={`${kelasInput}${kelasKunci("satuan")}`}
+            className={kelasKunci("satuan")}
           />
         </Kolom>
         {pilihan("arah", "Arah", "makinTinggi", ARAH, LABEL_ARAH)}
         {pilihan("frekuensi", "Frekuensi (Semesteran: Juni dan Desember)", "bulanan", FREKUENSI, LABEL_FREKUENSI)}
       </div>
       <Kolom label="PIC (opsional)" htmlFor="pic" petunjuk="Nama atau jabatan penanggung jawab Indikator.">
-        <input id="pic" name="pic" maxLength={120} defaultValue={awal("pic")} className={kelasInput} />
+        <Input id="pic" name="pic" maxLength={120} defaultValue={awal("pic")} />
       </Kolom>
       {!indikator && (
         <fieldset className={`${kelasBagian} sm:grid-cols-2`}>
@@ -172,34 +178,26 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
             </JudulBagian>
           </legend>
           <Kolom label="Nilai Target" htmlFor="targetNilai" petunjuk="Angka desimal memakai koma, mis. 76,61.">
-            <input
-              id="targetNilai"
-              name="targetNilai"
-              required
-              inputMode="decimal"
-              defaultValue={state.nilai?.targetNilai}
-              className={kelasInput}
-            />
+            <Input id="targetNilai" name="targetNilai" required inputMode="decimal" defaultValue={state.nilai?.targetNilai} />
           </Kolom>
           <Kolom label="Berlaku mulai" htmlFor="targetBerlakuMulai" petunjuk="Target pertama juga berlaku untuk bulan-bulan sebelumnya.">
-            <input
+            <Input
               id="targetBerlakuMulai"
               name="targetBerlakuMulai"
               {...INPUT_BULAN}
               required
               defaultValue={state.nilai?.targetBerlakuMulai ?? bulanIni}
-              className={kelasInput}
             />
           </Kolom>
         </fieldset>
       )}
       <div className="grid gap-2 sm:flex">
-        <button type="submit" disabled={pending} className={tombolUtama}>
+        <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
           {pending ? "Menyimpan…" : "Simpan"}
-        </button>
-        <Link href={indikator ? `/indikator/${indikator.id}` : "/indikator"} className={tombolGaris}>
-          Batal
-        </Link>
+        </Button>
+        <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+          <Link href={indikator ? `/indikator/${indikator.id}` : "/indikator"}>Batal</Link>
+        </Button>
       </div>
     </form>
   );
@@ -212,9 +210,9 @@ export function TombolAktif({ id, aktif }: { id: string; aktif: boolean }) {
     <form action={action} className="grid w-full gap-2 sm:w-auto">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="aktif" value={String(!aktif)} />
-      <button type="submit" disabled={pending} className={tombolGaris}>
+      <Button type="submit" variant="outline" size="lg" disabled={pending}>
         {aktif ? "Nonaktifkan" : "Aktifkan kembali"}
-      </button>
+      </Button>
       <PesanError pesan={state.error} />
     </form>
   );
@@ -228,34 +226,26 @@ export function FormTarget({ indikatorId, bulanIni }: { indikatorId: string; bul
       <input type="hidden" name="indikatorId" value={indikatorId} />
       <div className="grid gap-3 sm:grid-cols-2">
         <Kolom label="Nilai Target" htmlFor="targetNilai" petunjuk="Angka desimal memakai koma, mis. 76,61.">
-          <input
-            id="targetNilai"
-            name="targetNilai"
-            required
-            inputMode="decimal"
-            defaultValue={state.nilai?.targetNilai}
-            className={kelasInput}
-          />
+          <Input id="targetNilai" name="targetNilai" required inputMode="decimal" defaultValue={state.nilai?.targetNilai} />
         </Kolom>
         <Kolom
           label="Berlaku mulai"
           htmlFor="targetBerlakuMulai"
           petunjuk="Bulan sebelumnya tetap memakai Target lama. Bila bulan ini sudah punya Target, nilainya diganti."
         >
-          <input
+          <Input
             id="targetBerlakuMulai"
             name="targetBerlakuMulai"
             {...INPUT_BULAN}
             required
             defaultValue={state.nilai?.targetBerlakuMulai ?? bulanIni}
-            className={kelasInput}
           />
         </Kolom>
       </div>
       <PesanError pesan={state.error} />
-      <button type="submit" disabled={pending} className={tombolUtama}>
+      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
         {pending ? "Menyimpan…" : "Tetapkan Target"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -278,49 +268,36 @@ export function FormUnitPelapor({
         <div className="sm:col-span-2">
           <Kolom label="Unit" htmlFor="unitId">
             {/* key: pilihan Unit yang ditolak tetap terpilih setelah form di-reset (lihat `pilihan` di FormIndikator). */}
-            <select
+            <NativeSelect
               key={state.nilai?.unitId}
               id="unitId"
               name="unitId"
               required
               defaultValue={state.nilai?.unitId ?? ""}
-              className={kelasInput}
+              className="w-full"
             >
-              <option value="" disabled>
+              <NativeSelectOption value="" disabled>
                 Pilih Unit
-              </option>
+              </NativeSelectOption>
               {unit.map((u) => (
-                <option key={u.id} value={u.id}>
+                <NativeSelectOption key={u.id} value={u.id}>
                   {u.nama}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </Kolom>
         </div>
         <Kolom label="Bulan mulai" htmlFor="bulanMulai">
-          <input
-            id="bulanMulai"
-            name="bulanMulai"
-            {...INPUT_BULAN}
-            required
-            defaultValue={state.nilai?.bulanMulai ?? bulanIni}
-            className={kelasInput}
-          />
+          <Input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={state.nilai?.bulanMulai ?? bulanIni} />
         </Kolom>
         <Kolom label="Bulan berhenti (opsional)" htmlFor="bulanBerhenti" petunjuk="Kosongkan bila masih berlangsung.">
-          <input
-            id="bulanBerhenti"
-            name="bulanBerhenti"
-            {...INPUT_BULAN}
-            defaultValue={state.nilai?.bulanBerhenti}
-            className={kelasInput}
-          />
+          <Input id="bulanBerhenti" name="bulanBerhenti" {...INPUT_BULAN} defaultValue={state.nilai?.bulanBerhenti} />
         </Kolom>
       </div>
       <PesanError pesan={state.error} />
-      <button type="submit" disabled={pending} className={tombolUtama}>
+      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
         {pending ? "Menyimpan…" : "Tambah Unit Pelapor"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -332,36 +309,41 @@ export function AksiUnitPelapor({ id, namaUnit, bulanBerhenti }: { id: string; n
   const idBerhenti = `berhenti-${id}`;
   return (
     // Saat form Akhiri terbuka, aksi pindah ke baris sendiri selebar daftar (lihat daftar Unit Pelapor di halaman detail).
-    <div className="grid min-w-0 gap-2 sm:has-[details[open]]:col-span-2">
+    <div className="grid min-w-0 gap-2 sm:has-data-[state=open]:col-span-2">
       <div className="flex flex-wrap items-start gap-2">
-        <details className="group">
-          <summary
-            className={`${tombolBaris} list-none group-open:border-primary group-open:text-primary-ink [&::-webkit-details-marker]:hidden`}
-          >
-            {bulanBerhenti ? "Ubah bulan berhenti" : "Akhiri"}
-          </summary>
-          <form action={akhiriAction} className="mt-3 grid max-w-md gap-1.5">
-            <input type="hidden" name="id" value={id} />
-            <label htmlFor={idBerhenti} className={kelasLabel}>
-              Bulan berhenti
-            </label>
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <input
-                id={idBerhenti}
-                name="bulanBerhenti"
-                {...INPUT_BULAN}
-                required
-                defaultValue={akhiri.nilai?.bulanBerhenti ?? bulanBerhenti ?? ""}
-                className={kelasInput}
-              />
-              <button type="submit" disabled={akhiriPending} className={tombolUtama}>
-                Simpan
-              </button>
-            </div>
-            <p className={kelasPetunjuk}>Masih wajib melapor pada bulan ini, tidak lagi mulai bulan berikutnya.</p>
-            <PesanError pesan={akhiri.error} />
-          </form>
-        </details>
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`${kelasTombolBaris} aria-expanded:border-primary aria-expanded:bg-card aria-expanded:text-primary-ink`}
+            >
+              {bulanBerhenti ? "Ubah bulan berhenti" : "Akhiri"}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent asChild>
+            <form action={akhiriAction} className="mt-3 grid max-w-md gap-1.5">
+              <input type="hidden" name="id" value={id} />
+              <Label htmlFor={idBerhenti} className="font-semibold">
+                Bulan berhenti
+              </Label>
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <Input
+                  id={idBerhenti}
+                  name="bulanBerhenti"
+                  {...INPUT_BULAN}
+                  required
+                  defaultValue={akhiri.nilai?.bulanBerhenti ?? bulanBerhenti ?? ""}
+                />
+                <Button type="submit" size="lg" disabled={akhiriPending} className="w-full sm:w-auto">
+                  Simpan
+                </Button>
+              </div>
+              <p className={kelasPetunjuk}>Masih wajib melapor pada bulan ini, tidak lagi mulai bulan berikutnya.</p>
+              <PesanError pesan={akhiri.error} />
+            </form>
+          </CollapsibleContent>
+        </Collapsible>
         <form
           action={hapusAction}
           onSubmit={(e) => {
@@ -371,13 +353,15 @@ export function AksiUnitPelapor({ id, namaUnit, bulanBerhenti }: { id: string; n
           }}
         >
           <input type="hidden" name="id" value={id} />
-          <button
+          <Button
             type="submit"
+            variant="outline"
+            size="sm"
             disabled={hapusPending}
-            className={`${tombolBaris} text-danger-ink hover:border-danger-border hover:bg-danger-soft`}
+            className={`${kelasTombolBaris} text-danger-ink hover:border-danger-border hover:bg-danger-soft hover:text-danger-ink`}
           >
             Hapus
-          </button>
+          </Button>
         </form>
       </div>
       <PesanError pesan={hapus.error} />

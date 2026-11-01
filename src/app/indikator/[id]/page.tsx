@@ -6,9 +6,10 @@ import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH, targetPadaBulan } from "@/lib/
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { pilihanUnit } from "@/modules/unit/service";
 
-import { tombolUtama } from "../../form";
+import { Button } from "@/components/ui/button";
+
 import { Ikon } from "../../ikon";
-import { Halaman, Kartu, KepalaHalaman, kelasTd, kelasTh, KotakIkon, Pil, Tabel, Ubin } from "../../ui";
+import { Halaman, Kartu, KepalaHalaman, KotakIkon, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, Ubin } from "../../ui";
 import { AksiUnitPelapor, FormTarget, FormUnitPelapor, TombolAktif } from "../form-indikator";
 import { muatIndikator } from "./muat";
 
@@ -44,10 +45,12 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
         aksi={
           bolehKelolaIndikator(pengguna) && (
             <>
-              <Link href={`/indikator/${indikator.id}/ubah`} className={tombolUtama}>
-                <Ikon nama="isi" className="size-[18px]" />
-                Ubah
-              </Link>
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link href={`/indikator/${indikator.id}/ubah`}>
+                  <Ikon nama="isi" className="size-[18px]" />
+                  Ubah
+                </Link>
+              </Button>
               <TombolAktif key={versi} id={indikator.id} aktif={indikator.aktif} />
             </>
           )
@@ -93,25 +96,25 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <Kartu judul="Target" sub="Setiap bulan dinilai dengan Target yang berlaku mulai paling akhir sebelum atau pada bulan itu.">
           <Tabel label="Riwayat Target" lebarMin="min-w-[18rem]">
-            <thead>
-              <tr>
-                <th className={kelasTh}>Berlaku mulai</th>
-                <th className={`${kelasTh} text-right`}>Target</th>
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Berlaku mulai</TableHead>
+                <TableHead className="text-right">Target</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {indikator.target.toReversed().map((t, i, semua) => (
-                <tr key={t.berlakuMulai}>
-                  <td className={kelasTd}>
+                <TableRow key={t.berlakuMulai}>
+                  <TableCell>
                     <span className="block font-medium">{labelBulan(t.berlakuMulai)}</span>
                     {i === semua.length - 1 && <span className="text-[13px] text-muted-foreground">juga bulan-bulan sebelumnya</span>}
-                  </td>
-                  <td className={`${kelasTd} text-right text-[16px] font-bold whitespace-nowrap`}>
+                  </TableCell>
+                  <TableCell className="text-right text-[16px] font-bold whitespace-nowrap">
                     {TANDA_ARAH[indikator.arah]} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
+            </TableBody>
           </Tabel>
           {bolehKelolaIndikator(pengguna) && (
             <div className="m-3 mt-2 rounded-xl border border-border bg-head p-4">

@@ -4,7 +4,7 @@ import { daftarUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
 import { Pesan, pesanAtau } from "../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman, kelasTh, Tabel } from "../ui";
+import { Halaman, Kartu, KepalaHalaman, Tabel, TableBody, TableHead, TableHeader, TableRow } from "../ui";
 import { BarisUnit, FormTambahUnit } from "./form-unit";
 
 export const metadata: Metadata = { title: "Unit" };
@@ -37,17 +37,17 @@ export default async function HalamanUnit() {
           <p className="px-5 pb-5 text-muted-foreground">Belum ada Unit.</p>
         ) : (
           <Tabel label="Daftar Unit" lebarMin="min-w-[20rem]">
-            <thead>
-              <tr>
-                <th className={kelasTh}>Unit</th>
-                <th className={`${kelasTh} text-right`}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Unit</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {daftar.map((unit) => (
                 <BarisUnit key={`${unit.id}:${unit.nama}`} unit={unit} />
               ))}
-            </tbody>
+            </TableBody>
           </Tabel>
         )}
       </Kartu>

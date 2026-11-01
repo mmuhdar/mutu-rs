@@ -2,6 +2,11 @@ import { labelBulan } from "@/lib/bulan";
 import { formatAngka, formatCapaian } from "@/lib/capaian";
 import { TANDA_ARAH, type Arah } from "@/lib/indikator";
 
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+import { Ikon } from "./ikon";
 import { Gelembung, GarisArea, KerangkaGrafik, ruasDari } from "./monitoring/grafik";
 
 /* Grafik Dashboard, dirender server tanpa pustaka. Angkanya selalu juga tertulis (label kolom, tabel, nilai). */
@@ -30,7 +35,7 @@ export function GrafikTercapai({ data }: { data: { bulan: string; dinilai: numbe
             d.dinilai > 0 && (
               <span
                 key={d.bulan}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-surface ${i === terakhir ? "size-4 ring-4 ring-primary/20" : "size-3"}`}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-card ${i === terakhir ? "size-4 ring-4 ring-primary/20" : "size-3"}`}
                 style={{ left: `${x(i)}%`, top: `${y(persen(d)!)}%` }}
               />
             ),
@@ -45,33 +50,38 @@ export function GrafikTercapai({ data }: { data: { bulan: string; dinilai: numbe
         )}
       </KerangkaGrafik>
       <figcaption>
-        <details>
-          <summary className="cursor-pointer text-[13px] font-semibold text-primary-ink pointer-coarse:py-2">Lihat angka</summary>
-          <div className="relative mt-2 min-w-0 overflow-x-auto">
-            <table className="w-full text-[13px]">
-              <thead className="border-b border-border text-left text-[12px] text-muted-foreground">
-                <tr>
-                  <th className="py-1.5 pr-2 font-normal">Bulan</th>
-                  <th className="px-2 py-1.5 text-right font-normal">Dinilai</th>
-                  <th className="px-2 py-1.5 text-right font-normal">Tercapai</th>
-                  <th className="py-1.5 pl-2 text-right font-normal">Persen</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-rule">
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <Button variant="link" size="sm" className="group/lihat h-auto px-0 text-primary-ink">
+              <Ikon nama="kanan" className="size-4 transition-transform group-data-[state=open]/lihat:rotate-90" />
+              Lihat angka
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <Table aria-label="Indikator Tercapai per bulan" className="text-[13px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="h-9 px-3">Bulan</TableHead>
+                  <TableHead className="h-9 px-3 text-right">Dinilai</TableHead>
+                  <TableHead className="h-9 px-3 text-right">Tercapai</TableHead>
+                  <TableHead className="h-9 px-3 text-right">Persen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.map((d) => (
-                  <tr key={d.bulan}>
-                    <td className="py-1.5 pr-2">{labelBulan(d.bulan, { pendek: true })}</td>
-                    <td className="px-2 py-1.5 text-right">{d.dinilai}</td>
-                    <td className="px-2 py-1.5 text-right">{d.tercapai}</td>
-                    <td className="py-1.5 pl-2 text-right">
+                  <TableRow key={d.bulan}>
+                    <TableCell className="px-3 py-2">{labelBulan(d.bulan, { pendek: true })}</TableCell>
+                    <TableCell className="px-3 py-2 text-right">{d.dinilai}</TableCell>
+                    <TableCell className="px-3 py-2 text-right">{d.tercapai}</TableCell>
+                    <TableCell className="px-3 py-2 text-right">
                       {d.dinilai ? `${formatAngka((d.tercapai / d.dinilai) * 100)}%` : <span className="text-muted-foreground">–</span>}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
+              </TableBody>
+            </Table>
+          </CollapsibleContent>
+        </Collapsible>
       </figcaption>
     </figure>
   );
@@ -87,7 +97,7 @@ export function BarTarget(p: { capaian: number | null; target: number; satuan: s
   const persen = (v: number) => `${Math.min(v / skala, 1) * 100}%`;
   return (
     <span
-      className="relative block h-2 rounded-full bg-active"
+      className="relative block h-2 rounded-full bg-muted"
       title={`Capaian ${formatCapaian(p.capaian, p.satuan)}, Target ${TANDA_ARAH[p.arah]} ${formatCapaian(p.target, p.satuan)}`}
     >
       {p.capaian !== null && (

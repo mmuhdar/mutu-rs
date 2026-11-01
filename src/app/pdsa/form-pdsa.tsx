@@ -2,6 +2,10 @@
 
 import { useActionState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import { INPUT_BULAN } from "@/lib/bulan";
 import {
   KEPUTUSAN_PDSA,
@@ -12,14 +16,14 @@ import {
 } from "@/lib/perbaikan";
 import type { PlanPdsa } from "@/modules/perbaikan/service";
 
-import { kelasArea, kelasInput, Kolom, PesanError, Segmen, tombolGaris, tombolUtama } from "../form";
+import { Kolom, PesanError, Segmen } from "../form";
 import { Ikon } from "../ikon";
 import { buatPdsaAction, simpanTahapPdsaAction } from "./actions";
 
 function Teks({ nama, label, petunjuk, awal, baris = 3 }: { nama: string; label: string; petunjuk?: string; awal?: string; baris?: number }) {
   return (
     <Kolom label={label} htmlFor={nama} petunjuk={petunjuk}>
-      <textarea id={nama} name={nama} rows={baris} required maxLength={4000} defaultValue={awal} className={kelasArea} />
+      <Textarea id={nama} name={nama} rows={baris} required maxLength={4000} defaultValue={awal} className="leading-6" />
     </Kolom>
   );
 }
@@ -34,7 +38,7 @@ function IsianPlan({ awal, judulTetap = false }: { awal: AwalPlan; judulTetap?: 
         <input type="hidden" name="judul" value={awal.judul ?? ""} />
       ) : (
         <Kolom label="Judul" htmlFor="judul" petunjuk="Perubahan yang diuji coba, mis. Uji coba handrub di setiap tempat tidur ICU.">
-          <input id="judul" name="judul" required maxLength={200} defaultValue={awal.judul} className={`${kelasInput} text-[16px] font-semibold`} />
+          <Input id="judul" name="judul" required maxLength={200} defaultValue={awal.judul} className="text-[16px] font-semibold" />
         </Kolom>
       )}
       <div className="grid gap-4 md:grid-cols-2">
@@ -50,10 +54,10 @@ function IsianPlan({ awal, judulTetap = false }: { awal: AwalPlan; judulTetap?: 
       </div>
       <div className="grid gap-4 sm:grid-cols-2 md:max-w-xl">
         <Kolom label="Uji coba mulai" htmlFor="bulanMulai">
-          <input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={awal.bulanMulai} className={kelasInput} />
+          <Input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={awal.bulanMulai} />
         </Kolom>
         <Kolom label="Uji coba sampai" htmlFor="bulanAkhir">
-          <input id="bulanAkhir" name="bulanAkhir" {...INPUT_BULAN} required defaultValue={awal.bulanAkhir} className={kelasInput} />
+          <Input id="bulanAkhir" name="bulanAkhir" {...INPUT_BULAN} required defaultValue={awal.bulanAkhir} />
         </Kolom>
       </div>
     </div>
@@ -80,16 +84,23 @@ export function FormPdsaBaru(p: {
         <div className="grid gap-4 md:grid-cols-2">
           <Kolom label="Indikator" htmlFor="indikatorId">
             {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
-            <select key={awal.indikatorId} id="indikatorId" name="indikatorId" required defaultValue={awal.indikatorId ?? ""} className={kelasInput}>
-              <option value="" disabled>
+            <NativeSelect
+              key={awal.indikatorId}
+              id="indikatorId"
+              name="indikatorId"
+              required
+              defaultValue={awal.indikatorId ?? ""}
+              className="w-full"
+            >
+              <NativeSelectOption value="" disabled>
                 Pilih Indikator
-              </option>
+              </NativeSelectOption>
               {p.indikator.map((i) => (
-                <option key={i.id} value={i.id}>
+                <NativeSelectOption key={i.id} value={i.id}>
                   {i.label}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </Kolom>
           {p.lingkup.length <= 4 ? (
             <Segmen
@@ -102,13 +113,13 @@ export function FormPdsaBaru(p: {
             />
           ) : (
             <Kolom label="Lingkup" htmlFor="unitId">
-              <select key={awal.unitId} id="unitId" name="unitId" defaultValue={awal.unitId} className={kelasInput}>
+              <NativeSelect key={awal.unitId} id="unitId" name="unitId" defaultValue={awal.unitId} className="w-full">
                 {p.lingkup.map((l) => (
-                  <option key={l.id} value={l.id}>
+                  <NativeSelectOption key={l.id} value={l.id}>
                     {l.label}
-                  </option>
+                  </NativeSelectOption>
                 ))}
-              </select>
+              </NativeSelect>
             </Kolom>
           )}
         </div>
@@ -116,10 +127,10 @@ export function FormPdsaBaru(p: {
       <IsianPlan awal={awal} judulTetap={Boolean(p.sebelumnyaId)} />
       <PesanError pesan={state.error} />
       <div className="grid border-t border-border pt-5">
-        <button type="submit" disabled={pending} className={tombolUtama}>
+        <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
           {pending ? "Menyimpan…" : "Simpan Plan dan mulai Do"}
           <Ikon nama="kanan" className="size-[18px]" />
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -197,14 +208,14 @@ export function FormTahap({
       <PesanError pesan={state.error} />
       <div className="grid gap-2.5 sm:grid-flow-col sm:justify-start">
         {aktif && (
-          <button type="submit" name="lanjut" value="ya" disabled={pending} className={tombolUtama}>
+          <Button type="submit" name="lanjut" value="ya" size="lg" disabled={pending} className="w-full sm:w-auto">
             {berikut === "selesai" ? "Simpan dan selesaikan PDSA" : `Simpan dan lanjut ke ${LABEL_TAHAP_PDSA[berikut]}`}
             <Ikon nama={berikut === "selesai" ? "centang" : "kanan"} className="size-[18px]" />
-          </button>
+          </Button>
         )}
-        <button type="submit" disabled={pending} className={aktif ? tombolGaris : tombolUtama}>
+        <Button type="submit" variant={aktif ? "outline" : "default"} size="lg" disabled={pending} className="w-full sm:w-auto">
           {pending ? "Menyimpan…" : "Simpan"}
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { config } from "@/lib/config";
 import { getSessionUser } from "@/server/sesi";
 
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+
 import { Merek } from "../nav-samping";
 import { FormMasuk } from "./form-masuk";
 
@@ -26,7 +28,7 @@ export default async function HalamanMasuk() {
         <Merek />
         <div className="hidden max-w-lg lg:block">
           <h2 className="text-[34px] leading-[1.15] font-bold tracking-[-0.02em] text-white">Dari angka bulanan sampai perbaikan.</h2>
-          <p className="mt-3 text-sidebar-ink">Indikator mutu {config.namaRs} dalam satu alur kerja.</p>
+          <p className="mt-3 text-sidebar-foreground">Indikator mutu {config.namaRs} dalam satu alur kerja.</p>
           <ol className="mt-8 grid gap-4">
             {ALUR.map((a, i) => (
               <li key={a.judul} className="flex gap-4">
@@ -35,7 +37,7 @@ export default async function HalamanMasuk() {
                 </span>
                 <span>
                   <span className="block font-semibold text-white">{a.judul}</span>
-                  <span className="block text-[14px] text-sidebar-ink">{a.isi}</span>
+                  <span className="block text-[14px] text-sidebar-foreground">{a.isi}</span>
                 </span>
               </li>
             ))}
@@ -45,11 +47,15 @@ export default async function HalamanMasuk() {
       </section>
 
       <section className="grid place-items-center px-4 py-10 sm:px-6">
-        <div className="w-full max-w-md rounded-2xl border border-border/70 bg-surface p-6 shadow-kartu sm:p-8">
-          <h1 className="text-[28px] leading-9 font-bold tracking-[-0.02em]">Selamat datang 👋</h1>
-          <p className="mt-1.5 text-muted-foreground">Masuk dengan username dan sandi dari Admin Sistem.</p>
-          <FormMasuk />
-        </div>
+        <Card className="w-full max-w-md gap-6 px-6 py-7 sm:px-8 sm:py-9">
+          <CardHeader className="px-0">
+            <h1 className="text-[28px] leading-9 font-bold tracking-[-0.02em]">Selamat datang 👋</h1>
+            <CardDescription className="text-[15px]">Masuk dengan username dan sandi dari Admin Sistem.</CardDescription>
+          </CardHeader>
+          <CardContent className="px-0">
+            <FormMasuk />
+          </CardContent>
+        </Card>
       </section>
     </div>
   );

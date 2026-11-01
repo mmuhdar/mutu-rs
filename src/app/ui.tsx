@@ -1,10 +1,19 @@
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Table } from "@/components/ui/table";
+
 import { Ikon, type NamaIkon } from "./ikon";
 
+export { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 /*
- * Komponen tampilan bersama (server maupun client): pembungkus halaman, kepala halaman, kartu putih berbayang lembut,
- * kartu angka dengan kotak ikon berwarna, label status, bar kemajuan, tabel, dan donat.
+ * Komponen tampilan MutuRS di atas shadcn/ui (`src/components/ui`): pembungkus halaman, kepala halaman, kartu berjudul,
+ * kartu angka dengan kotak ikon berwarna, label status, bar kemajuan, tabel, dan donat. Halaman memakai komponen ini
+ * atau komponen shadcn langsung (Button, Input, dst.), bukan kelas buatan sendiri.
  */
 
 /** Pembungkus isi halaman: jarak antarbagian yang sama di semua halaman. */
@@ -48,15 +57,15 @@ export function KepalaHalaman(p: {
         </div>
         {p.aksi && <div className="flex w-full flex-wrap items-end gap-2.5 sm:w-auto">{p.aksi}</div>}
       </div>
-      {p.children && <div className={`${kelasKartu} p-4 sm:p-5`}>{p.children}</div>}
+      {p.children && <Card className="px-4 py-4 sm:px-5 sm:py-5">{p.children}</Card>}
     </header>
   );
 }
 
-/** Kartu putih bersudut lembut dengan bayangan tipis. */
-export const kelasKartu = "rounded-2xl border border-border/70 bg-surface shadow-kartu";
-
-/** Kartu berjudul: judul 16px tebal di kiri, aksi (tautan, saringan) di kanan. */
+/**
+ * Kartu berjudul (shadcn `Card`): judul tebal dan keterangan di kiri, aksi (tautan, saringan) di kanan. `children` diberi
+ * jarak sendiri oleh pemanggil (mis. `px-5 pb-5`, atau `Tabel` yang sudah berjarak).
+ */
 export function Kartu(p: {
   judul?: React.ReactNode;
   sub?: React.ReactNode;
@@ -65,18 +74,16 @@ export function Kartu(p: {
   children: React.ReactNode;
 }) {
   return (
-    <section className={`${kelasKartu} min-w-0 ${p.className ?? ""}`}>
+    <Card className={`min-w-0 gap-0 py-0 ${p.className ?? ""}`}>
       {(p.judul || p.aksi) && (
-        <header className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5 pb-4">
-          <div className="min-w-0">
-            {p.judul && <h2 className="text-[16px] leading-6 font-bold">{p.judul}</h2>}
-            {p.sub && <p className="mt-0.5 text-[13px] text-muted-foreground">{p.sub}</p>}
-          </div>
-          {p.aksi}
-        </header>
+        <CardHeader className="px-5 pt-5 pb-4">
+          {p.judul && <CardTitle>{p.judul}</CardTitle>}
+          {p.sub && <CardDescription className="text-[13px]">{p.sub}</CardDescription>}
+          {p.aksi && <CardAction>{p.aksi}</CardAction>}
+        </CardHeader>
       )}
       {p.children}
-    </section>
+    </Card>
   );
 }
 
@@ -93,7 +100,7 @@ const NADA: Record<Nada, { pil: string; isi: string; teks: string }> = {
   pos: { pil: "bg-success-soft text-success-ink", isi: "bg-success", teks: "text-success-ink" },
   neg: { pil: "bg-danger-soft text-danger-ink", isi: "bg-danger", teks: "text-danger-ink" },
   warn: { pil: "bg-warning-soft text-warning", isi: "bg-tindak", teks: "text-warning" },
-  netral: { pil: "bg-active text-muted-foreground", isi: "bg-muted-foreground", teks: "text-muted-foreground" },
+  netral: { pil: "bg-muted text-muted-foreground", isi: "bg-muted-foreground", teks: "text-muted-foreground" },
 };
 
 /** Kelas isi padat sebuah nada, mis. untuk titik legenda atau bar. */
@@ -142,13 +149,13 @@ export function Ubin(p: {
       {p.keterangan && <span className="mt-3 block text-[13px] text-muted-foreground">{p.keterangan}</span>}
     </>
   );
-  const kelas = `@container block min-w-0 ${kelasKartu} p-4 sm:p-5`;
+  const kelas = "@container block min-w-0 gap-0 p-4 sm:p-5";
   return p.href ? (
-    <Link href={p.href} className={`${kelas} hover:-translate-y-0.5 hover:border-primary/30`}>
-      {isi}
+    <Link href={p.href} className="group/ubin block min-w-0 rounded-2xl">
+      <Card className={`${kelas} group-hover/ubin:-translate-y-0.5 group-hover/ubin:ring-primary/30`}>{isi}</Card>
     </Link>
   ) : (
-    <div className={kelas}>{isi}</div>
+    <Card className={kelas}>{isi}</Card>
   );
 }
 
@@ -166,60 +173,41 @@ export function Rincian({ isi }: { isi: { nada: Nada; nilai: React.ReactNode; la
   );
 }
 
-/** Label status pucat bernada sama; tidak pernah terjepit. */
+/** Label status pucat bernada sama (shadcn `Badge`); tidak pernah terjepit. */
 export function Pil({ nada, children }: { nada: Nada; children: React.ReactNode }) {
-  return (
-    <span
-      className={`inline-flex h-6 flex-none items-center rounded-md px-2 text-[12px] font-semibold whitespace-nowrap ${NADA[nada].pil}`}
-    >
-      {children}
-    </span>
-  );
+  return <Badge className={`flex-none ${NADA[nada].pil}`}>{children}</Badge>;
 }
 
-/** Bar kemajuan pada nadanya: lebar = rasio sesungguhnya (CSS `calc`, bukan hitungan halaman). */
+/** Bar kemajuan pada nadanya (shadcn `Progress`): rasio nilai/dari dari angka service. */
 export function BarKemajuan({ nada, nilai, dari }: { nada: Nada; nilai: number; dari: number }) {
   if (dari <= 0) return null;
-  return (
-    <span aria-hidden className="mt-4 block h-2 overflow-hidden rounded-full bg-active">
-      <span className={`block h-full rounded-full ${NADA[nada].isi}`} style={{ width: `calc(${nilai} / ${dari} * 100%)` }} />
-    </span>
-  );
+  return <Progress aria-hidden value={(nilai / dari) * 100} className="mt-4" indicatorClassName={NADA[nada].isi} />;
 }
 
-/*
- * Tabel: kepala berlatar abu muda bersudut bulat, garis baris tipis. Pemanggil memakai `<Tabel>` + `kelasTh`/`kelasTd`
- * (angka rata kanan: tambahkan `text-right`). Pembungkus geser `relative` supaya teks `sr-only` di sel tidak melebarkan
- * halaman.
+/**
+ * Tabel (shadcn `Table`) dengan jarak di dalam kartu dan lebar minimum: lebih sempit dari itu, tabel digeser di dalam
+ * wadahnya (bukan halaman). Isi memakai `TableHeader`/`TableRow`/`TableHead`/`TableBody`/`TableCell`; angka rata kanan
+ * dengan `text-right`.
  */
-export const kelasTh =
-  "bg-head px-4 py-3 text-left text-[12px] font-semibold whitespace-nowrap text-muted-foreground first:rounded-l-xl last:rounded-r-xl";
-export const kelasTd = "border-b border-rule px-4 py-3.5 align-middle";
-
 export function Tabel({ label, lebarMin = "min-w-[40rem]", children }: { label: string; lebarMin?: string; children: React.ReactNode }) {
   return (
-    <div className="relative min-w-0 overflow-x-auto px-3 pb-2">
-      <table
-        aria-label={label}
-        className={`w-full border-separate border-spacing-0 text-[14px] [&_tbody_tr:last-child_td]:border-0 ${lebarMin}`}
-      >
+    <div className="min-w-0 px-3 pb-2">
+      <Table aria-label={label} className={lebarMin}>
         {children}
-      </table>
+      </Table>
     </div>
   );
 }
 
-/** Tombol ikon bertepi di kolom Aksi tabel; `label` dibaca pembaca layar. */
+/** Tombol ikon bertepi di kolom Aksi tabel (shadcn `Button` sebagai tautan); `label` dibaca pembaca layar. */
 export function TautanIkon({ href, ikon, label }: { href: string; ikon: NamaIkon; label: string }) {
   return (
-    <Link
-      href={href}
-      title={label}
-      className="inline-grid size-9 place-items-center rounded-lg border border-border text-muted-foreground hover:border-primary/40 hover:text-primary-ink"
-    >
-      <Ikon nama={ikon} className="size-4" />
-      <span className="sr-only">{label}</span>
-    </Link>
+    <Button asChild variant="outline" size="icon-sm" className="text-muted-foreground shadow-none hover:text-primary-ink">
+      <Link href={href} title={label}>
+        <Ikon nama={ikon} className="size-4" />
+        <span className="sr-only">{label}</span>
+      </Link>
+    </Button>
   );
 }
 
@@ -240,7 +228,7 @@ export function Donat(p: {
       <div className="grid items-center gap-5 @[26rem]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]">
         <div className="relative mx-auto aspect-square w-full max-w-40">
           <svg viewBox="0 0 42 42" role="img" aria-label={p.label} className="size-full -rotate-90">
-            <circle cx="21" cy="21" r="15.9155" fill="none" strokeWidth="6" className="stroke-active" />
+            <circle cx="21" cy="21" r="15.9155" fill="none" strokeWidth="6" className="stroke-muted" />
             {total > 0 &&
               p.bagian.map((b) => {
                 const panjang = (b.nilai / total) * KELILING;

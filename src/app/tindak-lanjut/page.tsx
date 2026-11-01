@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { Button } from "@/components/ui/button";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
 import { LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
@@ -9,7 +11,7 @@ import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
-import { kelasInput, kelasLabel, Segmen, tombolUtama } from "../form";
+import { Kolom, Segmen } from "../form";
 import { Pesan, pesanAtau } from "../pengukuran/status";
 import { Ikon } from "../ikon";
 import { Halaman, Kartu, KepalaHalaman, Ubin } from "../ui";
@@ -48,22 +50,21 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
         <form method="get" className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem_auto] lg:items-end">
           {/* key: pilihan saringan mengikuti alamat. */}
           <Segmen key={status} nama="status" label="Status" pilihan={PILIHAN_STATUS} nilai={status} />
-          <label className={`grid min-w-0 gap-1.5 ${kelasLabel}`}>
-            Lingkup
-            <select name="unit" defaultValue={unit} className={kelasInput}>
-              <option value="">{semuaLingkup ? "Semua Lingkup" : "Semua Unit saya"}</option>
-              {semuaLingkup && <option value="rs">{labelLingkup(null)}</option>}
+          <Kolom label="Lingkup" htmlFor="unit">
+            <NativeSelect id="unit" name="unit" defaultValue={unit} className="w-full">
+              <NativeSelectOption value="">{semuaLingkup ? "Semua Lingkup" : "Semua Unit saya"}</NativeSelectOption>
+              {semuaLingkup && <NativeSelectOption value="rs">{labelLingkup(null)}</NativeSelectOption>}
               {pilihan.map((u) => (
-                <option key={u.id} value={u.id}>
+                <NativeSelectOption key={u.id} value={u.id}>
                   {labelLingkup(u)}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
-          </label>
-          <button type="submit" className={tombolUtama}>
+            </NativeSelect>
+          </Kolom>
+          <Button type="submit" size="lg" className="w-full sm:w-auto">
             <Ikon nama="cari" className="size-[18px]" />
             Tampilkan
-          </button>
+          </Button>
         </form>
       </KepalaHalaman>
 

@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
@@ -12,11 +15,11 @@ import { analisisTersedia } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
-import { kelasInput, kelasLabel, tombolUtama } from "../form";
+import { Kolom } from "../form";
 import { BarTarget } from "../grafik-dashboard";
 import { LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
 import { Ikon } from "../ikon";
-import { BarKemajuan, Halaman, Kartu, kelasTd, kelasTh, KepalaHalaman, KotakIkon, Tabel, Ubin } from "../ui";
+import { BarKemajuan, Halaman, Kartu, KepalaHalaman, KotakIkon, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, Ubin } from "../ui";
 import { formatSelisih, keteranganRs, keteranganUnit, Tren } from "./grafik";
 
 export const metadata: Metadata = { title: "Monitoring" };
@@ -95,21 +98,21 @@ function PerUnit({ tren, tautan }: { tren: TrenCapaian; tautan: TautanTitik }) {
         </div>
       ) : (
         <Tabel label={`Capaian per Unit ${labelBulan(bulan)}`}>
-          <thead>
-            <tr>
-              <th className={kelasTh}>Unit</th>
-              <th className={`${kelasTh} w-[40%]`}>Capaian</th>
-              <th className={kelasTh}>Status</th>
-              <th className={`${kelasTh} text-right`}>Analisis</th>
-            </tr>
-          </thead>
-          <tbody>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Unit</TableHead>
+              <TableHead className="w-[40%]">Capaian</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Analisis</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {unit.map(({ unit: u, titik }) => {
               const t = titik[i];
               const ada = t.kelengkapan.terverifikasi > 0;
               return (
-                <tr key={u.id}>
-                  <td className={kelasTd}>
+                <TableRow key={u.id}>
+                  <TableCell>
                     <span className="flex items-center gap-3">
                       <KotakIkon nada="pantau" ikon="unit" kecil />
                       <span className="min-w-0">
@@ -120,8 +123,8 @@ function PerUnit({ tren, tautan }: { tren: TrenCapaian; tautan: TautanTitik }) {
                         <span className="block text-[13px] whitespace-nowrap text-muted-foreground">{ada ? `N ${t.n} / D ${t.d}` : "belum Terverifikasi"}</span>
                       </span>
                     </span>
-                  </td>
-                  <td className={kelasTd}>
+                  </TableCell>
+                  <TableCell>
                     <span className="flex items-center gap-3">
                       <span className="min-w-0 flex-1">
                         <BarTarget capaian={ada ? t.capaian : null} target={t.target} satuan={satuan} arah={arah} tercapai={t.status === "tercapai"} />
@@ -132,15 +135,15 @@ function PerUnit({ tren, tautan }: { tren: TrenCapaian; tautan: TautanTitik }) {
                         {ada ? formatCapaian(t.capaian, satuan) : <span className="text-muted-foreground">–</span>}
                       </span>
                     </span>
-                  </td>
-                  <td className={kelasTd}>
+                  </TableCell>
+                  <TableCell>
                     <LabelCapaian status={ada ? t.status : null} />
-                  </td>
-                  <td className={`${kelasTd} text-right`}>{tautan(u.id, t)}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-right">{tautan(u.id, t)}</TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
+          </TableBody>
         </Tabel>
       )}
     </Kartu>
@@ -173,25 +176,23 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
     <Halaman>
       <KepalaHalaman judul="Monitoring" sub="Tren Capaian 12 bulan dibanding Target yang berlaku setiap bulan, dari Pengukuran Terverifikasi.">
         <form method="get" className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-end">
-          <label className={`grid min-w-0 gap-1.5 ${kelasLabel}`}>
-            Indikator
-            <select name="indikator" defaultValue={indikatorId} className={kelasInput}>
+          <Kolom label="Indikator" htmlFor="indikator">
+            <NativeSelect id="indikator" name="indikator" defaultValue={indikatorId} className="w-full">
               {daftar.map((i) => (
-                <option key={i.id} value={i.id}>
+                <NativeSelectOption key={i.id} value={i.id}>
                   {i.kode} — {i.nama}
                   {!i.aktif && " (nonaktif)"}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
-          </label>
-          <label className={`grid gap-1.5 ${kelasLabel}`}>
-            Sampai bulan
-            <input name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
-          </label>
-          <button type="submit" className={tombolUtama}>
+            </NativeSelect>
+          </Kolom>
+          <Kolom label="Sampai bulan" htmlFor="bulan">
+            <Input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} />
+          </Kolom>
+          <Button type="submit" size="lg" className="w-full sm:w-auto">
             <Ikon nama="cari" className="size-[18px]" />
             Tampilkan
-          </button>
+          </Button>
         </form>
       </KepalaHalaman>
 

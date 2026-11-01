@@ -6,9 +6,13 @@ import type { StatusPengukuran } from "@/lib/pengukuran";
 import { daftarIsian, unitPengisi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, kelasLabel, Segmen, tombolUtama } from "../form";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+import { Kolom, Segmen } from "../form";
 import { Ikon, type NamaIkon } from "../ikon";
-import { BarKemajuan, Halaman, Kartu, KepalaHalaman, kelasKartu, kelasTd, kelasTh, KotakIkon, type Nada, Tabel, TautanIkon, Ubin } from "../ui";
+import { BarKemajuan, Halaman, Kartu, KepalaHalaman, KotakIkon, type Nada, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon, Ubin } from "../ui";
 import { LabelStatus, Pesan, pesanAtau } from "./status";
 
 export const metadata: Metadata = { title: "Isi Pengukuran" };
@@ -52,13 +56,20 @@ export default async function HalamanIsian({ searchParams }: PageProps<"/penguku
       ) : (
         <input type="hidden" name="unit" value={unit.id} />
       )}
-      <label className={`grid min-w-0 gap-1.5 ${kelasLabel} ${pilihan.length > 1 ? "" : "sm:w-44"}`}>
-        Bulan
-        <input name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} className={kelasInput} />
-      </label>
-      <button type="submit" className={tombolUtama}>
+      <Kolom label="Bulan" htmlFor="bulan">
+        <Input
+          id="bulan"
+          name="bulan"
+          {...INPUT_BULAN}
+          required
+          max={bulanBerjalan()}
+          defaultValue={bulan}
+          className={pilihan.length > 1 ? undefined : "sm:w-44"}
+        />
+      </Kolom>
+      <Button type="submit" size="lg" className="w-full sm:w-auto">
         Tampilkan
-      </button>
+      </Button>
     </form>
   );
 
@@ -75,14 +86,12 @@ export default async function HalamanIsian({ searchParams }: PageProps<"/penguku
       {!unit ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {pilihan.map((u) => (
-            <Link
-              key={u.id}
-              href={`/pengukuran?${new URLSearchParams({ unit: u.id, bulan })}`}
-              className={`${kelasKartu} flex min-h-20 min-w-0 items-center gap-3.5 p-4 text-[16px] font-bold hover:-translate-y-0.5 hover:border-primary/30 sm:p-5`}
-            >
-              <KotakIkon nada="ukur" ikon="unit" />
-              <span className="min-w-0 flex-1">{u.nama}</span>
-              <Ikon nama="kanan" className="size-5 text-muted-foreground" />
+            <Link key={u.id} href={`/pengukuran?${new URLSearchParams({ unit: u.id, bulan })}`} className="group/unit block min-w-0 rounded-2xl">
+              <Card className="min-h-20 flex-row items-center gap-3.5 p-4 text-[16px] font-bold group-hover/unit:-translate-y-0.5 group-hover/unit:ring-primary/30 sm:p-5">
+                <KotakIkon nada="ukur" ikon="unit" />
+                <span className="min-w-0 flex-1">{u.nama}</span>
+                <Ikon nama="kanan" className="size-5 text-muted-foreground" />
+              </Card>
             </Link>
           ))}
         </div>
@@ -107,20 +116,20 @@ export default async function HalamanIsian({ searchParams }: PageProps<"/penguku
               ) : (
                 // Di HP kolom Status pindah ke bawah nama Indikator supaya tabel tidak perlu digeser.
                 <Tabel label="Indikator wajib diisi" lebarMin="min-w-0">
-                  <thead>
-                    <tr>
-                      <th className={kelasTh}>Indikator</th>
-                      <th className={`${kelasTh} max-sm:hidden`}>Status</th>
-                      <th className={`${kelasTh} text-right`}>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Indikator</TableHead>
+                      <TableHead className="max-sm:hidden">Status</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {urut.map(({ indikator, status, alasanPengembalian }) => {
                       const label = <LabelStatus status={status} dikembalikan={Boolean(alasanPengembalian)} />;
                       const bisaDiisi = status === null || status === "draf";
                       return (
-                        <tr key={indikator.id}>
-                          <td className={kelasTd}>
+                        <TableRow key={indikator.id}>
+                          <TableCell>
                             <span className="flex items-start gap-3">
                               <span className="max-sm:hidden">
                                 <KotakIkon nada={TAMPIL_STATUS[status ?? "belum"].nada} ikon={TAMPIL_STATUS[status ?? "belum"].ikon} kecil />
@@ -134,19 +143,19 @@ export default async function HalamanIsian({ searchParams }: PageProps<"/penguku
                                 <span className="mt-1.5 block sm:hidden">{label}</span>
                               </span>
                             </span>
-                          </td>
-                          <td className={`${kelasTd} max-sm:hidden`}>{label}</td>
-                          <td className={`${kelasTd} text-right`}>
+                          </TableCell>
+                          <TableCell className="max-sm:hidden">{label}</TableCell>
+                          <TableCell className="text-right">
                             <TautanIkon
                               href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan })}`}
                               ikon={bisaDiisi ? "isi" : "lihat"}
                               label={`${bisaDiisi ? "Isi" : "Lihat"} ${indikator.kode}`}
                             />
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
+                  </TableBody>
                 </Tabel>
               )}
             </Kartu>

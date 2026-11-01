@@ -6,6 +6,8 @@ import { LABEL_STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perba
 
 /* Bagian tampilan bersama halaman Pengukuran, Monitoring, Dashboard, dan Perbaikan (server component). */
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 import { Kartu, Pil, type Nada } from "../ui";
 
 export const formatWaktu = (waktu: Date) =>
@@ -18,12 +20,12 @@ export const pesanAtau = <T,>(janji: Promise<T>) =>
     throw error;
   });
 
-/** Pesan pengganti isi bagian (penolakan service, daftar kosong): satu kalimat di dalam bingkai bagian itu. */
+/** Pesan pengganti isi bagian (penolakan service, daftar kosong): satu kalimat dalam `Alert` bertepi putus-putus. */
 export function Pesan({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="rounded-2xl border border-dashed border-input/60 bg-surface px-5 py-4 text-muted-foreground">
-      {children}
-    </p>
+    <Alert role="alert" className="border-dashed border-input/60 px-5 py-4">
+      <AlertDescription className="text-[15px]">{children}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -31,9 +33,9 @@ export function Pesan({ children }: { children: React.ReactNode }) {
 export function Pemberitahuan({ children }: { children?: React.ReactNode }) {
   if (!children) return null;
   return (
-    <p role="status" className="rounded-xl border border-warning-border bg-warning-soft px-4 py-2.5 text-[14px] text-warning">
-      {children}
-    </p>
+    <Alert role="status" className="border-warning-border bg-warning-soft">
+      <AlertDescription className="text-[14px] text-warning">{children}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -72,13 +74,15 @@ export function AlasanPengembalian({ status, riwayat }: { status: StatusPengukur
   const akhir = riwayat.at(-1);
   if (status !== "draf" || akhir?.statusAsal !== "diajukan") return null;
   return (
-    <div role="status" className="rounded-2xl border border-warning-border bg-warning-soft px-5 py-4">
-      <p className="font-bold text-warning">Dikembalikan untuk diperbaiki</p>
-      <p className="mt-1 whitespace-pre-line">{akhir.alasan}</p>
-      <p className="mt-1 text-[13px] text-muted-foreground">
-        {akhir.oleh}, {formatWaktu(akhir.waktu)}
-      </p>
-    </div>
+    <Alert role="status" className="border-warning-border bg-warning-soft px-5 py-4">
+      <AlertTitle className="font-bold text-warning">Dikembalikan untuk diperbaiki</AlertTitle>
+      <AlertDescription className="text-foreground">
+        <p className="whitespace-pre-line">{akhir.alasan}</p>
+        <p className="text-[13px] text-muted-foreground">
+          {akhir.oleh}, {formatWaktu(akhir.waktu)}
+        </p>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -90,7 +94,7 @@ export function RiwayatStatus({ riwayat }: { riwayat: Riwayat }) {
       <ol className="grid gap-0 px-5 pb-5">
         {riwayat.map((r, i) => (
           <li key={i} className="relative border-l-2 border-ukur/25 pb-4 pl-5 last:pb-0">
-            <span aria-hidden className="absolute top-1.5 -left-[7px] size-3 rounded-full border-2 border-surface bg-ukur" />
+            <span aria-hidden className="absolute top-1.5 -left-[7px] size-3 rounded-full border-2 border-card bg-ukur" />
             <span className="flex flex-wrap items-center gap-1.5">
               <LabelStatus status={r.statusAsal} />
               <span aria-hidden className="text-muted-foreground">

@@ -2,16 +2,19 @@
 
 import { useActionState } from "react";
 
-import { kelasInput, Kolom, PesanError, tombolUtama } from "../form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+import { Kolom, PesanError } from "../form";
 import { masukAction } from "./actions";
 
 export function FormMasuk() {
   const [state, action, pending] = useActionState(masukAction, {});
   return (
-    <form action={action} className="mt-6 grid gap-4">
+    <form action={action} className="grid gap-4">
       <PesanError pesan={state.error} />
       <Kolom label="Username" htmlFor="username">
-        <input
+        <Input
           id="username"
           name="username"
           required
@@ -20,15 +23,14 @@ export function FormMasuk() {
           autoCapitalize="none"
           spellCheck={false}
           defaultValue={state.username}
-          className={kelasInput}
         />
       </Kolom>
       <Kolom label="Sandi" htmlFor="sandi">
-        <input id="sandi" name="sandi" type="password" required autoComplete="current-password" className={kelasInput} />
+        <Input id="sandi" name="sandi" type="password" required autoComplete="current-password" />
       </Kolom>
-      <button type="submit" disabled={pending} className={`${tombolUtama} mt-1 sm:w-full`}>
+      <Button type="submit" size="lg" disabled={pending} className="mt-1 w-full">
         {pending ? "Memproses…" : "Masuk"}
-      </button>
+      </Button>
     </form>
   );
 }

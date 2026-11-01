@@ -6,7 +6,8 @@ import { formatCapaian } from "@/lib/capaian";
 import { ambilPengukuran, bolehIsiPengukuran, bolehVerifikasi } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { tombolUtama } from "../../form";
+import { Button } from "@/components/ui/button";
+
 import { Ikon } from "../../ikon";
 import { Halaman, Kartu, KepalaHalaman, Ubin } from "../../ui";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
@@ -68,13 +69,12 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
 
           {p.status === "draf"
             ? bolehIsiPengukuran(pengguna) && (
-                <Link
-                  href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan: p.bulan })}`}
-                  className={tombolUtama}
-                >
-                  <Ikon nama="isi" className="size-[18px]" />
-                  Ubah isian
-                </Link>
+                <Button asChild size="lg" className="w-full sm:w-auto sm:justify-self-start">
+                  <Link href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan: p.bulan })}`}>
+                    <Ikon nama="isi" className="size-[18px]" />
+                    Ubah isian
+                  </Link>
+                </Button>
               )
             : bolehVerifikasi(pengguna) && <FormVerifikasi id={p.id} status={p.status} />}
         </div>

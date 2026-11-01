@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { labelBulan, labelPeriode } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
 import {
@@ -14,7 +16,6 @@ import {
 import { ambilPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { tombolGaris, tombolUtama } from "../../form";
 import { Ikon } from "../../ikon";
 import { keteranganRs, keteranganUnit, Tren } from "../../monitoring/grafik";
 import { formatWaktu, Pesan, pesanAtau } from "../../pengukuran/status";
@@ -46,14 +47,19 @@ function IsiTahap(p: {
         ))}
       </dl>
       {p.bolehTulis && (
-        <details className="group rounded-xl border border-border">
-          <summary className="flex cursor-pointer items-center gap-2 rounded-xl px-4 py-3 font-semibold text-primary-ink hover:bg-active">
-            <Ikon nama="isi" className="size-[18px]" />
-            Perbaiki {LABEL_TAHAP_PDSA[p.tahap]}
-            <Ikon nama="bawah" className="ml-auto size-4 text-muted-foreground group-open:rotate-180" />
-          </summary>
-          <div className="border-t border-border px-4 pt-4 pb-4">{p.form}</div>
-        </details>
+        <Collapsible className="group/perbaiki rounded-xl border border-border">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="h-12 w-full justify-start px-4 text-[15px] text-primary-ink hover:text-primary-ink aria-expanded:bg-transparent aria-expanded:text-primary-ink aria-expanded:hover:bg-muted"
+            >
+              <Ikon nama="isi" className="size-[18px]" />
+              Perbaiki {LABEL_TAHAP_PDSA[p.tahap]}
+              <Ikon nama="bawah" className="ml-auto size-4 text-muted-foreground group-data-[state=open]/perbaiki:rotate-180" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="border-t border-border p-4">{p.form}</CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );
@@ -116,17 +122,21 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
         sub={`Terakhir diubah oleh ${p.diubahOleh}, ${formatWaktu(p.diubahPada)}.`}
         aksi={
           p.berikutnya ? (
-            <Link href={`/pdsa/${p.berikutnya.id}`} className={tombolGaris}>
-              Siklus ke-{p.berikutnya.siklus}
-              <Ikon nama="kanan" className="size-4" />
-            </Link>
+            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+              <Link href={`/pdsa/${p.berikutnya.id}`}>
+                Siklus ke-{p.berikutnya.siklus}
+                <Ikon nama="kanan" className="size-4" />
+              </Link>
+            </Button>
           ) : (
             p.tahap === "selesai" &&
             p.bolehTulis && (
-              <Link href={`/pdsa/baru?sebelumnya=${p.id}`} className={tombolUtama}>
-                <Ikon nama="tambah" className="size-[18px]" />
-                Mulai siklus berikutnya
-              </Link>
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link href={`/pdsa/baru?sebelumnya=${p.id}`}>
+                  <Ikon nama="tambah" className="size-[18px]" />
+                  Mulai siklus berikutnya
+                </Link>
+              </Button>
             )
           )
         }

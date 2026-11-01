@@ -2,7 +2,10 @@
 
 import { useActionState } from "react";
 
-import { kelasArea, kelasPetunjuk, PesanError, tombolUtama } from "../form";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+
+import { kelasPetunjuk, PesanError } from "../form";
 import { simpanAnalisisAction } from "./actions";
 
 /** Form teks Analisis untuk satu Indikator + Lingkup + bulan. */
@@ -20,7 +23,7 @@ export function FormAnalisis(p: { indikatorId: string; unitId: string | null; bu
         Apa yang terjadi, mengapa Capaian tercapai atau tidak, dan apakah perlu Tindak Lanjut atau PDSA. Jangan menulis
         identitas pasien.
       </p>
-      <textarea
+      <Textarea
         id="teks"
         name="teks"
         rows={7}
@@ -29,12 +32,13 @@ export function FormAnalisis(p: { indikatorId: string; unitId: string | null; bu
         aria-describedby="teks-petunjuk"
         placeholder="Contoh: Capaian turun karena observasi shift malam menemukan handrub kosong di 3 ruangan…"
         defaultValue={state.nilai?.teks ?? p.teks}
-        className={`${kelasArea} text-[16px] leading-7`}
+        // Tinggi tetap 7 baris seperti sebelumnya (bawaan Textarea = tinggi mengikuti isi).
+        className="text-[16px] leading-7 sm:text-[16px]"
       />
       <PesanError pesan={state.error} />
-      <button type="submit" disabled={pending} className={tombolUtama}>
+      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
         {pending ? "Menyimpan…" : "Simpan Analisis"}
-      </button>
+      </Button>
     </form>
   );
 }

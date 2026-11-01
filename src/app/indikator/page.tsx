@@ -6,10 +6,12 @@ import { KELOMPOK, LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH } from "@/lib/indikat
 import { bolehKelolaIndikator, daftarIndikator } from "@/modules/indikator/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, tombolGaris, tombolUtama } from "../form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
 import { Ikon } from "../ikon";
 import { Pesan } from "../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman, kelasTd, kelasTh, KotakIkon, Pil, Tabel, TautanIkon } from "../ui";
+import { Halaman, Kartu, KepalaHalaman, KotakIkon, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon } from "../ui";
 
 export const metadata: Metadata = { title: "Indikator" };
 
@@ -38,10 +40,12 @@ export default async function HalamanIndikator({ searchParams }: PageProps<"/ind
         sub="INM sesuai PMK 30/2022, IMP-RS, dan IMP-Unit. Indikator nonaktif tidak muncul di isian, tetapi riwayatnya tetap ada."
         aksi={
           bolehKelolaIndikator(pengguna) && (
-            <Link href="/indikator/baru" className={tombolUtama}>
-              <Ikon nama="tambah" className="size-[18px]" />
-              Tambah IMP
-            </Link>
+            <Button asChild size="lg" className="w-full sm:w-auto">
+              <Link href="/indikator/baru">
+                <Ikon nama="tambah" className="size-[18px]" />
+                Tambah IMP
+              </Link>
+            </Button>
           )
         }
       >
@@ -49,17 +53,11 @@ export default async function HalamanIndikator({ searchParams }: PageProps<"/ind
           <label className="relative block min-w-0 sm:w-[28rem]">
             <span className="sr-only">Cari Indikator</span>
             <Ikon nama="cari" className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="search"
-              name="q"
-              defaultValue={q}
-              placeholder="Kode atau nama Indikator"
-              className={`${kelasInput} pl-10`}
-            />
+            <Input type="search" name="q" defaultValue={q} placeholder="Kode atau nama Indikator" className="pl-10" />
           </label>
-          <button type="submit" className={tombolGaris}>
+          <Button type="submit" variant="outline" size="lg">
             Cari
-          </button>
+          </Button>
           {q && (
             <Link href="/indikator" className="col-span-2 justify-self-start text-[14px] font-semibold text-primary-ink hover:underline sm:ml-2 pointer-coarse:py-2">
               Hapus pencarian
@@ -81,20 +79,20 @@ export default async function HalamanIndikator({ searchParams }: PageProps<"/ind
             <p className="px-5 pb-5 text-muted-foreground">Belum ada {kelompok}.</p>
           ) : (
             <Tabel label={`Indikator ${kelompok}`} lebarMin="min-w-[46rem]">
-              <thead>
-                <tr>
-                  <th className={kelasTh}>Indikator</th>
-                  <th className={`${kelasTh} w-56`}>Arah</th>
-                  <th className={`${kelasTh} w-32`}>Frekuensi</th>
-                  <th className={`${kelasTh} w-24`}>Satuan</th>
-                  <th className={`${kelasTh} w-40`}>PIC</th>
-                  <th className={`${kelasTh} w-20 text-right`}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Indikator</TableHead>
+                  <TableHead className="w-56">Arah</TableHead>
+                  <TableHead className="w-32">Frekuensi</TableHead>
+                  <TableHead className="w-24">Satuan</TableHead>
+                  <TableHead className="w-40">PIC</TableHead>
+                  <TableHead className="w-20 text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {baris.map((i) => (
-                  <tr key={i.id}>
-                    <td className={kelasTd}>
+                  <TableRow key={i.id}>
+                    <TableCell>
                       <span className="flex items-center gap-3">
                         <KotakIkon nada={NADA_KELOMPOK[i.kelompok]} ikon="indikator" kecil />
                         <span className="min-w-0">
@@ -107,22 +105,22 @@ export default async function HalamanIndikator({ searchParams }: PageProps<"/ind
                           <span className="font-mono text-[12px] text-muted-foreground">{i.kode}</span>
                         </span>
                       </span>
-                    </td>
-                    <td className={`${kelasTd} whitespace-nowrap`}>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <span aria-hidden className="mr-1.5 font-semibold">
                         {TANDA_ARAH[i.arah]}
                       </span>
                       {LABEL_ARAH[i.arah]}
-                    </td>
-                    <td className={kelasTd}>{LABEL_FREKUENSI[i.frekuensi]}</td>
-                    <td className={`${kelasTd} whitespace-nowrap`}>{i.satuan}</td>
-                    <td className={`${kelasTd} text-muted-foreground`}>{i.pic || "–"}</td>
-                    <td className={`${kelasTd} text-right`}>
+                    </TableCell>
+                    <TableCell>{LABEL_FREKUENSI[i.frekuensi]}</TableCell>
+                    <TableCell className="whitespace-nowrap">{i.satuan}</TableCell>
+                    <TableCell className="text-muted-foreground">{i.pic || "–"}</TableCell>
+                    <TableCell className="text-right">
                       <TautanIkon href={`/indikator/${i.id}`} ikon="lihat" label={`Detail ${i.kode}`} />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
+              </TableBody>
             </Tabel>
           )}
         </Kartu>

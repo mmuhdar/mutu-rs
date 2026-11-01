@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { cookies } from "next/headers";
 import { connection } from "next/server";
 
 import { bulanBerjalan, bulanLalu, labelBulan } from "@/lib/bulan";
@@ -71,6 +72,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             }
             namaRs={config.namaRs}
             pengguna={{ nama: pengguna.nama, peran: LABEL_PERAN[pengguna.peran] }}
+            // Sidebar desktop terbuka kecuali Pengguna menutupnya (cookie dari shadcn `SidebarProvider`).
+            bukaAwal={(await cookies()).get("sidebar_state")?.value !== "false"}
             kartu={
               bolehKelolaIndikator(pengguna)
                 ? {

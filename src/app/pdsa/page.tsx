@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import { labelPeriode } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
 import { LABEL_TAHAP_PDSA, labelLingkup, type TahapPdsa } from "@/lib/perbaikan";
 import { bolehMulaiPdsa, daftarPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { tombolUtama } from "../form";
 import { Ikon, type NamaIkon } from "../ikon";
 import { Pesan } from "../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman, kelasTd, kelasTh, KotakIkon, type Nada, Rincian, Tabel, TautanIkon, Ubin } from "../ui";
+import { Halaman, Kartu, KepalaHalaman, KotakIkon, type Nada, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon, Ubin } from "../ui";
 import { JejakTahap, LabelTahap } from "./tahap";
 
 export const metadata: Metadata = { title: "PDSA" };
@@ -29,7 +29,7 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
   const daftar = await daftarPdsa(pengguna, { semua });
   const jumlah = (tahap: TahapPdsa) => daftar.filter((p) => p.tahap === tahap).length;
   const kelasPilihan =
-    "inline-flex min-h-[34px] items-center justify-center rounded-lg px-3.5 text-[14px] font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground aria-[current=page]:bg-primary-tint aria-[current=page]:text-primary-ink";
+    "h-[34px] px-3.5 text-[14px] text-muted-foreground hover:bg-transparent aria-[current=page]:bg-primary-tint aria-[current=page]:text-primary-ink";
 
   return (
     <Halaman>
@@ -41,20 +41,26 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
             {/* Saringan di atas kartu angka: angkanya ikut saringan ini. */}
             <nav
               aria-label="Saringan status"
-              className="grid w-full grid-cols-2 gap-1 rounded-xl border border-border/70 bg-surface p-1 shadow-kartu sm:flex sm:w-auto"
+              className="grid w-full grid-cols-2 gap-1 rounded-xl border border-border/70 bg-card p-1 shadow-kartu sm:flex sm:w-auto"
             >
-              <Link href="/pdsa" aria-current={!semua ? "page" : undefined} className={kelasPilihan}>
-                Sedang berjalan
-              </Link>
-              <Link href="/pdsa?status=semua" aria-current={semua ? "page" : undefined} className={kelasPilihan}>
-                Semua
-              </Link>
+              <Button asChild variant="ghost" size="sm" className={kelasPilihan}>
+                <Link href="/pdsa" aria-current={!semua ? "page" : undefined}>
+                  Sedang berjalan
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className={kelasPilihan}>
+                <Link href="/pdsa?status=semua" aria-current={semua ? "page" : undefined}>
+                  Semua
+                </Link>
+              </Button>
             </nav>
             {bolehMulaiPdsa(pengguna) && (
-              <Link href="/pdsa/baru" className={tombolUtama}>
-                <Ikon nama="tambah" className="size-[18px]" />
-                Mulai PDSA
-              </Link>
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <Link href="/pdsa/baru">
+                  <Ikon nama="tambah" className="size-[18px]" />
+                  Mulai PDSA
+                </Link>
+              </Button>
             )}
           </>
         }
@@ -85,21 +91,21 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
           </div>
         ) : (
           <Tabel label="Daftar PDSA" lebarMin="min-w-[60rem]">
-            <thead>
-              <tr>
-                <th className={`${kelasTh} min-w-60`}>PDSA</th>
-                <th className={kelasTh}>Indikator</th>
-                <th className={kelasTh}>Lingkup</th>
-                <th className={kelasTh}>Uji coba</th>
-                <th className={kelasTh}>Kemajuan</th>
-                <th className={kelasTh}>Tahap</th>
-                <th className={`${kelasTh} text-right`}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="min-w-60">PDSA</TableHead>
+                <TableHead>Indikator</TableHead>
+                <TableHead>Lingkup</TableHead>
+                <TableHead>Uji coba</TableHead>
+                <TableHead>Kemajuan</TableHead>
+                <TableHead>Tahap</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {daftar.map((p) => (
-                <tr key={p.id}>
-                  <td className={kelasTd}>
+                <TableRow key={p.id}>
+                  <TableCell>
                     <span className="flex items-center gap-3">
                       <KotakIkon nada={p.tahap === "selesai" ? "pos" : "pdsa"} ikon="pdsa" kecil />
                       <span className="min-w-0">
@@ -109,25 +115,25 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
                         <span className="text-[13px] text-muted-foreground">siklus ke-{p.siklus}</span>
                       </span>
                     </span>
-                  </td>
-                  <td className={kelasTd}>
+                  </TableCell>
+                  <TableCell>
                     <span className="block text-[14px]">{p.indikator.nama}</span>
                     <span className="font-mono text-[12px] text-muted-foreground">{p.indikator.kode}</span>
-                  </td>
-                  <td className={`${kelasTd} whitespace-nowrap`}>{labelLingkup(p.unit)}</td>
-                  <td className={`${kelasTd} text-muted-foreground`}>{labelPeriode(p.bulanMulai, p.bulanAkhir)}</td>
-                  <td className={kelasTd}>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">{labelLingkup(p.unit)}</TableCell>
+                  <TableCell className="text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanAkhir)}</TableCell>
+                  <TableCell>
                     <JejakTahap aktif={p.tahap} />
-                  </td>
-                  <td className={kelasTd}>
+                  </TableCell>
+                  <TableCell>
                     <LabelTahap tahap={p.tahap} />
-                  </td>
-                  <td className={`${kelasTd} text-right`}>
+                  </TableCell>
+                  <TableCell className="text-right">
                     <TautanIkon href={`/pdsa/${p.id}`} ikon="lihat" label={`Buka PDSA ${p.judul}`} />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
+            </TableBody>
           </Tabel>
         )}
       </Kartu>
