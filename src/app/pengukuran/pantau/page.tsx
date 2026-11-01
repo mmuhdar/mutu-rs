@@ -8,10 +8,10 @@ import { requireUser } from "@/server/sesi";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 
 import { Kolom } from "../../form";
 import type { NamaIkon } from "../../ikon";
+import { PilihCari } from "../../pilih-cari";
 import { Halaman, Kartu, KepalaHalaman, type Nada, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon, Ubin } from "../../ui";
 import { LabelStatus, Pemberitahuan, Pesan, pesanAtau } from "../status";
 
@@ -55,15 +55,14 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
             <Input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} />
           </Kolom>
           <Kolom label="Unit" htmlFor="unit">
-            <NativeSelect id="unit" name="unit" defaultValue={unitId} className="w-full">
-              <NativeSelectOption value="">Semua Unit</NativeSelectOption>
-              {pilihanUnit.map((u) => (
-                <NativeSelectOption key={u.id} value={u.id}>
-                  {u.nama}
-                  {!u.aktif && " (nonaktif)"}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            <PilihCari
+              key={unitId}
+              id="unit"
+              nama="unit"
+              nilai={unitId}
+              cari="Cari Unit…"
+              pilihan={[{ nilai: "", label: "Semua Unit" }, ...pilihanUnit.map((u) => ({ nilai: u.id, label: `${u.nama}${u.aktif ? "" : " (nonaktif)"}` }))]}
+            />
           </Kolom>
           <Button type="submit" size="lg" className="w-full sm:w-auto">
             Tampilkan

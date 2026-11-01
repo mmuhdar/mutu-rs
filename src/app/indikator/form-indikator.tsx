@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
+import { PilihCari } from "../pilih-cari";
 import type { NamaIkon } from "../ikon";
 import { KotakIkon, type Nada } from "../ui";
 
@@ -268,23 +268,16 @@ export function FormUnitPelapor({
         <div className="sm:col-span-2">
           <Kolom label="Unit" htmlFor="unitId">
             {/* key: pilihan Unit yang ditolak tetap terpilih setelah form di-reset (lihat `pilihan` di FormIndikator). */}
-            <NativeSelect
+            <PilihCari
               key={state.nilai?.unitId}
               id="unitId"
-              name="unitId"
-              required
-              defaultValue={state.nilai?.unitId ?? ""}
-              className="w-full"
-            >
-              <NativeSelectOption value="" disabled>
-                Pilih Unit
-              </NativeSelectOption>
-              {unit.map((u) => (
-                <NativeSelectOption key={u.id} value={u.id}>
-                  {u.nama}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              nama="unitId"
+              wajib
+              nilai={state.nilai?.unitId ?? ""}
+              placeholder="Pilih Unit"
+              cari="Cari Unit…"
+              pilihan={unit.map((u) => ({ nilai: u.id, label: u.nama }))}
+            />
           </Kolom>
         </div>
         <Kolom label="Bulan mulai" htmlFor="bulanMulai">

@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
@@ -16,6 +15,7 @@ import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
 import { Kolom } from "../form";
+import { PilihCari } from "../pilih-cari";
 import { BarTarget } from "../grafik-dashboard";
 import { LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
 import { Ikon } from "../ikon";
@@ -177,14 +177,14 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
       <KepalaHalaman judul="Monitoring" sub="Tren Capaian 12 bulan dibanding Target yang berlaku setiap bulan, dari Pengukuran Terverifikasi.">
         <form method="get" className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-end">
           <Kolom label="Indikator" htmlFor="indikator">
-            <NativeSelect id="indikator" name="indikator" defaultValue={indikatorId} className="w-full">
-              {daftar.map((i) => (
-                <NativeSelectOption key={i.id} value={i.id}>
-                  {i.kode} — {i.nama}
-                  {!i.aktif && " (nonaktif)"}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            <PilihCari
+              key={indikatorId}
+              id="indikator"
+              nama="indikator"
+              nilai={indikatorId}
+              cari="Cari kode atau nama Indikator…"
+              pilihan={daftar.map((i) => ({ nilai: i.id, label: `${i.kode} — ${i.nama}${i.aktif ? "" : " (nonaktif)"}`, grup: i.kelompok }))}
+            />
           </Kolom>
           <Kolom label="Sampai bulan" htmlFor="bulan">
             <Input id="bulan" name="bulan" {...INPUT_BULAN} required max={bulanBerjalan()} defaultValue={bulan} />

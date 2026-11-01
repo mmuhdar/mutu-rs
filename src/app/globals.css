@@ -90,7 +90,7 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-sans: var(--font-plex), system-ui, sans-serif;
   --font-heading: var(--font-sans);
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 
@@ -188,8 +188,6 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     font-variant-numeric: tabular-nums;
-    /* Spasi kata Plus Jakarta Sans sempit; sedikit dilebarkan supaya kalimat panjang mudah dibaca. */
-    word-spacing: 0.06em;
   }
   @media (prefers-reduced-motion: reduce) {
     *,

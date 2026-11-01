@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import { Button } from "@/components/ui/button";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
 import { LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
@@ -12,6 +11,7 @@ import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
 import { Kolom, Segmen } from "../form";
+import { PilihCari } from "../pilih-cari";
 import { Pesan, pesanAtau } from "../pengukuran/status";
 import { Ikon } from "../ikon";
 import { Halaman, Kartu, KepalaHalaman, Ubin } from "../ui";
@@ -51,15 +51,18 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
           {/* key: pilihan saringan mengikuti alamat. */}
           <Segmen key={status} nama="status" label="Status" pilihan={PILIHAN_STATUS} nilai={status} />
           <Kolom label="Lingkup" htmlFor="unit">
-            <NativeSelect id="unit" name="unit" defaultValue={unit} className="w-full">
-              <NativeSelectOption value="">{semuaLingkup ? "Semua Lingkup" : "Semua Unit saya"}</NativeSelectOption>
-              {semuaLingkup && <NativeSelectOption value="rs">{labelLingkup(null)}</NativeSelectOption>}
-              {pilihan.map((u) => (
-                <NativeSelectOption key={u.id} value={u.id}>
-                  {labelLingkup(u)}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            <PilihCari
+              key={unit}
+              id="unit"
+              nama="unit"
+              nilai={unit}
+              cari="Cari Lingkup…"
+              pilihan={[
+                { nilai: "", label: semuaLingkup ? "Semua Lingkup" : "Semua Unit saya" },
+                ...(semuaLingkup ? [{ nilai: "rs", label: labelLingkup(null) }] : []),
+                ...pilihan.map((u) => ({ nilai: u.id, label: labelLingkup(u) })),
+              ]}
+            />
           </Kolom>
           <Button type="submit" size="lg" className="w-full sm:w-auto">
             <Ikon nama="cari" className="size-[18px]" />

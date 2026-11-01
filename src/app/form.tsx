@@ -4,8 +4,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 /*
  * Bagian form bersama di atas shadcn/ui, untuk komponen client maupun server. Isian dan tombol memakai komponen shadcn
- * langsung (`Input`, `Textarea`, `NativeSelect`, `Checkbox`, `Button` dari `@/components/ui`). Tombol utama
- * (`Button size="lg"`) satu per layar; di HP tombol form dibuat selebar penuh lewat kelas `w-full sm:w-auto`.
+ * langsung (`Input`, `Textarea`, `Checkbox`, `Button` dari `@/components/ui`); pilihan dari daftar = `PilihCari` (select
+ * dengan pencarian, `./pilih-cari`). Tombol utama (`Button size="lg"`) satu per layar; di HP tombol form dibuat selebar
+ * penuh lewat kelas `w-full sm:w-auto`.
  */
 
 export const kelasPetunjuk = "text-[13px] leading-5 text-muted-foreground";

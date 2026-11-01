@@ -4,7 +4,6 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { INPUT_BULAN } from "@/lib/bulan";
 import {
@@ -17,6 +16,7 @@ import {
 import type { PlanPdsa } from "@/modules/perbaikan/service";
 
 import { Kolom, PesanError, Segmen } from "../form";
+import { PilihCari } from "../pilih-cari";
 import { Ikon } from "../ikon";
 import { buatPdsaAction, simpanTahapPdsaAction } from "./actions";
 
@@ -84,23 +84,16 @@ export function FormPdsaBaru(p: {
         <div className="grid gap-4 md:grid-cols-2">
           <Kolom label="Indikator" htmlFor="indikatorId">
             {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
-            <NativeSelect
+            <PilihCari
               key={awal.indikatorId}
               id="indikatorId"
-              name="indikatorId"
-              required
-              defaultValue={awal.indikatorId ?? ""}
-              className="w-full"
-            >
-              <NativeSelectOption value="" disabled>
-                Pilih Indikator
-              </NativeSelectOption>
-              {p.indikator.map((i) => (
-                <NativeSelectOption key={i.id} value={i.id}>
-                  {i.label}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+              nama="indikatorId"
+              wajib
+              nilai={awal.indikatorId ?? ""}
+              placeholder="Pilih Indikator"
+              cari="Cari kode atau nama Indikator…"
+              pilihan={p.indikator.map((i) => ({ nilai: i.id, label: i.label }))}
+            />
           </Kolom>
           {p.lingkup.length <= 4 ? (
             <Segmen
@@ -113,13 +106,15 @@ export function FormPdsaBaru(p: {
             />
           ) : (
             <Kolom label="Lingkup" htmlFor="unitId">
-              <NativeSelect key={awal.unitId} id="unitId" name="unitId" defaultValue={awal.unitId} className="w-full">
-                {p.lingkup.map((l) => (
-                  <NativeSelectOption key={l.id} value={l.id}>
-                    {l.label}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+              {/* Tanpa pilihan kosong: nilai awalnya Lingkup pertama, seperti select sebelumnya. */}
+              <PilihCari
+                key={awal.unitId}
+                id="unitId"
+                nama="unitId"
+                nilai={awal.unitId ?? p.lingkup[0]?.id}
+                cari="Cari Lingkup…"
+                pilihan={p.lingkup.map((l) => ({ nilai: l.id, label: l.label }))}
+              />
             </Kolom>
           )}
         </div>

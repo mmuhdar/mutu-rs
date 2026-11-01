@@ -14,10 +14,10 @@ import { Bingkai, type ItemMenu, type KelompokMenu } from "./nav-samping";
 import "./globals.css";
 
 /*
- * Plus Jakarta Sans (variabel 400–800, Tokotype Jakarta) untuk semua teks; IBM Plex Mono hanya untuk kode Indikator.
- * Disimpan di aplikasi (lisensi OFL, `fonts/`), jadi tetap tampil di server RS tanpa internet.
+ * IBM Plex Sans (variabel 100–700) untuk semua teks; IBM Plex Mono hanya untuk kode Indikator. Disimpan di aplikasi
+ * (lisensi OFL, `fonts/`), jadi tetap tampil di server RS tanpa internet.
  */
-const jakarta = localFont({ src: "./fonts/plus-jakarta-sans-latin.woff2", weight: "400 800", variable: "--font-jakarta" });
+const plex = localFont({ src: "./fonts/ibm-plex-sans-latin.woff2", weight: "100 700", variable: "--font-plex" });
 const plexMono = localFont({ src: "./fonts/ibm-plex-mono-500-latin.woff2", weight: "500", variable: "--font-plex-mono" });
 
 export const metadata: Metadata = {
@@ -60,7 +60,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
   const pengguna = await getSessionUser();
   return (
-    <html lang="id" className={`${jakarta.variable} ${plexMono.variable}`}>
+    <html lang="id" className={`${plex.variable} ${plexMono.variable}`}>
       <body className="min-h-dvh bg-background font-sans text-[15px] leading-6 text-foreground">
         {pengguna ? (
           <Bingkai
