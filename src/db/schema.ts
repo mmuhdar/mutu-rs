@@ -20,7 +20,14 @@ import {
 
 import { ARAH, FREKUENSI, KELOMPOK, type Arah, type Frekuensi, type Kelompok } from "../lib/indikator";
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
-import { STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "../lib/perbaikan";
+import {
+  KEPUTUSAN_PDSA,
+  STATUS_TINDAK_LANJUT,
+  TAHAP_PDSA,
+  type KeputusanPdsa,
+  type StatusTindakLanjut,
+  type TahapPdsa,
+} from "../lib/perbaikan";
 import { PERAN, type Peran } from "../lib/peran";
 
 const id = () => uuid("id").primaryKey().defaultRandom();
@@ -276,5 +283,51 @@ export const tindakLanjut = pgTable(
     index("tindak_lanjut_analisis_idx").on(t.analisisId),
     check("tindak_lanjut_status_check", salahSatu(t.status, STATUS_TINDAK_LANJUT)),
     check("tindak_lanjut_catatan_check", sql`${t.status} in ('direncanakan', 'berjalan') or ${t.catatan} <> ''`),
+  ],
+);
+
+/**
+ * PDSA: siklus uji coba perbaikan untuk satu Indikator dalam satu Lingkup (unit null = RS). Isian Plan wajib sejak
+ * dibuat; Do, Study, dan Act diisi berurutan (urutan dan isian wajib diperiksa di service). Siklus berikutnya menunjuk
+ * siklus sebelumnya; satu siklus hanya punya satu siklus berikutnya.
+ */
+export const pdsa = pgTable(
+  "pdsa",
+  {
+    id: id(),
+    indikatorId: uuid("indikator_id")
+      .notNull()
+      .references(() => indikator.id),
+    unitId: uuid("unit_id").references(() => unit.id),
+    judul: varchar("judul", { length: 200 }).notNull(),
+    siklus: integer("siklus").notNull(),
+    sebelumnyaId: uuid("sebelumnya_id").references((): AnyPgColumn => pdsa.id),
+    tahap: varchar("tahap", { length: 16 }).$type<TahapPdsa>().notNull(),
+    /** Periode uji coba (keduanya termasuk), tanggal 1 bulan itu. */
+    bulanMulai: date("bulan_mulai", { mode: "string" }).notNull(),
+    bulanAkhir: date("bulan_akhir", { mode: "string" }).notNull(),
+    masalah: text("masalah").notNull(),
+    tujuan: text("tujuan").notNull(),
+    prediksi: text("prediksi").notNull(),
+    rencana: text("rencana").notNull(),
+    pelaksanaan: text("pelaksanaan").notNull().default(""),
+    hasil: text("hasil").notNull().default(""),
+    keputusan: varchar("keputusan", { length: 16 }).$type<KeputusanPdsa>(),
+    penjelasan: text("penjelasan").notNull().default(""),
+    diubahOlehId: uuid("diubah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("pdsa_indikator_idx").on(t.indikatorId),
+    uniqueIndex("pdsa_sebelumnya_unique").on(t.sebelumnyaId),
+    check("pdsa_tahap_check", salahSatu(t.tahap, TAHAP_PDSA)),
+    check("pdsa_keputusan_check", salahSatu(t.keputusan, KEPUTUSAN_PDSA)),
+    check("pdsa_siklus_check", sql`${t.siklus} >= 1`),
+    check("pdsa_bulan_mulai_check", sql`extract(day from ${t.bulanMulai}) = 1`),
+    check("pdsa_bulan_akhir_check", sql`extract(day from ${t.bulanAkhir}) = 1`),
+    check("pdsa_periode_check", sql`${t.bulanAkhir} >= ${t.bulanMulai}`),
   ],
 );

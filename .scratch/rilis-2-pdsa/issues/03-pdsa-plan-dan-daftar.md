@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Analisis)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-01, branch `rilis-2-pdsa`)
 
 - [ ] Tabel `pdsa`: Indikator, Unit (null = RS), judul, siklus, sebelumnya (unik), tahap, bulan mulai, bulan akhir, masalah, tujuan, prediksi, rencana, pelaksanaan, hasil, keputusan, penjelasan, diubah oleh, diubah pada.
 - [ ] `TAHAP_PDSA`, `KEPUTUSAN_PDSA` + label di `src/lib/perbaikan.ts`.

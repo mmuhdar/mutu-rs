@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { labelBulan } from "@/lib/bulan";
+import { labelBulan, labelPeriode } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
 import { TANDA_ARAH } from "@/lib/indikator";
@@ -11,6 +11,7 @@ import { requireUser } from "@/server/sesi";
 import { formatWaktu, kelasKartu, LabelCapaian, Pesan, pesanAtau, RincianTindakLanjut } from "../pengukuran/status";
 import { FormAnalisis } from "./form-analisis";
 import { FormTambahTindakLanjut, FormUbahTindakLanjut } from "./form-tindak-lanjut";
+import { LabelTahap } from "../pdsa/tahap";
 import { tautanAnalisis } from "./tautan";
 
 export const metadata: Metadata = { title: "Analisis" };
@@ -136,6 +137,40 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
               <p className="text-muted-foreground">Simpan Analisis dulu, lalu tambahkan Tindak Lanjut-nya di sini.</p>
             )}
           </div>
+        )}
+      </div>
+
+      <div className={kelasKartu}>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-3">
+          <div>
+            <h2 className="text-[15px] font-semibold">PDSA yang sedang berjalan</h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">Uji coba perbaikan untuk Indikator dan Lingkup ini.</p>
+          </div>
+          {a.bolehTulis && (
+            <Link
+              href={`/pdsa/baru?${new URLSearchParams({ indikator: ind.id, ...(unit ? { unit: unit.id } : {}) })}`}
+              className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2"
+            >
+              Mulai PDSA
+            </Link>
+          )}
+        </div>
+        {a.pdsa.length === 0 ? (
+          <p className="px-4 py-3 text-muted-foreground">Tidak ada PDSA yang sedang berjalan.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {a.pdsa.map((p) => (
+              <li key={p.id}>
+                <Link href={`/pdsa/${p.id}`} className="grid gap-1 px-4 py-3 hover:bg-background">
+                  <span className="font-medium">{p.judul}</span>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+                    <LabelTahap tahap={p.tahap} />
+                    siklus ke-{p.siklus} · uji coba {labelPeriode(p.bulanMulai, p.bulanAkhir)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 

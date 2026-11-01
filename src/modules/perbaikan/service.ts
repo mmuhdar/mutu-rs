@@ -1,11 +1,23 @@
-import { and, asc, eq, inArray, isNull, lt, type AnyColumn } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, ne, type AnyColumn } from "drizzle-orm";
 
 import { db } from "@/db";
-import { analisis, indikator, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
+import { analisis, indikator, pdsa, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
 import { bulanBerjalan, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan } from "@/lib/bulan";
-import { ServiceError } from "@/lib/errors";
+import { kodePg, ServiceError } from "@/lib/errors";
 import { diukurPadaBulan } from "@/lib/indikator";
-import { lewatTenggat, STATUS_TERBUKA, STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perbaikan";
+import {
+  KEPUTUSAN_PDSA,
+  LABEL_TAHAP_PDSA,
+  lewatTenggat,
+  STATUS_TERBUKA,
+  STATUS_TINDAK_LANJUT,
+  sudahDicapai,
+  tahapBerikutnya,
+  TAHAP_PDSA,
+  type KeputusanPdsa,
+  type StatusTindakLanjut,
+  type TahapIsianPdsa,
+} from "@/lib/perbaikan";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
@@ -25,6 +37,7 @@ export type KunciAnalisis = { indikatorId: string; unitId: Lingkup; bulan: strin
 const MAKS_ANALISIS = 4000;
 const MAKS_TEKS = 1000;
 const MAKS_PIC = 120;
+const MAKS_JUDUL = 200;
 
 /** Komite Mutu dan Admin Sistem menulis untuk semua Lingkup; Kepala Unit hanya Lingkup Unit-nya. */
 const PENULIS_SEMUA: readonly Peran[] = ["komiteMutu", "adminSistem"];
@@ -40,6 +53,9 @@ export const bolehBacaLingkup = (aktor: Pengguna, unitId: Lingkup) =>
 export const bolehTulisLingkup = (aktor: Pengguna, unitId: Lingkup) =>
   PENULIS_SEMUA.includes(aktor.peran) ||
   (aktor.peran === "kepalaUnit" && unitId !== null && aktor.unitIds.includes(unitId));
+
+/** Untuk tampilan (tombol "Mulai PDSA"): aktor bisa menulis pada setidaknya satu Lingkup. */
+export const bolehMulaiPdsa = (aktor: Pengguna) => PENULIS_SEMUA.includes(aktor.peran) || aktor.peran === "kepalaUnit";
 
 /** Saringan query: Lingkup yang boleh dibaca aktor (semua, atau hanya Unit miliknya; Lingkup RS tidak). */
 const saringLingkup = (aktor: Pengguna, kolomUnit: AnyColumn) =>
@@ -207,7 +223,7 @@ export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, se
     .innerJoin(pengguna, eq(pengguna.id, analisis.diubahOlehId))
     .where(analisisUntuk(l.indikator.id, k.unitId, k.bulan));
   if (!ada) await wajibBulanDinilai(db, l, k.bulan, sekarang);
-  const [tren, milik, sebelumnya] = await Promise.all([
+  const [tren, milik, sebelumnya, pdsaBerjalan] = await Promise.all([
     trenCapaian(aktor, l.indikator.id, k.bulan, sekarang),
     ada ? pilihTindakLanjut().where(eq(tindakLanjut.analisisId, ada.id)).orderBy(asc(tindakLanjut.createdAt)) : [],
     pilihTindakLanjut()
@@ -220,6 +236,7 @@ export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, se
         ),
       )
       .orderBy(asc(analisis.bulan), asc(tindakLanjut.createdAt)),
+    daftarPdsa(aktor, { indikatorId: l.indikator.id, lingkup: k.unitId }),
   ]);
   const deret = l.unit ? tren.unit.find((u) => u.unit.id === l.unit!.id)?.titik : tren.rs;
   const hari = hariIni(sekarang);
@@ -233,6 +250,8 @@ export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, se
     tindakLanjut: milik.map(denganLewat(hari)),
     /** Tindak Lanjut bulan-bulan sebelumnya (Indikator + Lingkup sama) yang masih Direncanakan atau Berjalan. */
     tindakLanjutSebelumnya: sebelumnya.map(denganLewat(hari)),
+    /** PDSA yang belum Selesai untuk Indikator + Lingkup yang sama. */
+    pdsa: pdsaBerjalan,
   };
 }
 
@@ -349,4 +368,255 @@ export async function daftarTindakLanjut(
   return baris
     .map(denganLewat(hari))
     .sort((a, b) => Number(b.lewatTenggat) - Number(a.lewatTenggat) || a.tenggat.localeCompare(b.tenggat));
+}
+
+/** Isian Plan: judul, masalah, tujuan, prediksi, rencana perubahan, dan periode uji coba ("YYYY-MM", keduanya termasuk). */
+export type PlanPdsa = {
+  judul: string;
+  masalah: string;
+  tujuan: string;
+  prediksi: string;
+  rencana: string;
+  bulanMulai: string;
+  bulanAkhir: string;
+};
+/** Isian setiap tahap PDSA. */
+export type IsianTahapPdsa = {
+  plan: PlanPdsa;
+  do: { pelaksanaan: string };
+  study: { hasil: string };
+  act: { keputusan: KeputusanPdsa; penjelasan: string };
+};
+
+function periksaPlan(isian: PlanPdsa) {
+  const data = {
+    judul: wajibTeks(isian.judul, "Judul", MAKS_JUDUL),
+    masalah: wajibTeks(isian.masalah, "Masalah", MAKS_ANALISIS),
+    tujuan: wajibTeks(isian.tujuan, "Tujuan", MAKS_ANALISIS),
+    prediksi: wajibTeks(isian.prediksi, "Prediksi", MAKS_ANALISIS),
+    rencana: wajibTeks(isian.rencana, "Rencana perubahan", MAKS_ANALISIS),
+  };
+  wajibBulan(isian.bulanMulai, "Bulan mulai uji coba tidak valid.");
+  wajibBulan(isian.bulanAkhir, "Bulan akhir uji coba tidak valid.");
+  if (isian.bulanAkhir < isian.bulanMulai) {
+    throw new ServiceError(400, "Bulan akhir uji coba tidak boleh sebelum bulan mulai.");
+  }
+  return { ...data, bulanMulai: keTanggal(isian.bulanMulai), bulanAkhir: keTanggal(isian.bulanAkhir) };
+}
+
+/** Isian wajib satu tahap, dirapikan; nilai dari form bisa diutak-atik. */
+function periksaTahap<T extends TahapIsianPdsa>(tahap: T, isian: IsianTahapPdsa[T]) {
+  const i = isian as IsianTahapPdsa[TahapIsianPdsa];
+  switch (tahap) {
+    case "plan":
+      return periksaPlan(i as PlanPdsa);
+    case "do":
+      return { pelaksanaan: wajibTeks((i as IsianTahapPdsa["do"]).pelaksanaan, "Pelaksanaan", MAKS_ANALISIS) };
+    case "study":
+      return { hasil: wajibTeks((i as IsianTahapPdsa["study"]).hasil, "Hasil", MAKS_ANALISIS) };
+    default: {
+      const { keputusan, penjelasan } = i as IsianTahapPdsa["act"];
+      if (!KEPUTUSAN_PDSA.includes(keputusan)) {
+        throw new ServiceError(400, "Pilih keputusan Act: Adopsi, Adaptasi, atau Tinggalkan.");
+      }
+      return { keputusan, penjelasan: wajibTeks(penjelasan, "Penjelasan", MAKS_ANALISIS) };
+    }
+  }
+}
+
+/**
+ * Memulai PDSA: judul dan Plan tersimpan, tahap aktif langsung Do. Indikator harus aktif; Lingkup Unit = Unit aktif
+ * yang menjadi Unit Pelapor pada bulan mulai; IMP-Unit tidak punya Lingkup RS. Dengan `sebelumnyaId` = siklus berikutnya
+ * dari PDSA yang sudah Selesai: Indikator, Lingkup, dan judul disalin dari siklus itu (isian lain diabaikan), siklus + 1.
+ */
+export async function buatPdsa(
+  aktor: Pengguna | null,
+  isian: { indikatorId: string; unitId: Lingkup; sebelumnyaId?: string } & PlanPdsa,
+) {
+  wajibPengguna(aktor);
+  return db.transaction(async (tx) => {
+    let asal = { indikatorId: isian.indikatorId, unitId: isian.unitId, judul: isian.judul, siklus: 1, sebelumnyaId: null as string | null };
+    if (isian.sebelumnyaId !== undefined) {
+      const [s] = apakahUuid(isian.sebelumnyaId)
+        ? await tx
+            .select({ id: pdsa.id, indikatorId: pdsa.indikatorId, unitId: pdsa.unitId, judul: pdsa.judul, siklus: pdsa.siklus, tahap: pdsa.tahap })
+            .from(pdsa)
+            .where(eq(pdsa.id, isian.sebelumnyaId))
+            .for("update")
+        : [];
+      if (!s) throw new ServiceError(404, "PDSA sebelumnya tidak ditemukan.");
+      wajibTulis(aktor, s.unitId);
+      if (s.tahap !== "selesai") {
+        throw new ServiceError(409, "Siklus berikutnya hanya bisa dimulai dari PDSA yang sudah Selesai.");
+      }
+      asal = { indikatorId: s.indikatorId, unitId: s.unitId, judul: s.judul, siklus: s.siklus + 1, sebelumnyaId: s.id };
+    } else {
+      wajibTulis(aktor, isian.unitId);
+    }
+    const data = periksaPlan({ ...isian, judul: asal.judul });
+    const l = await ambilLingkup(tx, asal.indikatorId, asal.unitId);
+    if (!l.indikator.aktif) throw new ServiceError(400, `Indikator ${l.indikator.kode} nonaktif, jadi tidak bisa dibuat PDSA-nya.`);
+    if (l.unit) {
+      if (!l.unit.aktif) throw new ServiceError(400, `Unit ${l.unit.nama} nonaktif, jadi tidak bisa dibuat PDSA-nya.`);
+      await wajibUnitPelapor(tx, l, isian.bulanMulai);
+    }
+    try {
+      const [baru] = await tx
+        .insert(pdsa)
+        .values({
+          ...data,
+          indikatorId: l.indikator.id,
+          unitId: l.unit?.id ?? null,
+          siklus: asal.siklus,
+          sebelumnyaId: asal.sebelumnyaId,
+          tahap: "do",
+          diubahOlehId: aktor.id,
+        })
+        .returning({ id: pdsa.id });
+      return { id: baru.id };
+    } catch (error) {
+      if (kodePg(error) === "23505") throw new ServiceError(409, "Siklus berikutnya dari PDSA ini sudah dimulai.");
+      throw error;
+    }
+  });
+}
+
+/**
+ * Menyimpan isian satu tahap PDSA yang sudah dicapai (tahap yang sudah lewat tetap bisa diperbaiki). `lanjut` hanya
+ * untuk tahap aktif: setelah isian wajibnya tersimpan, tahap aktif maju satu (Act → Selesai). Baris dikunci dulu.
+ */
+export async function simpanTahapPdsa<T extends TahapIsianPdsa>(
+  aktor: Pengguna | null,
+  id: string,
+  tahap: T,
+  isian: IsianTahapPdsa[T],
+  lanjut: boolean,
+) {
+  wajibPengguna(aktor);
+  if (!TAHAP_PDSA.includes(tahap) || tahap === ("selesai" as TahapIsianPdsa)) {
+    throw new ServiceError(400, "Tahap PDSA tidak dikenal.");
+  }
+  await db.transaction(async (tx) => {
+    const [p] = apakahUuid(id)
+      ? await tx.select({ id: pdsa.id, unitId: pdsa.unitId, tahap: pdsa.tahap }).from(pdsa).where(eq(pdsa.id, id)).for("update")
+      : [];
+    if (!p) throw new ServiceError(404, "PDSA tidak ditemukan.");
+    wajibTulis(aktor, p.unitId);
+    if (!sudahDicapai(tahap, p.tahap)) {
+      throw new ServiceError(409, `Tahap ${LABEL_TAHAP_PDSA[tahap]} belum dicapai; isi tahap ${LABEL_TAHAP_PDSA[p.tahap]} dulu.`);
+    }
+    if (lanjut && tahap !== p.tahap) {
+      throw new ServiceError(409, `Hanya tahap aktif (${LABEL_TAHAP_PDSA[p.tahap]}) yang bisa dilanjutkan.`);
+    }
+    await tx
+      .update(pdsa)
+      .set({
+        ...periksaTahap(tahap, isian),
+        ...(lanjut ? { tahap: tahapBerikutnya(tahap) } : {}),
+        diubahOlehId: aktor.id,
+        diubahPada: new Date(),
+      })
+      .where(eq(pdsa.id, p.id));
+  });
+}
+
+/** PDSA beserta Indikator, Unit (null = RS), dan pengubah terakhirnya. */
+const pilihPdsa = () =>
+  db
+    .select({
+      id: pdsa.id,
+      judul: pdsa.judul,
+      siklus: pdsa.siklus,
+      sebelumnyaId: pdsa.sebelumnyaId,
+      tahap: pdsa.tahap,
+      bulanMulai: pdsa.bulanMulai,
+      bulanAkhir: pdsa.bulanAkhir,
+      masalah: pdsa.masalah,
+      tujuan: pdsa.tujuan,
+      prediksi: pdsa.prediksi,
+      rencana: pdsa.rencana,
+      pelaksanaan: pdsa.pelaksanaan,
+      hasil: pdsa.hasil,
+      keputusan: pdsa.keputusan,
+      penjelasan: pdsa.penjelasan,
+      diubahOleh: pengguna.nama,
+      diubahPada: pdsa.diubahPada,
+      indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama, kelompok: indikator.kelompok, satuan: indikator.satuan },
+      unit: { id: unit.id, nama: unit.nama, aktif: unit.aktif },
+    })
+    .from(pdsa)
+    .innerJoin(indikator, eq(indikator.id, pdsa.indikatorId))
+    .leftJoin(unit, eq(unit.id, pdsa.unitId))
+    .innerJoin(pengguna, eq(pengguna.id, pdsa.diubahOlehId));
+
+/** Kolom bulan (tanggal 1) dikembalikan sebagai "YYYY-MM". */
+const denganBulan = <T extends { bulanMulai: string; bulanAkhir: string }>(p: T) => ({
+  ...p,
+  bulanMulai: dariTanggal(p.bulanMulai),
+  bulanAkhir: dariTanggal(p.bulanAkhir),
+});
+
+/**
+ * Detail PDSA: semua tahap, siklus sebelum/sesudahnya, dan deret Capaian untuk Study dari modul Capaian (12 bulan
+ * sampai bulan akhir uji coba, atau bulan berjalan bila uji coba belum berakhir; deret RS atau Unit Lingkup itu, kosong
+ * bila Unit itu bukan Unit Pelapor dalam rentang tersebut).
+ */
+export async function ambilPdsa(aktor: Pengguna | null, id: string, sekarang = new Date()) {
+  wajibPengguna(aktor);
+  const [baris] = apakahUuid(id) ? await pilihPdsa().where(eq(pdsa.id, id)) : [];
+  if (!baris) throw new ServiceError(404, "PDSA tidak ditemukan.");
+  const p = denganBulan(baris);
+  const unitId = p.unit?.id ?? null;
+  wajibBaca(aktor, unitId);
+  const siklus = { id: pdsa.id, siklus: pdsa.siklus };
+  const [[sebelumnya], [berikutnya], tren] = await Promise.all([
+    p.sebelumnyaId ? db.select(siklus).from(pdsa).where(eq(pdsa.id, p.sebelumnyaId)) : [],
+    db.select(siklus).from(pdsa).where(eq(pdsa.sebelumnyaId, p.id)),
+    trenCapaian(aktor, p.indikator.id, [p.bulanAkhir, bulanBerjalan(sekarang)].sort()[0], sekarang),
+  ]);
+  const study = (unitId ? tren.unit.find((u) => u.unit.id === unitId)?.titik : tren.rs) ?? [];
+  return {
+    ...p,
+    sebelumnya: sebelumnya ?? null,
+    berikutnya: berikutnya ?? null,
+    study,
+    bolehTulis: bolehTulisLingkup(aktor, unitId),
+  };
+}
+
+/**
+ * Daftar PDSA yang boleh dilihat aktor, urut kode Indikator lalu waktu dibuat. Bawaan hanya yang belum Selesai
+ * (`semua` = termasuk yang Selesai). Saringan Indikator dan Lingkup (tanpa = semua Lingkup yang boleh dilihat).
+ */
+export async function daftarPdsa(
+  aktor: Pengguna | null,
+  saringan: { semua?: boolean; indikatorId?: string; lingkup?: Lingkup } = {},
+) {
+  wajibPengguna(aktor);
+  const { lingkup, indikatorId } = saringan;
+  if (lingkup !== undefined) wajibBaca(aktor, lingkup);
+  if ((lingkup && !apakahUuid(lingkup)) || (indikatorId !== undefined && !apakahUuid(indikatorId))) return [];
+  const baris = await db
+    .select({
+      id: pdsa.id,
+      judul: pdsa.judul,
+      siklus: pdsa.siklus,
+      tahap: pdsa.tahap,
+      bulanMulai: pdsa.bulanMulai,
+      bulanAkhir: pdsa.bulanAkhir,
+      indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama },
+      unit: { id: unit.id, nama: unit.nama },
+    })
+    .from(pdsa)
+    .innerJoin(indikator, eq(indikator.id, pdsa.indikatorId))
+    .leftJoin(unit, eq(unit.id, pdsa.unitId))
+    .where(
+      and(
+        saringan.semua ? undefined : ne(pdsa.tahap, "selesai"),
+        indikatorId === undefined ? undefined : eq(pdsa.indikatorId, indikatorId),
+        lingkup === undefined ? saringLingkup(aktor, pdsa.unitId) : lingkupSama(pdsa.unitId, lingkup),
+      ),
+    )
+    .orderBy(asc(indikator.kode), asc(pdsa.createdAt));
+  return baris.map(denganBulan);
 }

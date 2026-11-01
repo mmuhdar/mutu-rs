@@ -1,0 +1,68 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { bulanBerjalan, geserBulan } from "@/lib/bulan";
+import { teksAlamat } from "@/lib/form";
+import { daftarIndikator } from "@/modules/indikator/service";
+import { ambilPdsa, bolehMulaiPdsa, bolehTulisLingkup } from "@/modules/perbaikan/service";
+import { pilihanUnit } from "@/modules/unit/service";
+import { requireUser } from "@/server/sesi";
+
+import { kelasKartu, Pesan, pesanAtau } from "../../pengukuran/status";
+import { FormPdsaBaru } from "../form-pdsa";
+
+export const metadata: Metadata = { title: "Mulai PDSA" };
+
+/**
+ * Memulai PDSA (`?indikator=&unit=` mengisi pilihan awal, unit kosong = RS) atau siklus berikutnya (`?sebelumnya=`).
+ * Pilihan Lingkup hanya yang boleh ditulis aktor; aturan lainnya diperiksa service.
+ */
+export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa/baru">) {
+  const pengguna = await requireUser();
+  if (!bolehMulaiPdsa(pengguna)) {
+    return <Pesan>Hanya Komite Mutu, Admin Sistem, dan Kepala Unit yang bisa memulai PDSA.</Pesan>;
+  }
+  const sp = await searchParams;
+  const sebelumnyaId = teksAlamat(sp, "sebelumnya");
+  const sebelumnya = sebelumnyaId ? await pesanAtau(ambilPdsa(pengguna, sebelumnyaId)) : null;
+  if (typeof sebelumnya === "string") return <Pesan>{sebelumnya}</Pesan>;
+
+  const [indikator, unit] = await Promise.all([daftarIndikator(pengguna), pilihanUnit(pengguna)]);
+  const lingkup = [
+    ...(bolehTulisLingkup(pengguna, null) ? [{ id: "", label: "Lingkup RS" }] : []),
+    ...unit.filter((u) => bolehTulisLingkup(pengguna, u.id)).map((u) => ({ id: u.id, label: `Unit ${u.nama}` })),
+  ];
+  const bulanMulai = bulanBerjalan();
+
+  return (
+    <section className="grid gap-4">
+      <div>
+        <Link href={sebelumnya ? `/pdsa/${sebelumnya.id}` : "/pdsa"} className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2">
+          ← {sebelumnya ? "PDSA sebelumnya" : "Daftar PDSA"}
+        </Link>
+        <h1 className="mt-2 text-[22px] leading-tight font-semibold tracking-[-0.02em]">
+          {sebelumnya ? `Siklus ke-${sebelumnya.siklus + 1}: ${sebelumnya.judul}` : "Mulai PDSA"}
+        </h1>
+        <p className="mt-1 max-w-prose text-[13.5px] text-muted-foreground">
+          {sebelumnya
+            ? `${sebelumnya.indikator.kode} · ${sebelumnya.unit ? `Unit ${sebelumnya.unit.nama}` : "Lingkup RS"}. Isi Plan siklus ini berdasarkan Act siklus sebelumnya.`
+            : "Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do."}
+        </p>
+      </div>
+      <div className={`${kelasKartu} p-4`}>
+        <FormPdsaBaru
+          sebelumnyaId={sebelumnya?.id}
+          indikator={indikator.filter((i) => i.aktif).map((i) => ({ id: i.id, label: `${i.kode} — ${i.nama}` }))}
+          lingkup={lingkup}
+          awal={{
+            indikatorId: teksAlamat(sp, "indikator") || undefined,
+            unitId: teksAlamat(sp, "unit") || lingkup[0]?.id,
+            judul: sebelumnya?.judul,
+            bulanMulai,
+            bulanAkhir: geserBulan(bulanMulai, 2),
+          }}
+        />
+      </div>
+    </section>
+  );
+}

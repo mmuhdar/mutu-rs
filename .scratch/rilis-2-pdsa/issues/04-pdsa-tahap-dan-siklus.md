@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 (PDSA — Plan dan daftar)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-01, branch `rilis-2-pdsa`)
 
 - [ ] `simpanTahapPdsa(aktor, id, tahap, isian, lanjut)`: tahap ≤ tahap aktif (tahap yang belum dicapai ditolak); `lanjut` hanya untuk tahap aktif dan memeriksa syarat tahap itu (lihat tabel di spec); baris dikunci `for update`.
 - [ ] Plan tetap bisa diperbaiki (termasuk bulan mulai/akhir, bulan akhir ≥ bulan mulai).

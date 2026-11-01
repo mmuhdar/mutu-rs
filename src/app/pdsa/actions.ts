@@ -1,0 +1,62 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { hasilAtauError } from "@/lib/errors";
+import { teks } from "@/lib/form";
+import type { KeputusanPdsa, TahapIsianPdsa } from "@/lib/perbaikan";
+import { buatPdsa, simpanTahapPdsa, type IsianTahapPdsa } from "@/modules/perbaikan/service";
+import { getSessionUser } from "@/server/sesi";
+
+import type { StateAnalisis } from "../analisis/actions";
+
+/** Penolakan service menjadi pesan form beserta isian yang dikirim. */
+const ditolak = (formData: FormData, error: string): StateAnalisis => ({
+  error,
+  nilai: Object.fromEntries(formData) as Record<string, string>,
+});
+
+const isianPlan = (formData: FormData) => ({
+  judul: teks(formData, "judul"),
+  masalah: teks(formData, "masalah"),
+  tujuan: teks(formData, "tujuan"),
+  prediksi: teks(formData, "prediksi"),
+  rencana: teks(formData, "rencana"),
+  bulanMulai: teks(formData, "bulanMulai"),
+  bulanAkhir: teks(formData, "bulanAkhir"),
+});
+
+/** Memulai PDSA (atau siklus berikutnya bila ada `sebelumnyaId`); sukses diarahkan ke detail PDSA. */
+export async function buatPdsaAction(_prev: StateAnalisis, formData: FormData): Promise<StateAnalisis> {
+  const hasil = await hasilAtauError(
+    buatPdsa(await getSessionUser(), {
+      indikatorId: teks(formData, "indikatorId"),
+      // "" = Lingkup RS.
+      unitId: teks(formData, "unitId") || null,
+      sebelumnyaId: teks(formData, "sebelumnyaId") || undefined,
+      ...isianPlan(formData),
+    }),
+  );
+  if ("error" in hasil) return ditolak(formData, hasil.error);
+  revalidatePath("/", "layout");
+  redirect(`/pdsa/${hasil.hasil.id}`);
+}
+
+/** Menyimpan isian satu tahap (`tahap`), lalu maju ke tahap berikutnya bila tombol `lanjut` = "ya". */
+export async function simpanTahapPdsaAction(_prev: StateAnalisis, formData: FormData): Promise<StateAnalisis> {
+  // Tahap di luar daftar ditolak service.
+  const tahap = teks(formData, "tahap") as TahapIsianPdsa;
+  const isian: IsianTahapPdsa = {
+    plan: isianPlan(formData),
+    do: { pelaksanaan: teks(formData, "pelaksanaan") },
+    study: { hasil: teks(formData, "hasil") },
+    act: { keputusan: teks(formData, "keputusan") as KeputusanPdsa, penjelasan: teks(formData, "penjelasan") },
+  };
+  const hasil = await hasilAtauError(
+    simpanTahapPdsa(await getSessionUser(), teks(formData, "id"), tahap, isian[tahap], formData.get("lanjut") === "ya"),
+  );
+  if ("error" in hasil) return ditolak(formData, hasil.error);
+  revalidatePath("/", "layout");
+  return { tersimpan: true };
+}

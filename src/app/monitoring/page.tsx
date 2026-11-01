@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
-import { formatAngka, formatCapaian } from "@/lib/capaian";
+import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
 import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import { trenCapaian, type TitikCapaian, type TrenCapaian } from "@/modules/capaian/service";
@@ -12,19 +12,9 @@ import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
 import { kelasInput, kelasKartu, LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
-import { GrafikCapaian } from "./grafik";
+import { keteranganRs, keteranganUnit, Tren } from "./grafik";
 
 export const metadata: Metadata = { title: "Monitoring" };
-
-/** Selisih Capaian terhadap Target dengan tanda: "+2", "−26,36", "0". */
-const formatSelisih = (s: number | null) => (s === null ? "–" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${formatAngka(Math.abs(s))}`);
-
-/** Keterangan Capaian RS: Kelengkapan yang belum penuh. */
-const keteranganRs = ({ kelengkapan: k }: TitikCapaian) =>
-  k.wajib === 0 ? "tidak ada Unit Pelapor" : k.terverifikasi < k.wajib ? `belum lengkap (${k.terverifikasi}/${k.wajib} Unit)` : null;
-/** Keterangan Capaian Unit: bukan Unit Pelapor, atau Pengukurannya belum Terverifikasi. */
-const keteranganUnit = ({ kelengkapan: k }: TitikCapaian) =>
-  k.wajib === 0 ? "bukan Unit Pelapor" : k.terverifikasi === 0 ? "belum Terverifikasi" : null;
 
 /** Tautan Analisis satu Lingkup pada satu titik (null = tanpa tautan), dibuat `HalamanMonitoring`. */
 type TautanTitik = (unitId: string | null, t: TitikCapaian) => React.ReactNode;
@@ -38,66 +28,6 @@ function TautanAnalisis({ href, ada }: { href: string; ada: boolean }) {
     >
       {ada ? "Analisis" : "Belum dianalisis"}
     </Link>
-  );
-}
-
-/** Grafik dan tabel satu deret Capaian (Capaian RS atau Capaian satu Unit), dengan tautan Analisis per bulan. */
-function Tren(p: {
-  judul: string;
-  keterangan: string;
-  titik: TitikCapaian[];
-  satuan: string;
-  catatan: (t: TitikCapaian) => string | null;
-  analisis: (t: TitikCapaian) => React.ReactNode;
-}) {
-  return (
-    <div className={kelasKartu}>
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="text-[15px] font-semibold">{p.judul}</h2>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">{p.keterangan}</p>
-      </div>
-      <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-2 lg:items-start">
-        <GrafikCapaian titik={p.titik} satuan={p.satuan} judul={p.judul} />
-        <div className="-mx-1.5 min-w-0 overflow-x-auto">
-          <table className="w-full border-collapse text-[13px] tabular-nums">
-            <thead>
-              <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
-                <th className="px-1.5 py-2 font-semibold">Bulan</th>
-                <th className="px-1.5 py-2 text-right font-semibold">Capaian</th>
-                <th className="px-1.5 py-2 text-right font-semibold">Target</th>
-                <th className="px-1.5 py-2 text-right font-semibold">Selisih</th>
-                <th className="px-1.5 py-2 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {p.titik.map((t) => {
-                const catatan = p.catatan(t);
-                return (
-                  <tr key={t.bulan} className="align-top">
-                    <td className="px-1.5 py-2">
-                      <span className="whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
-                      {p.analisis(t)}
-                    </td>
-                    <td className="px-1.5 py-2 text-right">
-                      <span className="whitespace-nowrap">
-                        {/* "kosong" hanya untuk ΣD = 0 dari Pengukuran Terverifikasi; tanpa Pengukuran Terverifikasi = "–". */}
-                        {t.kelengkapan.terverifikasi === 0 ? "–" : formatCapaian(t.capaian, p.satuan)}
-                      </span>
-                      {catatan && <span className="block text-[12px] text-warning">{catatan}</span>}
-                    </td>
-                    <td className="px-1.5 py-2 text-right whitespace-nowrap">{formatCapaian(t.target, p.satuan)}</td>
-                    <td className="px-1.5 py-2 text-right whitespace-nowrap">{formatSelisih(t.selisih)}</td>
-                    <td className="px-1.5 py-2">
-                      <LabelCapaian status={t.status} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
   );
 }
 
