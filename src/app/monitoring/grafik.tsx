@@ -120,7 +120,8 @@ export function GrafikCapaian({
             className={kelasSumbu}
           >
             {labelBulan(t.bulan, { pendek: true, tahun: false })}
-            {(i === 0 || t.bulan.endsWith("-01")) && (
+            {/* Tahun di bawah Januari, dan di bawah titik pertama kecuali bila titik berikutnya Januari (bertabrakan). */}
+            {(t.bulan.endsWith("-01") || (i === 0 && !titik[1]?.bulan.endsWith("-01"))) && (
               <tspan x={x(i)} dy="1.15em">
                 {t.bulan.slice(0, 4)}
               </tspan>
