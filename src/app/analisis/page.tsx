@@ -1,0 +1,109 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { labelBulan } from "@/lib/bulan";
+import { formatCapaian } from "@/lib/capaian";
+import { teksAlamat } from "@/lib/form";
+import { TANDA_ARAH } from "@/lib/indikator";
+import { ambilAnalisis } from "@/modules/perbaikan/service";
+import { requireUser } from "@/server/sesi";
+
+import { formatWaktu, kelasKartu, LabelCapaian, Pesan, pesanAtau } from "../pengukuran/status";
+import { FormAnalisis } from "./form-analisis";
+
+export const metadata: Metadata = { title: "Analisis" };
+
+/**
+ * Analisis satu Indikator dalam satu Lingkup untuk satu bulan (`unit` kosong = Lingkup RS): Capaian terkini dari modul
+ * Capaian dan teks Analisis-nya. Satu-satunya tempat menulis Analisis.
+ */
+export default async function HalamanAnalisis({ searchParams }: PageProps<"/analisis">) {
+  const pengguna = await requireUser();
+  const sp = await searchParams;
+  const kunci = {
+    indikatorId: teksAlamat(sp, "indikator"),
+    unitId: teksAlamat(sp, "unit") || null,
+    bulan: teksAlamat(sp, "bulan"),
+  };
+  // Hak baca Lingkup dan bulan yang bisa dianalisis diperiksa service.
+  const a = await pesanAtau(ambilAnalisis(pengguna, kunci));
+  if (typeof a === "string") return <Pesan>{a}</Pesan>;
+
+  const { indikator: ind, unit, capaian: c } = a;
+  const lingkup = unit ? `Unit ${unit.nama}${unit.aktif ? "" : " (nonaktif)"}` : "Lingkup RS";
+
+  return (
+    <section className="grid gap-4">
+      <div>
+        <Link
+          href={`/monitoring?${new URLSearchParams({ indikator: ind.id, bulan: a.bulan })}`}
+          className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2"
+        >
+          ← Monitoring
+        </Link>
+        <p className="mt-2 text-[13px] font-medium text-muted-foreground">
+          {ind.kode} · {ind.kelompok}
+          {!ind.aktif && " · nonaktif"}
+        </p>
+        <h1 className="text-[20px] leading-tight font-semibold tracking-[-0.02em] sm:text-[22px]">{ind.nama}</h1>
+        <p className="mt-1 font-medium">
+          Analisis {lingkup} · {labelBulan(a.bulan)}
+        </p>
+      </div>
+
+      <dl className={`${kelasKartu} grid grid-cols-2 gap-x-4 gap-y-3 p-4 sm:grid-cols-4`}>
+        <div className="min-w-0">
+          <dt className="text-[12.5px] font-medium text-muted-foreground">{unit ? "Capaian Unit" : "Capaian RS"}</dt>
+          <dd className="text-lg font-semibold tabular-nums">
+            {c && c.kelengkapan.terverifikasi > 0 ? formatCapaian(c.capaian, ind.satuan) : "–"}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[12.5px] font-medium text-muted-foreground">Target</dt>
+          <dd className="text-lg font-semibold tabular-nums">
+            {c ? `${TANDA_ARAH[ind.arah]} ${formatCapaian(c.target, ind.satuan)}` : "–"}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[12.5px] font-medium text-muted-foreground">Status Capaian</dt>
+          <dd className="mt-1">
+            <LabelCapaian status={c?.status ?? null} />
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt className="text-[12.5px] font-medium text-muted-foreground">Kelengkapan</dt>
+          <dd className="font-semibold tabular-nums">
+            {c ? `${c.kelengkapan.terverifikasi}/${c.kelengkapan.wajib} Unit` : "–"}
+            {c && c.kelengkapan.terverifikasi < c.kelengkapan.wajib && (
+              <span className="block text-[12.5px] font-normal text-warning">belum lengkap, Capaian masih sementara</span>
+            )}
+          </dd>
+        </div>
+        <p className="col-span-full text-[12.5px] text-muted-foreground">
+          Angka terkini dari Pengukuran Terverifikasi; berubah bila Pengukuran bulan ini dibuka kembali.
+        </p>
+      </dl>
+
+      <div className={`${kelasKartu} grid gap-2 p-4`}>
+        {a.bolehTulis ? (
+          <FormAnalisis
+            indikatorId={ind.id}
+            unitId={unit?.id ?? null}
+            bulan={a.bulan}
+            teks={a.analisis?.teks ?? ""}
+          />
+        ) : (
+          <>
+            <h2 className="font-semibold">Analisis</h2>
+            <p className="whitespace-pre-line">{a.analisis?.teks ?? "Belum ada Analisis untuk bulan ini."}</p>
+          </>
+        )}
+        {a.analisis && (
+          <p className="text-[13px] text-muted-foreground">
+            Terakhir diubah oleh {a.analisis.diubahOleh}, {formatWaktu(a.analisis.diubahPada)}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}

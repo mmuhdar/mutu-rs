@@ -1,42 +1,23 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
-import { formatAngka, formatCapaian, LABEL_STATUS_CAPAIAN, type StatusCapaian } from "@/lib/capaian";
+import { formatAngka, formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
 import { LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import { trenCapaian, type TitikCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
+import { analisisTersedia } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { kelasInput, kelasKartu, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
+import { tautanAnalisis } from "../analisis/tautan";
+import { kelasInput, kelasKartu, LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
 import { GrafikCapaian } from "./grafik";
 
 export const metadata: Metadata = { title: "Monitoring" };
 
 /** Selisih Capaian terhadap Target dengan tanda: "+2", "−26,36", "0". */
 const formatSelisih = (s: number | null) => (s === null ? "–" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${formatAngka(Math.abs(s))}`);
-
-const WARNA_STATUS: Record<StatusCapaian, string> = {
-  tercapai: "bg-success-soft text-success",
-  belumTercapai: "bg-danger-soft text-danger",
-};
-
-/** Status Capaian sebagai teks (warna hanya pelengkap); Capaian kosong tidak punya status. */
-function LabelCapaian({ status }: { status: StatusCapaian | null }) {
-  if (!status) {
-    return (
-      <span className="text-muted-foreground">
-        <span aria-hidden>–</span>
-        <span className="sr-only">Tanpa Status Capaian</span>
-      </span>
-    );
-  }
-  return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${WARNA_STATUS[status]}`}>
-      {LABEL_STATUS_CAPAIAN[status]}
-    </span>
-  );
-}
 
 /** Keterangan Capaian RS: Kelengkapan yang belum penuh. */
 const keteranganRs = ({ kelengkapan: k }: TitikCapaian) =>
@@ -45,13 +26,29 @@ const keteranganRs = ({ kelengkapan: k }: TitikCapaian) =>
 const keteranganUnit = ({ kelengkapan: k }: TitikCapaian) =>
   k.wajib === 0 ? "bukan Unit Pelapor" : k.terverifikasi === 0 ? "belum Terverifikasi" : null;
 
-/** Grafik dan tabel satu deret Capaian (Capaian RS atau Capaian satu Unit). */
+/** Tautan Analisis satu Lingkup pada satu titik (null = tanpa tautan), dibuat `HalamanMonitoring`. */
+type TautanTitik = (unitId: string | null, t: TitikCapaian) => React.ReactNode;
+
+/** Tautan ke Analisis: "Analisis" bila sudah ada, "Belum dianalisis" bila belum (teks, bukan warna saja). */
+function TautanAnalisis({ href, ada }: { href: string; ada: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`block text-[12px] font-medium whitespace-nowrap hover:underline pointer-coarse:py-1 ${ada ? "text-primary" : "text-warning"}`}
+    >
+      {ada ? "Analisis" : "Belum dianalisis"}
+    </Link>
+  );
+}
+
+/** Grafik dan tabel satu deret Capaian (Capaian RS atau Capaian satu Unit), dengan tautan Analisis per bulan. */
 function Tren(p: {
   judul: string;
   keterangan: string;
   titik: TitikCapaian[];
   satuan: string;
   catatan: (t: TitikCapaian) => string | null;
+  analisis: (t: TitikCapaian) => React.ReactNode;
 }) {
   return (
     <div className={kelasKartu}>
@@ -77,7 +74,10 @@ function Tren(p: {
                 const catatan = p.catatan(t);
                 return (
                   <tr key={t.bulan} className="align-top">
-                    <td className="px-1.5 py-2 whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</td>
+                    <td className="px-1.5 py-2">
+                      <span className="whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
+                      {p.analisis(t)}
+                    </td>
                     <td className="px-1.5 py-2 text-right">
                       <span className="whitespace-nowrap">
                         {/* "kosong" hanya untuk ΣD = 0 dari Pengukuran Terverifikasi; tanpa Pengukuran Terverifikasi = "–". */}
@@ -102,7 +102,7 @@ function Tren(p: {
 }
 
 /** Rincian Capaian per Unit, satu bagian per bulan (terbaru di atas dan terbuka). */
-function RincianPerUnit({ tren }: { tren: TrenCapaian }) {
+function RincianPerUnit({ tren, tautan }: { tren: TrenCapaian; tautan: TautanTitik }) {
   const { satuan } = tren.indikator;
   return (
     <div className={kelasKartu}>
@@ -139,6 +139,7 @@ function RincianPerUnit({ tren }: { tren: TrenCapaian }) {
                             <span className="block text-[12.5px] text-muted-foreground tabular-nums">
                               {t.kelengkapan.terverifikasi ? `N ${t.n} / D ${t.d}` : "belum Terverifikasi"}
                             </span>
+                            {tautan(u.id, t)}
                           </span>
                           <span className="text-right tabular-nums">
                             <span className="block whitespace-nowrap">
@@ -168,6 +169,15 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
   const daftar = await daftarIndikator(pengguna);
   const indikatorId = teksAlamat(sp, "indikator") || daftar[0]?.id;
   const tren = indikatorId ? await pesanAtau(trenCapaian(pengguna, indikatorId, bulan)) : "Belum ada Indikator.";
+  const ada =
+    typeof tren === "string"
+      ? new Set<string>()
+      : new Set((await analisisTersedia(pengguna, tren.indikator.id, tren.bulan)).map((a) => `${a.unitId}|${a.bulan}`));
+  // Bulan tanpa Unit Pelapor tidak bisa dianalisis; IMP-Unit hanya dianalisis pada Lingkup Unit Pelapor-nya.
+  const tautan: TautanTitik = (unitId, t) =>
+    typeof tren === "string" || t.kelengkapan.wajib === 0 || (unitId === null && tren.indikator.kelompok === "IMP-Unit") ? null : (
+      <TautanAnalisis href={tautanAnalisis(tren.indikator.id, unitId, t.bulan)} ada={ada.has(`${unitId}|${t.bulan}`)} />
+    );
 
   return (
     <section className="grid gap-4">
@@ -219,14 +229,14 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
               {LABEL_ARAH[tren.indikator.arah]} · {LABEL_FREKUENSI[tren.indikator.frekuensi]} · satuan {tren.indikator.satuan}
             </p>
           </div>
-          <IsiTren tren={tren} bulanAkhir={bulan} />
+          <IsiTren tren={tren} bulanAkhir={bulan} tautan={tautan} />
         </>
       )}
     </section>
   );
 }
 
-function IsiTren({ tren, bulanAkhir }: { tren: TrenCapaian; bulanAkhir: string }) {
+function IsiTren({ tren, bulanAkhir, tautan }: { tren: TrenCapaian; bulanAkhir: string; tautan: TautanTitik }) {
   const { satuan, frekuensi } = tren.indikator;
   const rentang = `${frekuensi === "semesteran" ? "Titik Juni dan Desember dalam " : ""}12 bulan sampai ${labelBulan(bulanAkhir)}`;
   // Petugas Input Data dan Kepala Unit: Capaian Unit-nya saja, tanpa Capaian RS.
@@ -240,13 +250,21 @@ function IsiTren({ tren, bulanAkhir }: { tren: TrenCapaian; bulanAkhir: string }
         titik={u.titik}
         satuan={satuan}
         catatan={keteranganUnit}
+        analisis={(t) => tautan(u.unit.id, t)}
       />
     ));
   }
   return (
     <>
-      <Tren judul="Capaian RS" keterangan={rentang} titik={tren.rs} satuan={satuan} catatan={keteranganRs} />
-      <RincianPerUnit tren={tren} />
+      <Tren
+        judul="Capaian RS"
+        keterangan={rentang}
+        titik={tren.rs}
+        satuan={satuan}
+        catatan={keteranganRs}
+        analisis={(t) => tautan(null, t)}
+      />
+      <RincianPerUnit tren={tren} tautan={tautan} />
     </>
   );
 }

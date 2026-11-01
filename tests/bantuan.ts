@@ -3,8 +3,15 @@ import { randomUUID } from "node:crypto";
 import { config } from "@/lib/config";
 import { PERAN_BER_UNIT, type Peran } from "@/lib/peran";
 import { masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
-import { tambahIndikator, type Indikator, type IndikatorBaru, type IsianIndikator } from "@/modules/indikator/service";
+import {
+  tambahIndikator,
+  tambahUnitPelapor,
+  type Indikator,
+  type IndikatorBaru,
+  type IsianIndikator,
+} from "@/modules/indikator/service";
 import { tambahPengguna } from "@/modules/pengguna/service";
+import { ajukanPengukuran, verifikasiPengukuran } from "@/modules/pengukuran/service";
 import { tambahUnit } from "@/modules/unit/service";
 
 /*
@@ -83,3 +90,18 @@ export const isianDari = (i: Indikator): IsianIndikator => ({
   frekuensi: i.frekuensi,
   pic: i.pic,
 });
+
+/** Unit baru yang menjadi Unit Pelapor Indikator mulai bulan tertentu (ditambahkan Komite Mutu). */
+export async function unitPelapor(indikatorId: string, awalan = "Unit", bulanMulai = "2026-01") {
+  const unit = await unitBaru(awalan);
+  await tambahUnitPelapor(await komiteMutu(), indikatorId, { unitId: unit.id, bulanMulai });
+  return unit;
+}
+
+/** Isi, ajukan, lalu verifikasi Pengukuran sebagai Kepala Unit baru dari Unit itu; mengembalikan id Pengukuran. */
+export async function terverifikasi(indikatorId: string, unitId: string, bulan: string, n: number, d: number) {
+  const kepala = await sebagai("kepalaUnit", [unitId]);
+  const { id } = await ajukanPengukuran(kepala, { indikatorId, unitId, bulan, n, d });
+  await verifikasiPengukuran(kepala, id);
+  return id;
+}

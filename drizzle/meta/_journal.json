@@ -50,6 +50,13 @@
       "when": 1793383203972,
       "tag": "0006_pengukuran",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793536439888,
+      "tag": "0007_analisis",
+      "breakpoints": true
     }
   ]
 }

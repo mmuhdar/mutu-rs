@@ -1,8 +1,9 @@
+import { LABEL_STATUS_CAPAIAN, type StatusCapaian } from "@/lib/capaian";
 import { config } from "@/lib/config";
 import { ServiceError } from "@/lib/errors";
 import { LABEL_STATUS_PENGUKURAN, type StatusPengukuran } from "@/lib/pengukuran";
 
-/* Bagian tampilan bersama halaman Pengukuran (server component). */
+/* Bagian tampilan bersama halaman Pengukuran, Monitoring, Dashboard, dan Perbaikan (server component). */
 
 export const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
 export const kelasInput =
@@ -104,5 +105,27 @@ export function RiwayatStatus({ riwayat }: { riwayat: Riwayat }) {
         ))}
       </ol>
     </div>
+  );
+}
+
+const WARNA_STATUS_CAPAIAN: Record<StatusCapaian, string> = {
+  tercapai: "bg-success-soft text-success",
+  belumTercapai: "bg-danger-soft text-danger",
+};
+
+/** Status Capaian sebagai teks (warna hanya pelengkap); Capaian kosong tidak punya status. */
+export function LabelCapaian({ status }: { status: StatusCapaian | null }) {
+  if (!status) {
+    return (
+      <span className="text-muted-foreground">
+        <span aria-hidden>–</span>
+        <span className="sr-only">Tanpa Status Capaian</span>
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${WARNA_STATUS_CAPAIAN[status]}`}>
+      {LABEL_STATUS_CAPAIAN[status]}
+    </span>
   );
 }

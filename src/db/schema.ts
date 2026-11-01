@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
   varchar,
@@ -216,5 +217,33 @@ export const riwayatStatusPengukuran = pgTable(
     index("riwayat_status_pengukuran_idx").on(t.pengukuranId, t.waktu),
     check("riwayat_status_pengukuran_asal_check", salahSatu(t.statusAsal, STATUS_PENGUKURAN)),
     check("riwayat_status_pengukuran_tujuan_check", salahSatu(t.statusTujuan, STATUS_PENGUKURAN)),
+  ],
+);
+
+/**
+ * Analisis: catatan tertulis tentang Capaian satu Indikator dalam satu Lingkup untuk satu bulan. Unit null = Lingkup
+ * RS. Unik per Indikator + Lingkup + bulan (null dianggap sama), jadi menulis ulang mengubah baris yang sama. Aturan
+ * bulan yang dinilai dan Lingkup diperiksa di service.
+ */
+export const analisis = pgTable(
+  "analisis",
+  {
+    id: id(),
+    indikatorId: uuid("indikator_id")
+      .notNull()
+      .references(() => indikator.id),
+    unitId: uuid("unit_id").references(() => unit.id),
+    bulan: date("bulan", { mode: "string" }).notNull(),
+    teks: text("teks").notNull(),
+    /** Pengguna yang terakhir menyimpan; diambil dari sesi. */
+    diubahOlehId: uuid("diubah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("analisis_indikator_unit_bulan_unique").on(t.indikatorId, t.unitId, t.bulan).nullsNotDistinct(),
+    check("analisis_bulan_check", sql`extract(day from ${t.bulan}) = 1`),
   ],
 );

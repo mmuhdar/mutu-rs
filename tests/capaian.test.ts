@@ -11,11 +11,10 @@ import {
   ajukanPengukuran,
   bukaKembaliPengukuran,
   simpanPengukuran,
-  verifikasiPengukuran,
 } from "@/modules/pengukuran/service";
 import { aturAktifUnit } from "@/modules/unit/service";
 
-import { adminSistem, indikatorBaru, komiteMutu, sebagai, unitBaru } from "./bantuan";
+import { adminSistem, indikatorBaru, komiteMutu, sebagai, terverifikasi, unitBaru, unitPelapor } from "./bantuan";
 
 let admin: Pengguna;
 let komite: Pengguna;
@@ -30,21 +29,6 @@ const kepalaUnit = (...unitIds: string[]) => sebagai("kepalaUnit", unitIds);
 const satuDesimal = (x: number | null | undefined) => (x == null ? x : Math.round(x * 10) / 10);
 /** Target awal IMP buatan tes berlaku mulai Januari 2026 (Target pertama juga berlaku mundur). */
 const target = (nilai: number) => ({ target: { nilai, berlakuMulai: "2026-01" } });
-
-/** Unit baru yang menjadi Unit Pelapor Indikator mulai bulan tertentu. */
-async function unitPelapor(indikatorId: string, awalan: string, bulanMulai = "2026-01") {
-  const unit = await unitBaru(awalan);
-  await tambahUnitPelapor(komite, indikatorId, { unitId: unit.id, bulanMulai });
-  return unit;
-}
-
-/** Isi, ajukan, lalu verifikasi Pengukuran sebagai Kepala Unit dari Unit itu. */
-async function terverifikasi(indikatorId: string, unitId: string, bulan: string, n: number, d: number) {
-  const kepala = await kepalaUnit(unitId);
-  const { id } = await ajukanPengukuran(kepala, { indikatorId, unitId, bulan, n, d });
-  await verifikasiPengukuran(kepala, id);
-  return id;
-}
 
 /** Titik bulan tertentu dari deret Capaian. */
 const pada = <T extends { bulan: string }>(titik: readonly T[] | null | undefined, bulan: string) =>

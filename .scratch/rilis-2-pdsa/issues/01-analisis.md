@@ -4,7 +4,7 @@
 
 **Blocked by:** –
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-01, branch `rilis-2-pdsa`)
 
 - [ ] Tabel `analisis`: Indikator, Unit (null = Lingkup RS), bulan (tanggal 1), teks, diubah oleh, diubah pada; unik Indikator + Unit + bulan (`NULLS NOT DISTINCT`).
 - [ ] `src/lib/perbaikan.ts` (konstanta bersama Rilis 2) dan modul `src/modules/perbaikan/service.ts`.
