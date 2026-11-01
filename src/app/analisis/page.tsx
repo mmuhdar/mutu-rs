@@ -8,8 +8,10 @@ import { TANDA_ARAH } from "@/lib/indikator";
 import { ambilAnalisis } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { formatWaktu, kelasKartu, LabelCapaian, Pesan, pesanAtau } from "../pengukuran/status";
+import { formatWaktu, kelasKartu, LabelCapaian, Pesan, pesanAtau, RincianTindakLanjut } from "../pengukuran/status";
 import { FormAnalisis } from "./form-analisis";
+import { FormTambahTindakLanjut, FormUbahTindakLanjut } from "./form-tindak-lanjut";
+import { tautanAnalisis } from "./tautan";
 
 export const metadata: Metadata = { title: "Analisis" };
 
@@ -31,6 +33,9 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
 
   const { indikator: ind, unit, capaian: c } = a;
   const lingkup = unit ? `Unit ${unit.nama}${unit.aktif ? "" : " (nonaktif)"}` : "Lingkup RS";
+  // Setiap perubahan Tindak Lanjut yang berhasil mengubah data ini, jadi semua form dibuat ulang dan pesan penolakan lama
+  // dari form lain hilang. Simpan Analisis tidak ikut, supaya konfirmasinya tetap terlihat.
+  const versi = JSON.stringify(a.tindakLanjut.map((t) => [t.id, t.diubahPada]));
 
   return (
     <section className="grid gap-4">
@@ -87,6 +92,7 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
       <div className={`${kelasKartu} grid gap-2 p-4`}>
         {a.bolehTulis ? (
           <FormAnalisis
+            key={versi}
             indikatorId={ind.id}
             unitId={unit?.id ?? null}
             bulan={a.bulan}
@@ -104,6 +110,58 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
           </p>
         )}
       </div>
+
+      <div className={kelasKartu}>
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-[15px] font-semibold">Tindak Lanjut</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">Tindakan perbaikan dari Analisis ini, dengan PIC dan tenggat.</p>
+        </div>
+        {a.tindakLanjut.length === 0 ? (
+          <p className="px-4 py-3 text-muted-foreground">Belum ada Tindak Lanjut.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {a.tindakLanjut.map((t) => (
+              <li key={t.id} className="grid gap-2 px-4 py-3">
+                <RincianTindakLanjut t={t} />
+                {a.bolehTulis && <FormUbahTindakLanjut key={versi} t={t} />}
+              </li>
+            ))}
+          </ul>
+        )}
+        {a.bolehTulis && (
+          <div className="border-t border-border p-4">
+            {a.analisis ? (
+              <FormTambahTindakLanjut key={versi} analisisId={a.analisis.id} />
+            ) : (
+              <p className="text-muted-foreground">Simpan Analisis dulu, lalu tambahkan Tindak Lanjut-nya di sini.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {a.tindakLanjutSebelumnya.length > 0 && (
+        <div className={kelasKartu}>
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="text-[15px] font-semibold">Tindak Lanjut bulan sebelumnya yang masih terbuka</h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              Dari Analisis {lingkup} bulan-bulan sebelumnya; statusnya diubah di Analisis bulan itu.
+            </p>
+          </div>
+          <ul className="divide-y divide-border">
+            {a.tindakLanjutSebelumnya.map((t) => (
+              <li key={t.id} className="grid gap-1 px-4 py-3">
+                <RincianTindakLanjut t={t} />
+                <Link
+                  href={tautanAnalisis(ind.id, unit?.id ?? null, t.bulan)}
+                  className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2"
+                >
+                  Analisis {labelBulan(t.bulan)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

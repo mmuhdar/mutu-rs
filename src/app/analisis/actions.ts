@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { hasilAtauError } from "@/lib/errors";
 import { teks } from "@/lib/form";
-import { simpanAnalisis } from "@/modules/perbaikan/service";
+import type { StatusTindakLanjut } from "@/lib/perbaikan";
+import { simpanAnalisis, tambahTindakLanjut, ubahTindakLanjut } from "@/modules/perbaikan/service";
 import { getSessionUser } from "@/server/sesi";
 
 /** `nilai` = isian yang dikirim, dikembalikan saat ditolak supaya form tidak kosong; `tersimpan` = konfirmasi. */
@@ -35,6 +36,28 @@ export async function simpanAnalisisAction(_prev: StateAnalisis, formData: FormD
       unitId: lingkup(formData),
       bulan: teks(formData, "bulan"),
       teks: teks(formData, "teks"),
+    }),
+  );
+}
+
+const isianTindakLanjut = (formData: FormData) => ({
+  tindakan: teks(formData, "tindakan"),
+  pic: teks(formData, "pic"),
+  tenggat: teks(formData, "tenggat"),
+});
+
+export async function tambahTindakLanjutAction(_prev: StateAnalisis, formData: FormData) {
+  return ubah(formData, tambahTindakLanjut(await getSessionUser(), teks(formData, "analisisId"), isianTindakLanjut(formData)));
+}
+
+export async function ubahTindakLanjutAction(_prev: StateAnalisis, formData: FormData) {
+  return ubah(
+    formData,
+    ubahTindakLanjut(await getSessionUser(), teks(formData, "id"), {
+      ...isianTindakLanjut(formData),
+      // Status di luar daftar ditolak service.
+      status: teks(formData, "status") as StatusTindakLanjut,
+      catatan: teks(formData, "catatan"),
     }),
   );
 }

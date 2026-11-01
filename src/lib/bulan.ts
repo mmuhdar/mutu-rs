@@ -1,13 +1,32 @@
 import { config } from "./config";
 import { ServiceError } from "./errors";
 
-/** Bulan berjalan ("YYYY-MM") menurut zona waktu konfigurasi, bukan zona waktu server. */
-export function bulanBerjalan(sekarang = new Date()): string {
-  const bagian = new Intl.DateTimeFormat("en", { timeZone: config.zonaWaktu, year: "numeric", month: "2-digit" })
-    .formatToParts(sekarang);
+/** Tanggal hari ini ("YYYY-MM-DD") menurut zona waktu konfigurasi, bukan zona waktu server. */
+export function hariIni(sekarang = new Date()): string {
+  const bagian = new Intl.DateTimeFormat("en", {
+    timeZone: config.zonaWaktu,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(sekarang);
   const ambil = (jenis: string) => bagian.find((b) => b.type === jenis)!.value;
-  return `${ambil("year")}-${ambil("month")}`;
+  return `${ambil("year")}-${ambil("month")}-${ambil("day")}`;
 }
+
+/** Bulan berjalan ("YYYY-MM") menurut zona waktu konfigurasi, bukan zona waktu server. */
+export const bulanBerjalan = (sekarang = new Date()) => hariIni(sekarang).slice(0, 7);
+
+/** Benar bila teks adalah tanggal "YYYY-MM-DD" yang ada di kalender (2026-02-30 tidak). */
+export function tanggalValid(tanggal: string) {
+  const waktu = Date.parse(`${tanggal}T00:00:00Z`);
+  return /^\d{4}-\d{2}-\d{2}$/.test(tanggal) && !Number.isNaN(waktu) && new Date(waktu).toISOString().startsWith(tanggal);
+}
+
+/** Tanggal "YYYY-MM-DD" untuk tampilan: "5 Nov 2026". */
+export const labelTanggal = (tanggal: string) =>
+  new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
+    new Date(`${tanggal}T00:00:00Z`),
+  );
 
 /** Bulan sebelum bulan berjalan ("YYYY-MM"): bulan bawaan daftar isian dan Dashboard. */
 export const bulanLalu = (sekarang = new Date()) => geserBulan(bulanBerjalan(sekarang), -1);

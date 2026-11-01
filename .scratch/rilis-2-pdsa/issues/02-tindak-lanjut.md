@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (Analisis)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-01, branch `rilis-2-pdsa`)
 
 - [ ] Tabel `tindak_lanjut`: Analisis, tindakan, PIC, tenggat (date), status (`direncanakan`, `berjalan`, `selesai`, `dibatalkan`), catatan, diubah oleh, diubah pada.
 - [ ] `hariIni()` di `src/lib/bulan.ts` menurut zona waktu konfigurasi; `bulanBerjalan()` memakainya.

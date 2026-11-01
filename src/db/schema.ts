@@ -20,6 +20,7 @@ import {
 
 import { ARAH, FREKUENSI, KELOMPOK, type Arah, type Frekuensi, type Kelompok } from "../lib/indikator";
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
+import { STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "../lib/perbaikan";
 import { PERAN, type Peran } from "../lib/peran";
 
 const id = () => uuid("id").primaryKey().defaultRandom();
@@ -245,5 +246,35 @@ export const analisis = pgTable(
   (t) => [
     unique("analisis_indikator_unit_bulan_unique").on(t.indikatorId, t.unitId, t.bulan).nullsNotDistinct(),
     check("analisis_bulan_check", sql`extract(day from ${t.bulan}) = 1`),
+  ],
+);
+
+/**
+ * Tindak Lanjut: satu tindakan perbaikan milik sebuah Analisis. Tidak pernah dihapus; yang batal berstatus Dibatalkan.
+ * Catatan = hasil (Selesai) atau alasan (Dibatalkan), wajib untuk kedua status itu.
+ */
+export const tindakLanjut = pgTable(
+  "tindak_lanjut",
+  {
+    id: id(),
+    analisisId: uuid("analisis_id")
+      .notNull()
+      .references(() => analisis.id),
+    tindakan: text("tindakan").notNull(),
+    /** Nama atau jabatan, seperti PIC Indikator; bukan akun MutuRS. */
+    pic: varchar("pic", { length: 120 }).notNull(),
+    tenggat: date("tenggat", { mode: "string" }).notNull(),
+    status: varchar("status", { length: 16 }).$type<StatusTindakLanjut>().notNull(),
+    catatan: text("catatan").notNull().default(""),
+    diubahOlehId: uuid("diubah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("tindak_lanjut_analisis_idx").on(t.analisisId),
+    check("tindak_lanjut_status_check", salahSatu(t.status, STATUS_TINDAK_LANJUT)),
+    check("tindak_lanjut_catatan_check", sql`${t.status} in ('direncanakan', 'berjalan') or ${t.catatan} <> ''`),
   ],
 );

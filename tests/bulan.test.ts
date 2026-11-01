@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { bulanBerjalan, bulanDariAlamat, bulanLalu } from "@/lib/bulan";
+import { bulanBerjalan, bulanDariAlamat, bulanLalu, hariIni, tanggalValid } from "@/lib/bulan";
 
 // Tes dijalankan dengan zona waktu Asia/Makassar (WITA, UTC+8), lihat scripts/test.sh.
 describe("bulan berjalan", () => {
@@ -15,6 +15,19 @@ describe("bulan berjalan", () => {
 
   it("sudah Januari tahun berikutnya pada 1 Januari 00.00 WITA", () => {
     assert.equal(bulanBerjalan(new Date("2026-12-31T16:00:00Z")), "2027-01");
+  });
+});
+
+describe("hari ini", () => {
+  it("mengikuti zona waktu konfigurasi: 11 Maret 00.30 WITA masih 10 Maret UTC", () => {
+    assert.equal(hariIni(new Date("2026-03-10T16:30:00Z")), "2026-03-11");
+    assert.equal(hariIni(new Date("2026-03-10T15:59:00Z")), "2026-03-10");
+  });
+
+  it("tanggal \"YYYY-MM-DD\" yang valid saja yang diterima", () => {
+    assert.equal(tanggalValid("2026-02-28"), true);
+    assert.equal(tanggalValid("2028-02-29"), true);
+    for (const t of ["2026-02-29", "2026-13-01", "2026-1-05", "05/11/2026", ""]) assert.equal(tanggalValid(t), false, t);
   });
 });
 

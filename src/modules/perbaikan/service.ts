@@ -1,10 +1,11 @@
-import { and, eq, inArray, isNull, type AnyColumn } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lt, type AnyColumn } from "drizzle-orm";
 
 import { db } from "@/db";
-import { analisis, indikator, pengguna, unit, unitPelapor } from "@/db/schema";
-import { bulanBerjalan, dariTanggal, keTanggal, labelBulan, wajibBulan } from "@/lib/bulan";
+import { analisis, indikator, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
+import { bulanBerjalan, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan } from "@/lib/indikator";
+import { lewatTenggat, STATUS_TERBUKA, STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perbaikan";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
@@ -22,6 +23,8 @@ export type Lingkup = string | null;
 export type KunciAnalisis = { indikatorId: string; unitId: Lingkup; bulan: string };
 
 const MAKS_ANALISIS = 4000;
+const MAKS_TEKS = 1000;
+const MAKS_PIC = 120;
 
 /** Komite Mutu dan Admin Sistem menulis untuk semua Lingkup; Kepala Unit hanya Lingkup Unit-nya. */
 const PENULIS_SEMUA: readonly Peran[] = ["komiteMutu", "adminSistem"];
@@ -129,13 +132,41 @@ async function wajibBulanDinilai(q: Kueri, l: DataLingkup, bulan: string, sekara
   await wajibUnitPelapor(q, l, bulan);
 }
 
+/** Kolom Lingkup (unit) sama dengan Lingkup ini; null = Lingkup RS. */
+const lingkupSama = (kolomUnit: AnyColumn, unitId: Lingkup) => (unitId === null ? isNull(kolomUnit) : eq(kolomUnit, unitId));
+
 /** Analisis milik Indikator + Lingkup + bulan "YYYY-MM". */
 const analisisUntuk = (indikatorId: string, unitId: Lingkup, bulan: string) =>
-  and(
-    eq(analisis.indikatorId, indikatorId),
-    unitId === null ? isNull(analisis.unitId) : eq(analisis.unitId, unitId),
-    eq(analisis.bulan, keTanggal(bulan)),
-  );
+  and(eq(analisis.indikatorId, indikatorId), lingkupSama(analisis.unitId, unitId), eq(analisis.bulan, keTanggal(bulan)));
+
+/** Tindak Lanjut beserta Indikator, Lingkup (unit null = RS), dan bulan Analisis-nya. */
+const pilihTindakLanjut = () =>
+  db
+    .select({
+      id: tindakLanjut.id,
+      tindakan: tindakLanjut.tindakan,
+      pic: tindakLanjut.pic,
+      tenggat: tindakLanjut.tenggat,
+      status: tindakLanjut.status,
+      catatan: tindakLanjut.catatan,
+      diubahOleh: pengguna.nama,
+      diubahPada: tindakLanjut.diubahPada,
+      bulan: analisis.bulan,
+      indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama },
+      unit: { id: unit.id, nama: unit.nama },
+    })
+    .from(tindakLanjut)
+    .innerJoin(analisis, eq(analisis.id, tindakLanjut.analisisId))
+    .innerJoin(indikator, eq(indikator.id, analisis.indikatorId))
+    .leftJoin(unit, eq(unit.id, analisis.unitId))
+    .innerJoin(pengguna, eq(pengguna.id, tindakLanjut.diubahOlehId));
+
+/** Baris `pilihTindakLanjut` untuk tampilan: bulan "YYYY-MM" dan apakah lewat tenggat pada hari ini. */
+const denganLewat = (hari: string) => (t: Awaited<ReturnType<typeof pilihTindakLanjut>>[number]) => ({
+  ...t,
+  bulan: dariTanggal(t.bulan),
+  lewatTenggat: lewatTenggat(t, hari),
+});
 
 /**
  * Menulis Analisis; menulis ulang Indikator + Lingkup + bulan yang sama mengubah Analisis yang sama. Indikator harus
@@ -176,14 +207,32 @@ export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, se
     .innerJoin(pengguna, eq(pengguna.id, analisis.diubahOlehId))
     .where(analisisUntuk(l.indikator.id, k.unitId, k.bulan));
   if (!ada) await wajibBulanDinilai(db, l, k.bulan, sekarang);
-  const tren = await trenCapaian(aktor, l.indikator.id, k.bulan, sekarang);
+  const [tren, milik, sebelumnya] = await Promise.all([
+    trenCapaian(aktor, l.indikator.id, k.bulan, sekarang),
+    ada ? pilihTindakLanjut().where(eq(tindakLanjut.analisisId, ada.id)).orderBy(asc(tindakLanjut.createdAt)) : [],
+    pilihTindakLanjut()
+      .where(
+        and(
+          eq(analisis.indikatorId, l.indikator.id),
+          lingkupSama(analisis.unitId, k.unitId),
+          lt(analisis.bulan, keTanggal(k.bulan)),
+          inArray(tindakLanjut.status, [...STATUS_TERBUKA]),
+        ),
+      )
+      .orderBy(asc(analisis.bulan), asc(tindakLanjut.createdAt)),
+  ]);
   const deret = l.unit ? tren.unit.find((u) => u.unit.id === l.unit!.id)?.titik : tren.rs;
+  const hari = hariIni(sekarang);
   return {
     ...l,
     bulan: k.bulan,
     capaian: deret?.find((t) => t.bulan === k.bulan) ?? null,
     analisis: ada ?? null,
     bolehTulis: bolehTulisLingkup(aktor, k.unitId) && l.indikator.aktif,
+    /** Tindak Lanjut milik Analisis ini. */
+    tindakLanjut: milik.map(denganLewat(hari)),
+    /** Tindak Lanjut bulan-bulan sebelumnya (Indikator + Lingkup sama) yang masih Direncanakan atau Berjalan. */
+    tindakLanjutSebelumnya: sebelumnya.map(denganLewat(hari)),
   };
 }
 
@@ -203,4 +252,101 @@ export async function analisisTersedia(aktor: Pengguna | null, indikatorId: stri
       ),
     );
   return baris.map((b) => ({ unitId: b.unitId, bulan: dariTanggal(b.bulan) }));
+}
+
+/** Tindakan, PIC, dan tenggat Tindak Lanjut dari form. */
+export type IsianTindakLanjut = { tindakan: string; pic: string; tenggat: string };
+
+function periksaTindakLanjut(isian: IsianTindakLanjut) {
+  const tindakan = wajibTeks(isian.tindakan, "Tindakan", MAKS_TEKS);
+  const pic = wajibTeks(isian.pic, "PIC", MAKS_PIC);
+  if (typeof isian.tenggat !== "string" || !tanggalValid(isian.tenggat)) {
+    throw new ServiceError(400, "Tenggat harus tanggal yang valid.");
+  }
+  return { tindakan, pic, tenggat: isian.tenggat };
+}
+
+/** Menambahkan Tindak Lanjut (status Direncanakan) ke Analisis yang sudah ada; hak tulis = Lingkup Analisis itu. */
+export async function tambahTindakLanjut(aktor: Pengguna | null, analisisId: string, isian: IsianTindakLanjut) {
+  wajibPengguna(aktor);
+  const [a] = apakahUuid(analisisId)
+    ? await db.select({ id: analisis.id, unitId: analisis.unitId }).from(analisis).where(eq(analisis.id, analisisId))
+    : [];
+  if (!a) throw new ServiceError(404, "Analisis tidak ditemukan. Simpan Analisis dulu sebelum menambah Tindak Lanjut.");
+  wajibTulis(aktor, a.unitId);
+  const [baru] = await db
+    .insert(tindakLanjut)
+    .values({ analisisId: a.id, ...periksaTindakLanjut(isian), status: "direncanakan", diubahOlehId: aktor.id })
+    .returning({ id: tindakLanjut.id });
+  return { id: baru.id };
+}
+
+/**
+ * Mengubah Tindak Lanjut, termasuk statusnya (boleh berpindah ke status mana pun). Catatan wajib saat Selesai (hasil)
+ * dan Dibatalkan (alasan). Tidak ada hapus: yang batal berstatus Dibatalkan.
+ */
+export async function ubahTindakLanjut(
+  aktor: Pengguna | null,
+  id: string,
+  isian: IsianTindakLanjut & { status: StatusTindakLanjut; catatan?: string },
+) {
+  wajibPengguna(aktor);
+  const [tl] = apakahUuid(id)
+    ? await db
+        .select({ id: tindakLanjut.id, unitId: analisis.unitId })
+        .from(tindakLanjut)
+        .innerJoin(analisis, eq(analisis.id, tindakLanjut.analisisId))
+        .where(eq(tindakLanjut.id, id))
+    : [];
+  if (!tl) throw new ServiceError(404, "Tindak Lanjut tidak ditemukan.");
+  wajibTulis(aktor, tl.unitId);
+  const data = periksaTindakLanjut(isian);
+  // Nilai dari form bisa diutak-atik.
+  if (!STATUS_TINDAK_LANJUT.includes(isian.status)) throw new ServiceError(400, "Status Tindak Lanjut tidak dikenal.");
+  const catatan = typeof isian.catatan === "string" ? isian.catatan.trim() : "";
+  if (catatan.length > MAKS_TEKS) throw new ServiceError(400, `Catatan maksimal ${MAKS_TEKS} karakter.`);
+  if (isian.status === "selesai" && !catatan) {
+    throw new ServiceError(400, "Catatan hasil wajib diisi saat Tindak Lanjut Selesai.");
+  }
+  if (isian.status === "dibatalkan" && !catatan) {
+    throw new ServiceError(400, "Alasan pembatalan wajib diisi saat Tindak Lanjut Dibatalkan.");
+  }
+  await db
+    .update(tindakLanjut)
+    .set({ ...data, status: isian.status, catatan, diubahOlehId: aktor.id, diubahPada: new Date() })
+    .where(eq(tindakLanjut.id, tl.id));
+}
+
+/** Saringan status daftar Tindak Lanjut: satu status, "terbuka" (Direncanakan + Berjalan, bawaan), atau "semua". */
+export type SaringanStatusTindakLanjut = StatusTindakLanjut | "terbuka" | "semua";
+
+/**
+ * Daftar Tindak Lanjut yang boleh dilihat aktor, disaring status (bawaan: terbuka) dan Lingkup (tanpa = semua Lingkup
+ * yang boleh dilihat; null = Lingkup RS). Yang lewat tenggat paling atas, lalu urut tenggat.
+ */
+export async function daftarTindakLanjut(
+  aktor: Pengguna | null,
+  saringan: { status?: SaringanStatusTindakLanjut; lingkup?: Lingkup } = {},
+  sekarang = new Date(),
+) {
+  wajibPengguna(aktor);
+  const status = saringan.status ?? "terbuka";
+  if (status !== "terbuka" && status !== "semua" && !STATUS_TINDAK_LANJUT.includes(status)) {
+    throw new ServiceError(400, "Saringan status tidak dikenal.");
+  }
+  const { lingkup } = saringan;
+  if (lingkup !== undefined) wajibBaca(aktor, lingkup);
+  if (lingkup && !apakahUuid(lingkup)) return [];
+  const hari = hariIni(sekarang);
+  const baris = await pilihTindakLanjut()
+    .where(
+      and(
+        status === "semua" ? undefined : inArray(tindakLanjut.status, status === "terbuka" ? [...STATUS_TERBUKA] : [status]),
+        lingkup === undefined ? saringLingkup(aktor, analisis.unitId) : lingkupSama(analisis.unitId, lingkup),
+      ),
+    )
+    .orderBy(asc(tindakLanjut.tenggat), asc(tindakLanjut.createdAt));
+  return baris
+    .map(denganLewat(hari))
+    .sort((a, b) => Number(b.lewatTenggat) - Number(a.lewatTenggat) || a.tenggat.localeCompare(b.tenggat));
 }

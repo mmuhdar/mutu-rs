@@ -1,7 +1,9 @@
 import { LABEL_STATUS_CAPAIAN, type StatusCapaian } from "@/lib/capaian";
+import { labelTanggal } from "@/lib/bulan";
 import { config } from "@/lib/config";
 import { ServiceError } from "@/lib/errors";
 import { LABEL_STATUS_PENGUKURAN, type StatusPengukuran } from "@/lib/pengukuran";
+import { LABEL_STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perbaikan";
 
 /* Bagian tampilan bersama halaman Pengukuran, Monitoring, Dashboard, dan Perbaikan (server component). */
 
@@ -127,5 +129,41 @@ export function LabelCapaian({ status }: { status: StatusCapaian | null }) {
     <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${WARNA_STATUS_CAPAIAN[status]}`}>
       {LABEL_STATUS_CAPAIAN[status]}
     </span>
+  );
+}
+
+const WARNA_TINDAK_LANJUT: Record<StatusTindakLanjut, string> = {
+  direncanakan: "border border-border bg-background",
+  berjalan: "bg-primary/10 text-primary",
+  selesai: "bg-success-soft text-success",
+  dibatalkan: "bg-background text-muted-foreground",
+};
+
+/** Isi satu Tindak Lanjut: status (+ "Lewat tenggat"), tindakan, PIC, tenggat, dan catatannya. */
+export function RincianTindakLanjut({
+  t,
+}: {
+  t: { tindakan: string; pic: string; tenggat: string; status: StatusTindakLanjut; catatan: string; lewatTenggat: boolean };
+}) {
+  return (
+    <div className="grid min-w-0 gap-1">
+      <p className="flex flex-wrap gap-1.5">
+        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${WARNA_TINDAK_LANJUT[t.status]}`}>
+          {LABEL_STATUS_TINDAK_LANJUT[t.status]}
+        </span>
+        {t.lewatTenggat && (
+          <span className="rounded bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger">Lewat tenggat</span>
+        )}
+      </p>
+      <p className="font-medium whitespace-pre-line">{t.tindakan}</p>
+      <p className="text-[13px] text-muted-foreground">
+        PIC {t.pic} · tenggat {labelTanggal(t.tenggat)}
+      </p>
+      {t.catatan && (
+        <p className="text-[13px] whitespace-pre-line">
+          {t.status === "dibatalkan" ? "Alasan" : "Catatan"}: {t.catatan}
+        </p>
+      )}
+    </div>
   );
 }
