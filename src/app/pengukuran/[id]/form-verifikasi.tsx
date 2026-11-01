@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 import type { AksiVerifikasi } from "@/lib/pengukuran";
 
 import { kelasArea, kelasLabel, kelasPetunjuk, PesanError, tombolGaris, tombolUtama } from "../../form";
+import { Ikon } from "../../ikon";
+import { kelasKartu, KotakIkon } from "../../ui";
 import { ubahStatusPengukuranAction } from "../actions";
 
 /** Nilai tombol `aksi` = kunci `PERPINDAHAN` (`src/lib/pengukuran.ts`). */
@@ -23,25 +25,33 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
       : ["bukaKembali", "Buka kembali", "Statusnya kembali Diajukan sehingga bisa dikembalikan ke Draf untuk dikoreksi."];
 
   return (
-    <section className="grid gap-4 rounded-2xl bg-ukur-tint p-5">
-      <div>
-        <h2 className="text-[18px] font-bold text-ukur-ink">Verifikasi</h2>
-        <p className="text-[14px] text-foreground/80">
-          {status === "diajukan"
-            ? "Periksa N dan D. Bila wajar, verifikasi supaya angkanya ikut dihitung dalam Capaian."
-            : "Pengukuran ini sudah Terverifikasi dan ikut dihitung dalam Capaian."}
-        </p>
+    <section className={`${kelasKartu} grid gap-4 p-5`}>
+      <div className="flex items-start gap-3.5">
+        <KotakIkon nada="ukur" ikon="verifikasi" />
+        <div className="min-w-0">
+          <h2 className="text-[16px] leading-6 font-bold">Verifikasi</h2>
+          <p className="mt-0.5 text-[14px] text-muted-foreground">
+            {status === "diajukan"
+              ? "Periksa N dan D. Bila wajar, verifikasi supaya angkanya ikut dihitung dalam Capaian."
+              : "Pengukuran ini sudah Terverifikasi dan ikut dihitung dalam Capaian."}
+          </p>
+        </div>
       </div>
       {status === "diajukan" && (
-        <form action={action}>
+        <form action={action} className="grid">
           <input type="hidden" name="id" value={id} />
           <button type="submit" name="aksi" value={VERIFIKASI} disabled={pending} className={tombolUtama}>
+            <Ikon nama="verifikasi" className="size-[18px]" />
             {pending ? "Memproses…" : "Verifikasi"}
           </button>
         </form>
       )}
-      <details className="rounded-xl bg-surface px-4 py-3">
-        <summary className="cursor-pointer font-semibold text-ukur-ink pointer-coarse:py-2">{label}</summary>
+      <details className="group rounded-xl border border-border px-4 py-3">
+        <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold pointer-coarse:py-2 [&::-webkit-details-marker]:hidden">
+          <Ikon nama="kembalikan" className="size-[18px] text-muted-foreground" />
+          <span className="flex-1">{label}</span>
+          <Ikon nama="bawah" className="size-4 text-muted-foreground group-open:rotate-180" />
+        </summary>
         <form action={action} className="mt-3 grid gap-2">
           <input type="hidden" name="id" value={id} />
           <label htmlFor="alasan" className={kelasLabel}>
@@ -61,7 +71,7 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
             onChange={(e) => setAlasan(e.target.value)}
             className={kelasArea}
           />
-          <button type="submit" name="aksi" value={aksi} disabled={pending} className={tombolGaris}>
+          <button type="submit" name="aksi" value={aksi} disabled={pending} className={`${tombolGaris} mt-1`}>
             {label}
           </button>
         </form>

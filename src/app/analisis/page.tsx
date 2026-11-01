@@ -9,11 +9,12 @@ import { labelLingkup } from "@/lib/perbaikan";
 import { ambilAnalisis } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { keteranganRs, keteranganUnit } from "../monitoring/grafik";
+import { formatSelisih, keteranganRs, keteranganUnit } from "../monitoring/grafik";
 import { LabelTahap } from "../pdsa/tahap";
 import { formatWaktu, LabelCapaian, Pesan, pesanAtau } from "../pengukuran/status";
 import { TabelTindakLanjut } from "../tindak-lanjut/tabel";
-import { BarKemajuan, Halaman, Kartu, KepalaHalaman, Ubin } from "../ui";
+import { Ikon } from "../ikon";
+import { BarKemajuan, Halaman, Kartu, KepalaHalaman, KotakIkon, Ubin } from "../ui";
 import { FormAnalisis } from "./form-analisis";
 import { FormTambahTindakLanjut, FormUbahTindakLanjut } from "./form-tindak-lanjut";
 import { tautanAnalisis } from "./tautan";
@@ -45,7 +46,7 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
   const ada = c !== null && c.kelengkapan.terverifikasi > 0;
 
   return (
-    <Halaman area="pantau">
+    <Halaman>
       <KepalaHalaman
         judul={ind.nama}
         kembali={[{ href: `/monitoring?${new URLSearchParams({ indikator: ind.id, bulan: a.bulan })}`, label: "Monitoring" }]}
@@ -55,20 +56,34 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
             {!ind.aktif && " · nonaktif"} · Analisis {lingkup} · {labelBulan(a.bulan)}
           </>
         }
-        aksi={c && <LabelCapaian status={c.status} />}
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <Ubin
           nada={c?.status === "tercapai" ? "pos" : c?.status === "belumTercapai" ? "neg" : "netral"}
+          ikon={c?.status === "tercapai" ? "centang" : c?.status === "belumTercapai" ? "peringatan" : "monitoring"}
           label={unit ? "Capaian Unit" : "Capaian RS"}
           nilai={ada ? formatCapaian(c.capaian, ind.satuan) : "–"}
-          keterangan={c?.status ? (c.status === "tercapai" ? "Tercapai" : "Belum Tercapai") : "belum ada Capaian"}
+          lencana={c?.status && <LabelCapaian status={c.status} />}
+          keterangan={
+            !c?.status
+              ? "belum ada Capaian"
+              : c.selisih === null
+                ? "selisih belum ada"
+                : `selisih ${formatSelisih(c.selisih)} ${ind.satuan} dari Target`
+          }
         />
-        <Ubin nada="pantau" label="Target" nilai={c ? `${TANDA_ARAH[ind.arah]} ${formatCapaian(c.target, ind.satuan)}` : "–"} keterangan="berlaku bulan ini" />
-        <div className="col-span-2 md:col-span-1">
+        <Ubin
+          nada="pantau"
+          ikon="target"
+          label="Target"
+          nilai={c ? `${TANDA_ARAH[ind.arah]} ${formatCapaian(c.target, ind.satuan)}` : "–"}
+          keterangan="berlaku bulan ini"
+        />
+        <div className="col-span-2 min-w-0 md:col-span-1">
           <Ubin
             nada="ukur"
+            ikon="verifikasi"
             label="Kelengkapan"
             nilai={c ? `${c.kelengkapan.terverifikasi}/${c.kelengkapan.wajib}` : "–"}
             keterangan={catatan ?? "Capaian dari Pengukuran Terverifikasi terkini"}
@@ -79,7 +94,7 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)] lg:items-start">
-        <div className="grid gap-5">
+        <div className="grid min-w-0 gap-5">
           <Kartu
             judul="Analisis"
             sub={a.analisis ? `Terakhir diubah oleh ${a.analisis.diubahOleh}, ${formatWaktu(a.analisis.diubahPada)}` : "Belum ditulis."}
@@ -93,52 +108,56 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
             </div>
           </Kartu>
 
-          <Kartu area="tindak" judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis ini, dengan PIC dan tenggat.">
+          <Kartu judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis ini, dengan PIC dan tenggat.">
             {a.tindakLanjut.length === 0 ? (
-              <p className="px-5 pb-4 text-muted-foreground">Belum ada Tindak Lanjut.</p>
+              <p className="px-5 pb-4 text-[14px] text-muted-foreground">Belum ada Tindak Lanjut.</p>
             ) : (
               <TabelTindakLanjut daftar={a.tindakLanjut} bawah={a.bolehTulis ? (t) => <FormUbahTindakLanjut key={versi} t={t} /> : undefined} />
             )}
             {a.bolehTulis && (
-              <div className="m-3 rounded-2xl bg-tindak-tint p-4">
+              <div className="mx-3 mt-2 mb-3 rounded-xl border border-border bg-head p-4 sm:p-5">
                 {a.analisis ? (
                   <FormTambahTindakLanjut key={versi} analisisId={a.analisis.id} />
                 ) : (
-                  <p className="text-tindak-ink">Simpan Analisis dulu, lalu tambahkan Tindak Lanjut-nya di sini.</p>
+                  <p className="text-[14px] text-muted-foreground">Simpan Analisis dulu, lalu tambahkan Tindak Lanjut-nya di sini.</p>
                 )}
               </div>
             )}
           </Kartu>
         </div>
 
-        <div className="grid gap-5">
+        <div className="grid min-w-0 gap-5">
           <Kartu
-            area="pdsa"
             judul="PDSA berjalan"
             sub="Uji coba perbaikan untuk Indikator dan Lingkup ini."
             aksi={
               a.bolehTulis && (
                 <Link
                   href={`/pdsa/baru?${new URLSearchParams({ indikator: ind.id, ...(unit ? { unit: unit.id } : {}) })}`}
-                  className="shrink-0 rounded-lg bg-pdsa px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-pdsa-ink"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[13px] font-semibold text-foreground hover:bg-active"
                 >
+                  <Ikon nama="tambah" className="size-4" />
                   Mulai PDSA
                 </Link>
               )
             }
           >
             {a.pdsa.length === 0 ? (
-              <p className="px-5 pb-4 text-muted-foreground">Tidak ada PDSA yang sedang berjalan.</p>
+              <p className="px-5 pb-4 text-[14px] text-muted-foreground">Tidak ada PDSA yang sedang berjalan.</p>
             ) : (
-              <ul className="grid gap-2 px-3 pb-3">
+              <ul className="grid gap-1 px-3 pb-3">
                 {a.pdsa.map((p) => (
                   <li key={p.id}>
-                    <Link href={`/pdsa/${p.id}`} className="grid gap-1.5 rounded-xl bg-pdsa-tint px-4 py-3 hover:-translate-y-0.5">
-                      <span className="font-semibold text-pdsa-ink">{p.judul}</span>
-                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-foreground/75">
-                        <LabelTahap tahap={p.tahap} />
-                        siklus ke-{p.siklus} · {labelPeriode(p.bulanMulai, p.bulanAkhir)}
+                    <Link href={`/pdsa/${p.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-active">
+                      <KotakIkon nada="pdsa" ikon="pdsa" kecil />
+                      <span className="grid min-w-0 flex-1 gap-1">
+                        <span className="font-semibold">{p.judul}</span>
+                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+                          <LabelTahap tahap={p.tahap} />
+                          siklus ke-{p.siklus} · {labelPeriode(p.bulanMulai, p.bulanAkhir)}
+                        </span>
                       </span>
+                      <Ikon nama="kanan" className="size-4 text-muted-foreground" />
                     </Link>
                   </li>
                 ))}
@@ -148,7 +167,6 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
 
           {a.tindakLanjutSebelumnya.length > 0 && (
             <Kartu
-              area="tindak"
               judul="Masih terbuka dari bulan sebelumnya"
               sub={`Tindak Lanjut Analisis ${lingkup}; statusnya diubah di Analisis bulan itu.`}
             >

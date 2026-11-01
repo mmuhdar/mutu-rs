@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
@@ -8,15 +7,22 @@ import { statusPengukuranBulan } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
 import { kelasInput, kelasLabel, tombolUtama } from "../../form";
-import { Halaman, Kartu, KepalaHalaman, Ubin, type Nada } from "../../ui";
+import type { NamaIkon } from "../../ikon";
+import { Halaman, Kartu, KepalaHalaman, kelasTd, kelasTh, type Nada, Pil, Tabel, TautanIkon, Ubin } from "../../ui";
 import { LabelStatus, Pemberitahuan, Pesan, pesanAtau } from "../status";
 
 export const metadata: Metadata = { title: "Status Pengukuran" };
 
-/** Pilihan saringan status; "belum" = Unit Pelapor yang belum mengisi. Nada ubinnya mengikuti label status. */
-const PILIHAN_STATUS: [string, string, Nada][] = [
-  ["belum", "Belum diisi", "warn"],
-  ...STATUS_PENGUKURAN.map((s): [string, string, Nada] => [s, LABEL_STATUS_PENGUKURAN[s], s === "draf" ? "netral" : s === "diajukan" ? "ukur" : "pos"]),
+/** Pilihan saringan status; "belum" = Unit Pelapor yang belum mengisi. Nada dan ikon ubinnya sama dengan daftar isian. */
+const IKON_STATUS: Record<string, [Nada, NamaIkon]> = {
+  belum: ["warn", "jam"],
+  draf: ["brand", "isi"],
+  diajukan: ["ukur", "kotakMasuk"],
+  terverifikasi: ["pos", "verifikasi"],
+};
+const PILIHAN_STATUS: [string, string, Nada, NamaIkon][] = [
+  ["belum", "Belum diisi", ...IKON_STATUS.belum],
+  ...STATUS_PENGUKURAN.map((s): [string, string, Nada, NamaIkon] => [s, LABEL_STATUS_PENGUKURAN[s], ...IKON_STATUS[s]]),
 ];
 
 /** Status semua Pengukuran pada satu bulan; ubin status sekaligus saringan (ketuk untuk menyaring). */
@@ -37,9 +43,9 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
   const alamat = (ubah: Record<string, string>) => `/pengukuran/pantau?${new URLSearchParams({ bulan, unit: unitId, status, ...ubah })}`;
 
   return (
-    <Halaman area="ukur">
+    <Halaman>
       <KepalaHalaman judul="Status Pengukuran" sub={`Semua Pengukuran di semua Unit pada ${labelBulan(bulan)}, termasuk Unit Pelapor yang belum mengisi.`}>
-        <form method="get" className="mt-5 grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)_auto] sm:items-end">
+        <form method="get" className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)_auto] sm:items-end">
           <input type="hidden" name="status" value={status} />
           <label className={`grid gap-1.5 ${kelasLabel}`}>
             Bulan
@@ -65,10 +71,11 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
 
       <Pemberitahuan>{dariAlamat.pemberitahuan}</Pemberitahuan>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {PILIHAN_STATUS.map(([nilai, label, nada]) => (
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {PILIHAN_STATUS.map(([nilai, label, nada, ikon]) => (
           <Ubin
             key={nilai}
+            ikon={ikon}
             nada={status && status !== nilai ? "netral" : nada}
             href={alamat({ status: status === nilai ? "" : nilai })}
             label={status === nilai ? `${label} · tersaring` : label}
@@ -84,45 +91,56 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
             <Pesan>Tidak ada Pengukuran yang cocok dengan saringan ini.</Pesan>
           </div>
         ) : (
-          <ul className="grid gap-1 px-3 pb-3">
-            {tampil.map((b) => {
-              const isi = (
-                <>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold">
-                      <span className="mr-2 font-mono text-[12px] font-medium text-muted-foreground">{b.indikator.kode}</span>
-                      {b.indikator.nama}
-                    </span>
-                    <span className="block text-[13px] text-muted-foreground">
-                      {b.unit.nama}
-                      {!b.unit.aktif && " (nonaktif)"}
-                    </span>
-                  </span>
-                  <LabelStatus status={b.status} />
-                </>
-              );
-              const kelas = "flex min-h-14 items-center gap-3 rounded-xl px-4 py-2.5";
-              return (
-                <li key={`${b.indikator.id}-${b.unit.id}`}>
-                  {b.id ? (
-                    <Link href={`/pengukuran/${b.id}`} className={`${kelas} hover:bg-ukur-tint`}>
-                      {isi}
-                      <span aria-hidden className="text-ukur-ink">
-                        →
+          // Di HP Unit dan status pindah ke bawah nama Indikator supaya tabel tidak perlu digeser.
+          <Tabel label="Status Pengukuran" lebarMin="min-w-0">
+            <thead>
+              <tr>
+                <th className={kelasTh}>Indikator</th>
+                <th className={`${kelasTh} max-sm:hidden`}>Unit</th>
+                <th className={`${kelasTh} max-sm:hidden`}>Status</th>
+                <th className={`${kelasTh} text-right`}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tampil.map((b) => {
+                const unit = (
+                  <>
+                    {b.unit.nama}
+                    {!b.unit.aktif && <Pil nada="netral">Nonaktif</Pil>}
+                  </>
+                );
+                return (
+                  <tr key={`${b.indikator.id}-${b.unit.id}`}>
+                    <td className={kelasTd}>
+                      <span className="block font-semibold">{b.indikator.nama}</span>
+                      <span className="font-mono text-[12px] text-muted-foreground">{b.indikator.kode}</span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
+                        {unit}
+                        <LabelStatus status={b.status} />
                       </span>
-                    </Link>
-                  ) : (
-                    <div className={kelas}>
-                      {isi}
-                      <span aria-hidden className="invisible">
-                        →
-                      </span>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                    </td>
+                    <td className={`${kelasTd} max-sm:hidden`}>
+                      <span className="flex flex-wrap items-center gap-2">{unit}</span>
+                    </td>
+                    <td className={`${kelasTd} max-sm:hidden`}>
+                      <LabelStatus status={b.status} />
+                    </td>
+                    <td className={`${kelasTd} text-right`}>
+                      {/* Unit Pelapor yang belum mengisi belum punya Pengukuran untuk dibuka. */}
+                      {b.id ? (
+                        <TautanIkon href={`/pengukuran/${b.id}`} ikon="lihat" label={`Lihat ${b.indikator.kode}, ${b.unit.nama}`} />
+                      ) : (
+                        <span className="text-muted-foreground">
+                          <span aria-hidden>–</span>
+                          <span className="sr-only">Belum ada Pengukuran</span>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Tabel>
         )}
       </Kartu>
     </Halaman>

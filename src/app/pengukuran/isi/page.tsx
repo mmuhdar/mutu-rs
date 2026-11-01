@@ -7,7 +7,7 @@ import { targetBerlaku } from "@/modules/indikator/service";
 import { ambilIsian } from "@/modules/pengukuran/service";
 import { requireUser } from "@/server/sesi";
 
-import { Halaman, Kartu, KepalaHalaman } from "../../ui";
+import { Halaman, Kartu, KepalaHalaman, KotakIkon } from "../../ui";
 import { FormPengukuran } from "../form-pengukuran";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 
@@ -27,7 +27,7 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
   const isian = await pesanAtau(ambilIsian(pengguna, kunci));
   if (typeof isian === "string") {
     return (
-      <Halaman area="ukur">
+      <Halaman>
         <KepalaHalaman judul="Isi Pengukuran" kembali={kembali} />
         <Pesan>{isian}</Pesan>
       </Halaman>
@@ -40,7 +40,7 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
   const target = await targetBerlaku(pengguna, indikator.id, isian.bulan);
 
   return (
-    <Halaman area="ukur">
+    <Halaman>
       <KepalaHalaman
         judul={indikator.nama}
         kembali={kembali}
@@ -57,12 +57,15 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
 
       <Kartu>
         <dl className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <div>
-            <dt className="text-[13px] font-semibold text-muted-foreground">Sumber Data</dt>
-            <dd className="mt-0.5 font-medium whitespace-pre-line">{indikator.sumberData}</dd>
+          <div className="flex min-w-0 items-start gap-3">
+            <KotakIkon nada="pantau" ikon="dokumen" kecil />
+            <div className="min-w-0">
+              <dt className="text-[13px] font-semibold text-muted-foreground">Sumber Data</dt>
+              <dd className="mt-0.5 font-medium whitespace-pre-line">{indikator.sumberData}</dd>
+            </div>
           </div>
-          <details>
-            <summary className="cursor-pointer text-[13px] font-semibold text-ukur-ink pointer-coarse:py-1">Definisi operasional</summary>
+          <details className="min-w-0">
+            <summary className="cursor-pointer text-[13px] font-semibold text-primary-ink pointer-coarse:py-1">Definisi operasional</summary>
             <p className="mt-2 whitespace-pre-line">{indikator.definisiOperasional}</p>
           </details>
         </dl>

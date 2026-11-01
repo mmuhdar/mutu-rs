@@ -6,6 +6,8 @@ import { formatCapaian, hitungCapaian, tercapai } from "@/lib/capaian";
 import { TANDA_ARAH, type Arah } from "@/lib/indikator";
 
 import { kelasArea, kelasLabel, kelasPetunjuk, PesanError, tombolGaris, tombolUtama } from "../form";
+import { Ikon } from "../ikon";
+import { kelasKartu, Pil } from "../ui";
 import { simpanPengukuranAction } from "./actions";
 
 /** Bilangan bulat ≥ 0 dari isian, atau null (aturan yang sama dengan server action). */
@@ -13,12 +15,12 @@ const bilanganBulat = (teks: string) => (/^\d+$/.test(teks.trim()) ? Number(teks
 
 function KolomAngka(p: { id: "n" | "d"; label: string; singkat: string; definisi: string; nilai: string; ubah: (v: string) => void }) {
   return (
-    <div className="grid min-w-0 content-start gap-2 rounded-2xl bg-ukur-tint p-4">
-      <label htmlFor={p.id} className="flex items-baseline justify-between gap-2">
-        <span className="text-[15px] font-bold text-ukur-ink">{p.label}</span>
-        <span className="text-[13px] font-semibold text-ukur-ink/70">{p.singkat}</span>
+    <div className="grid min-w-0 content-start gap-2 rounded-xl border border-border bg-head p-4">
+      <label htmlFor={p.id} className="flex items-center justify-between gap-2">
+        <span className="text-[15px] font-bold">{p.label}</span>
+        <Pil nada="ukur">{p.singkat}</Pil>
       </label>
-      <p id={`${p.id}-definisi`} className="text-[13px] leading-5 whitespace-pre-line text-foreground/80">
+      <p id={`${p.id}-definisi`} className="text-[13px] leading-5 whitespace-pre-line text-muted-foreground">
         {p.definisi}
       </p>
       <input
@@ -33,7 +35,7 @@ function KolomAngka(p: { id: "n" | "d"; label: string; singkat: string; definisi
         aria-describedby={`${p.id}-definisi`}
         value={p.nilai}
         onChange={(e) => p.ubah(e.target.value)}
-        className="h-16 w-full min-w-0 rounded-xl border border-input bg-surface px-4 text-[28px] font-bold outline-none placeholder:text-muted-foreground/50 focus-visible:border-ukur focus-visible:ring-4 focus-visible:ring-ukur/20"
+        className="h-16 w-full min-w-0 rounded-xl border border-input bg-surface px-4 text-[28px] font-bold outline-none placeholder:text-muted-foreground/50 focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15"
       />
     </div>
   );
@@ -66,7 +68,7 @@ export function FormPengukuran(p: {
   const target = `${TANDA_ARAH[p.arah]} ${formatCapaian(p.target, p.satuan)}`;
 
   return (
-    <form action={action} className="grid gap-5">
+    <form action={action} className={`${kelasKartu} grid gap-5 p-5 sm:p-6`}>
       <input type="hidden" name="indikatorId" value={p.kunci.indikatorId} />
       <input type="hidden" name="unitId" value={p.kunci.unitId} />
       <input type="hidden" name="bulan" value={p.kunci.bulan} />
@@ -76,7 +78,7 @@ export function FormPengukuran(p: {
         <KolomAngka id="d" label="Denominator" singkat="D" definisi={p.definisiDenominator} nilai={d} ubah={setD} />
         <div
           aria-live="polite"
-          className={`grid content-start gap-1 rounded-2xl p-4 ${status === null ? "bg-active" : status ? "bg-success-soft text-success-ink" : "bg-danger-soft text-danger-ink"}`}
+          className={`grid min-w-0 content-start gap-1 rounded-xl p-4 ${status === null ? "bg-active" : status ? "bg-success-soft text-success-ink" : "bg-danger-soft text-danger-ink"}`}
         >
           <p className="text-[15px] font-bold">Pratinjau Capaian</p>
           {pratinjau === null ? (
@@ -115,7 +117,8 @@ export function FormPengukuran(p: {
       </div>
 
       <PesanError pesan={state.error} />
-      <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-border bg-surface/95 px-4 py-3 sm:static sm:mx-0 sm:flex sm:justify-end sm:border-0 sm:bg-transparent sm:p-0">
+      {/* Di HP tombol menempel di bawah layar, selebar kartu. */}
+      <div className="sticky bottom-0 -mx-5 -mb-5 grid grid-cols-2 gap-2 rounded-b-2xl border-t border-border bg-surface/95 px-5 py-3 sm:static sm:m-0 sm:flex sm:justify-end sm:border-0 sm:bg-transparent sm:p-0">
         <button type="submit" name="aksi" value="simpan" disabled={pending} className={tombolGaris}>
           {pending ? "Menyimpan…" : "Simpan Draf"}
         </button>
@@ -132,7 +135,10 @@ export function FormPengukuran(p: {
           }}
           className={tombolUtama}
         >
-          Ajukan untuk Verifikasi
+          <Ikon nama="verifikasi" className="size-[18px]" />
+          {/* Label lengkap tidak muat di setengah lebar HP. */}
+          <span className="sm:hidden">Ajukan</span>
+          <span className="max-sm:hidden">Ajukan untuk Verifikasi</span>
         </button>
       </div>
     </form>

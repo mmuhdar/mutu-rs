@@ -6,7 +6,7 @@ import { LABEL_STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perba
 
 /* Bagian tampilan bersama halaman Pengukuran, Monitoring, Dashboard, dan Perbaikan (server component). */
 
-import { kelasKartu, Pil, type Nada } from "../ui";
+import { Kartu, Pil, type Nada } from "../ui";
 
 export const formatWaktu = (waktu: Date) =>
   new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: config.zonaWaktu }).format(waktu);
@@ -86,9 +86,8 @@ export function AlasanPengembalian({ status, riwayat }: { status: StatusPengukur
 export function RiwayatStatus({ riwayat }: { riwayat: Riwayat }) {
   if (riwayat.length === 0) return null;
   return (
-    <section className={kelasKartu}>
-      <h2 className="px-5 pt-4 pb-2 text-[16px] leading-6 font-semibold">Riwayat Status</h2>
-      <ol className="grid gap-0 px-5 pb-4">
+    <Kartu judul="Riwayat Status">
+      <ol className="grid gap-0 px-5 pb-5">
         {riwayat.map((r, i) => (
           <li key={i} className="relative border-l-2 border-ukur/25 pb-4 pl-5 last:pb-0">
             <span aria-hidden className="absolute top-1.5 -left-[7px] size-3 rounded-full border-2 border-surface bg-ukur" />
@@ -107,7 +106,7 @@ export function RiwayatStatus({ riwayat }: { riwayat: Riwayat }) {
           </li>
         ))}
       </ol>
-    </section>
+    </Kartu>
   );
 }
 

@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Ganti sandi" };
 export default async function HalamanSandi() {
   await requireUser();
   return (
-    <Halaman area="brand">
+    <Halaman>
       <KepalaHalaman judul="Ganti sandi" sub="Ganti sandi sementara dari Admin Sistem dengan sandi Anda sendiri." />
       <Kartu className="max-w-lg">
         <FormSandi />

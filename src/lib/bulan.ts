@@ -13,6 +13,12 @@ export function hariIni(sekarang = new Date()): string {
   return `${ambil("year")}-${ambil("month")}-${ambil("day")}`;
 }
 
+/** Salam menurut jam di zona waktu konfigurasi: pagi 04.00–10.59, siang 11.00–14.59, sore 15.00–17.59, lalu malam. */
+export function salam(sekarang = new Date()) {
+  const jam = Number(new Intl.DateTimeFormat("en-GB", { timeZone: config.zonaWaktu, hour: "2-digit", hourCycle: "h23" }).format(sekarang));
+  return jam >= 4 && jam < 11 ? "Selamat pagi" : jam >= 11 && jam < 15 ? "Selamat siang" : jam >= 15 && jam < 18 ? "Selamat sore" : "Selamat malam";
+}
+
 /** Bulan berjalan ("YYYY-MM") menurut zona waktu konfigurasi, bukan zona waktu server. */
 export const bulanBerjalan = (sekarang = new Date()) => hariIni(sekarang).slice(0, 7);
 

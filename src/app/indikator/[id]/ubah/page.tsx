@@ -13,11 +13,15 @@ export default async function HalamanUbahIndikator({ params }: PageProps<"/indik
   const { pengguna, indikator } = await muatIndikator((await params).id);
   if (!bolehKelolaIndikator(pengguna)) return <HanyaPengelola />;
   return (
-    <Halaman area="atur">
+    <Halaman>
       <KepalaHalaman
         judul={`Ubah ${indikator.nama}`}
         kembali={[{ href: `/indikator/${indikator.id}`, label: indikator.kode }]}
-        meta={`${indikator.kode} · ${indikator.kelompok}`}
+        meta={
+          <>
+            <span className="font-mono text-[13px]">{indikator.kode}</span> · {indikator.kelompok}
+          </>
+        }
         sub="Kode dan kelompok tidak bisa diubah. Target ditetapkan lewat riwayat Target."
       />
       <Kartu>

@@ -14,7 +14,8 @@ import {
 import { ambilPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { tombolUtama } from "../../form";
+import { tombolGaris, tombolUtama } from "../../form";
+import { Ikon } from "../../ikon";
 import { keteranganRs, keteranganUnit, Tren } from "../../monitoring/grafik";
 import { formatWaktu, Pesan, pesanAtau } from "../../pengukuran/status";
 import { Halaman, Kartu, KepalaHalaman } from "../../ui";
@@ -38,16 +39,20 @@ function IsiTahap(p: {
     <div className="grid gap-4">
       <dl className="grid gap-4 md:grid-cols-2">
         {p.isi.map(([label, nilai]) => (
-          <div key={label} className="rounded-2xl bg-background p-4">
-            <dt className="text-[13px] font-semibold text-pdsa-ink">{label}</dt>
-            <dd className="mt-1 whitespace-pre-line">{nilai || <span className="text-muted-foreground">–</span>}</dd>
+          <div key={label} className="min-w-0 rounded-xl border border-border bg-head px-4 py-3.5">
+            <dt className="text-[13px] font-semibold text-muted-foreground">{label}</dt>
+            <dd className="mt-1 text-[15px] leading-6 break-words whitespace-pre-line">{nilai || <span className="text-muted-foreground">–</span>}</dd>
           </div>
         ))}
       </dl>
       {p.bolehTulis && (
-        <details className="rounded-2xl border border-border px-4 py-3">
-          <summary className="cursor-pointer font-semibold text-pdsa-ink pointer-coarse:py-2">Perbaiki {LABEL_TAHAP_PDSA[p.tahap]}</summary>
-          <div className="mt-3">{p.form}</div>
+        <details className="group rounded-xl border border-border">
+          <summary className="flex cursor-pointer items-center gap-2 rounded-xl px-4 py-3 font-semibold text-primary-ink hover:bg-active">
+            <Ikon nama="isi" className="size-[18px]" />
+            Perbaiki {LABEL_TAHAP_PDSA[p.tahap]}
+            <Ikon nama="bawah" className="ml-auto size-4 text-muted-foreground group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-border px-4 pt-4 pb-4">{p.form}</div>
         </details>
       )}
     </div>
@@ -92,7 +97,7 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
   };
 
   return (
-    <Halaman area="pdsa">
+    <Halaman>
       <KepalaHalaman
         judul={p.judul}
         kembali={[
@@ -100,45 +105,48 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
           ...(p.sebelumnya ? [{ href: `/pdsa/${p.sebelumnya.id}`, label: `Siklus ke-${p.sebelumnya.siklus}` }] : []),
         ]}
         meta={
-          <>
-            <span className="font-mono text-[13px]">{p.indikator.kode}</span> {p.indikator.nama} · {lingkup} · siklus ke-{p.siklus} · uji coba{" "}
-            {labelPeriode(p.bulanMulai, p.bulanAkhir)}
-          </>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <LabelTahap tahap={p.tahap} />
+            <span>
+              <span className="font-mono text-[13px]">{p.indikator.kode}</span> {p.indikator.nama} · {lingkup} · siklus ke-{p.siklus} · uji
+              coba {labelPeriode(p.bulanMulai, p.bulanAkhir)}
+            </span>
+          </span>
         }
         sub={`Terakhir diubah oleh ${p.diubahOleh}, ${formatWaktu(p.diubahPada)}.`}
         aksi={
-          <>
-            <LabelTahap tahap={p.tahap} />
-            {p.berikutnya && (
-              <Link href={`/pdsa/${p.berikutnya.id}`} className="text-[14px] font-semibold text-pdsa-ink hover:underline">
-                Siklus ke-{p.berikutnya.siklus} →
+          p.berikutnya ? (
+            <Link href={`/pdsa/${p.berikutnya.id}`} className={tombolGaris}>
+              Siklus ke-{p.berikutnya.siklus}
+              <Ikon nama="kanan" className="size-4" />
+            </Link>
+          ) : (
+            p.tahap === "selesai" &&
+            p.bolehTulis && (
+              <Link href={`/pdsa/baru?sebelumnya=${p.id}`} className={tombolUtama}>
+                <Ikon nama="tambah" className="size-[18px]" />
+                Mulai siklus berikutnya
               </Link>
-            )}
-          </>
+            )
+          )
         }
       />
 
       <TabTahap id={p.id} aktif={p.tahap} dipilih={dipilih} />
 
-      {dipilih === "study" && (
-        <Kartu>
-          <div className="p-5">
-            {p.study.length === 0 ? (
-              <Pesan>Belum ada data Capaian {lingkup} dalam 12 bulan ini.</Pesan>
-            ) : (
-              <Tren
-                judul={p.unit ? `Capaian ${lingkup}` : "Capaian RS"}
-                keterangan={`12 bulan sampai ${labelBulan(p.study.at(-1)!.bulan)}; periode uji coba disorot.`}
-                titik={p.study}
-                satuan={p.indikator.satuan}
-                catatan={p.unit ? keteranganUnit : keteranganRs}
-                sorot={{ mulai: p.bulanMulai, akhir: p.bulanAkhir }}
-                polos
-              />
-            )}
-          </div>
-        </Kartu>
-      )}
+      {dipilih === "study" &&
+        (p.study.length === 0 ? (
+          <Pesan>Belum ada data Capaian {lingkup} dalam 12 bulan ini.</Pesan>
+        ) : (
+          <Tren
+            judul={p.unit ? `Capaian ${lingkup}` : "Capaian RS"}
+            keterangan={`12 bulan sampai ${labelBulan(p.study.at(-1)!.bulan)}; periode uji coba disorot.`}
+            titik={p.study}
+            satuan={p.indikator.satuan}
+            catatan={p.unit ? keteranganUnit : keteranganRs}
+            sorot={{ mulai: p.bulanMulai, akhir: p.bulanAkhir }}
+          />
+        ))}
 
       <Kartu judul={JUDUL[dipilih]} sub={p.tahap === dipilih ? "Tahap yang sedang diisi." : undefined}>
         <div className="px-5 pb-5">
@@ -152,12 +160,6 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
           />
         </div>
       </Kartu>
-
-      {p.tahap === "selesai" && p.bolehTulis && !p.berikutnya && (
-        <Link href={`/pdsa/baru?sebelumnya=${p.id}`} className={tombolUtama}>
-          Mulai siklus berikutnya
-        </Link>
-      )}
     </Halaman>
   );
 }

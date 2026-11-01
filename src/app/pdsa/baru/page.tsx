@@ -36,7 +36,7 @@ export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa
   const bulanMulai = bulanBerjalan();
 
   return (
-    <Halaman area="pdsa">
+    <Halaman>
       <KepalaHalaman
         judul={sebelumnya ? `Siklus ke-${sebelumnya.siklus + 1}: ${sebelumnya.judul}` : "Mulai PDSA"}
         kembali={[{ href: sebelumnya ? `/pdsa/${sebelumnya.id}` : "/pdsa", label: sebelumnya ? "PDSA sebelumnya" : "Daftar PDSA" }]}

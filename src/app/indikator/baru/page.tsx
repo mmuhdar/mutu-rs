@@ -14,7 +14,7 @@ export default async function HalamanTambahIndikator() {
   const pengguna = await requireUser();
   if (!bolehKelolaIndikator(pengguna)) return <HanyaPengelola />;
   return (
-    <Halaman area="atur">
+    <Halaman>
       <KepalaHalaman judul="Tambah IMP" kembali={[{ href: "/indikator", label: "Indikator" }]} sub="IMP-RS atau IMP-Unit beserta Target awalnya." />
       <Kartu>
         <div className="p-5">

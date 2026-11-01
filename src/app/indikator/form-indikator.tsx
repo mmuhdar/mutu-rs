@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { kelasArea, kelasInput, kelasLabel, kelasPetunjuk, Kolom, PesanError, Segmen, tombolGaris, tombolUtama } from "../form";
+import type { NamaIkon } from "../ikon";
+import { KotakIkon, type Nada } from "../ui";
 
 import { INPUT_BULAN } from "@/lib/bulan";
 import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
@@ -19,9 +21,21 @@ import {
   ubahIndikatorAction,
 } from "./actions";
 
-/** Bagian form berwarna pucat area (Pengaturan): mengelompokkan isian yang berhubungan. */
-const kelasBagian = "grid gap-4 rounded-2xl bg-area-tint/60 p-4 sm:p-5";
-const judulBagian = "text-[15px] font-bold text-area-ink";
+/** Bagian form bertepi: mengelompokkan isian yang berhubungan, judulnya diberi kotak ikon kecil. */
+const kelasBagian = "grid min-w-0 gap-4 rounded-2xl border border-border p-4 sm:p-5";
+
+function JudulBagian({ nada, ikon, children }: { nada: Nada; ikon: NamaIkon; children: React.ReactNode }) {
+  return (
+    <span className="flex items-center gap-3 text-[16px] font-bold">
+      <KotakIkon nada={nada} ikon={ikon} kecil />
+      {children}
+    </span>
+  );
+}
+
+/** Tombol kecil bertepi untuk aksi satu baris (Akhiri, Hapus). */
+const tombolBaris =
+  "inline-flex h-9 cursor-pointer items-center rounded-lg border border-border bg-surface px-3 text-[13px] font-semibold hover:bg-active disabled:opacity-60 pointer-coarse:h-11";
 
 /**
  * Formulir tambah IMP (tanpa `indikator`) atau ubah Indikator. Kode, kelompok, dan Target awal hanya diisi saat
@@ -32,7 +46,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
   const [state, action, pending] = useActionState(indikator ? ubahIndikatorAction : tambahIndikatorAction, {});
   const awal = (nama: keyof Indikator, bawaan = "") => state.nilai?.[nama] ?? String(indikator?.[nama] ?? bawaan);
   const kunci = (nama: keyof Indikator) => terkunci && nama in FIELD_CARA_HITUNG;
-  const kelasKunci = (nama: keyof Indikator) => (kunci(nama) ? " bg-background text-muted-foreground" : "");
+  const kelasKunci = (nama: keyof Indikator) => (kunci(nama) ? " bg-active! text-muted-foreground" : "");
 
   const teks = (nama: keyof Indikator, label: string, petunjuk?: string) => (
     <Kolom label={label} htmlFor={nama} petunjuk={petunjuk}>
@@ -74,7 +88,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
         <p className="rounded-2xl border border-warning-border bg-warning-soft px-4 py-3 text-[14px]">
           <strong className="font-semibold">Cara hitung terkunci.</strong> Indikator ini sudah punya Pengukuran, jadi faktor, satuan, Arah,
           definisi N dan D, serta Frekuensi tidak bisa diubah supaya tren tidak mencampur dua cara hitung. Untuk mengubahnya,{" "}
-          <Link href="/indikator/baru" className="font-semibold text-area-ink hover:underline">
+          <Link href="/indikator/baru" className="font-semibold text-primary-ink hover:underline">
             buat Indikator baru
           </Link>{" "}
           lalu nonaktifkan Indikator ini. Nama, definisi operasional, Sumber Data, dan PIC tetap bisa diubah.
@@ -104,7 +118,11 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
         <input id="nama" name="nama" required maxLength={200} defaultValue={awal("nama")} className={kelasInput} />
       </Kolom>
       <div className={kelasBagian}>
-        <p className={judulBagian}>Definisi</p>
+        <p>
+          <JudulBagian nada="brand" ikon="dokumen">
+            Definisi
+          </JudulBagian>
+        </p>
         {teks("definisiOperasional", "Definisi operasional", "Termasuk kriteria eksklusi.")}
         <div className="grid gap-4 md:grid-cols-2">
           {teks("definisiNumerator", "Definisi Numerator (N)")}
@@ -113,7 +131,11 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
         {teks("sumberData", "Sumber Data", "Asal data N dan D, mis. rekam medis atau lembar observasi.")}
       </div>
       <div className={`${kelasBagian} sm:grid-cols-2`}>
-        <p className={`${judulBagian} sm:col-span-2`}>Cara hitung</p>
+        <p className="sm:col-span-2">
+          <JudulBagian nada="ukur" ikon="monitoring">
+            Cara hitung
+          </JudulBagian>
+        </p>
         <Kolom label="Faktor" htmlFor="faktor" petunjuk="Capaian = N/D × faktor: 100 persen, 1 rata-rata, 1000 per seribu.">
           <input
             id="faktor"
@@ -144,7 +166,11 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
       </Kolom>
       {!indikator && (
         <fieldset className={`${kelasBagian} sm:grid-cols-2`}>
-          <legend className={`${judulBagian} float-left w-full sm:col-span-2`}>Target awal</legend>
+          <legend className="float-left w-full sm:col-span-2">
+            <JudulBagian nada="pantau" ikon="target">
+              Target awal
+            </JudulBagian>
+          </legend>
           <Kolom label="Nilai Target" htmlFor="targetNilai" petunjuk="Angka desimal memakai koma, mis. 76,61.">
             <input
               id="targetNilai"
@@ -167,7 +193,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
           </Kolom>
         </fieldset>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:flex">
         <button type="submit" disabled={pending} className={tombolUtama}>
           {pending ? "Menyimpan…" : "Simpan"}
         </button>
@@ -183,7 +209,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
 export function TombolAktif({ id, aktif }: { id: string; aktif: boolean }) {
   const [state, action, pending] = useActionState(aturAktifIndikatorAction, {});
   return (
-    <form action={action} className="grid gap-2">
+    <form action={action} className="grid w-full gap-2 sm:w-auto">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="aktif" value={String(!aktif)} />
       <button type="submit" disabled={pending} className={tombolGaris}>
@@ -305,13 +331,16 @@ export function AksiUnitPelapor({ id, namaUnit, bulanBerhenti }: { id: string; n
   const [hapus, hapusAction, hapusPending] = useActionState(hapusUnitPelaporAction, {});
   const idBerhenti = `berhenti-${id}`;
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
-        <details>
-          <summary className="cursor-pointer text-[14px] font-semibold text-area-ink pointer-coarse:py-2">
+    // Saat form Akhiri terbuka, aksi pindah ke baris sendiri selebar daftar (lihat daftar Unit Pelapor di halaman detail).
+    <div className="grid min-w-0 gap-2 sm:has-[details[open]]:col-span-2">
+      <div className="flex flex-wrap items-start gap-2">
+        <details className="group">
+          <summary
+            className={`${tombolBaris} list-none group-open:border-primary group-open:text-primary-ink [&::-webkit-details-marker]:hidden`}
+          >
             {bulanBerhenti ? "Ubah bulan berhenti" : "Akhiri"}
           </summary>
-          <form action={akhiriAction} className="mt-2 grid gap-1.5">
+          <form action={akhiriAction} className="mt-3 grid max-w-md gap-1.5">
             <input type="hidden" name="id" value={id} />
             <label htmlFor={idBerhenti} className={kelasLabel}>
               Bulan berhenti
@@ -345,7 +374,7 @@ export function AksiUnitPelapor({ id, namaUnit, bulanBerhenti }: { id: string; n
           <button
             type="submit"
             disabled={hapusPending}
-            className="text-[14px] font-semibold text-danger hover:underline disabled:opacity-70 pointer-coarse:py-2"
+            className={`${tombolBaris} text-danger-ink hover:border-danger-border hover:bg-danger-soft`}
           >
             Hapus
           </button>

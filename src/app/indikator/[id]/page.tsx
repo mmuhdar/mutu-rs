@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { bulanBerjalan, labelBulan, labelPeriode } from "@/lib/bulan";
-import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH } from "@/lib/indikator";
+import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH, targetPadaBulan } from "@/lib/indikator";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { pilihanUnit } from "@/modules/unit/service";
 
 import { tombolUtama } from "../../form";
-import { Halaman, Kartu, KepalaHalaman, Pil, Ubin } from "../../ui";
+import { Ikon } from "../../ikon";
+import { Halaman, Kartu, KepalaHalaman, kelasTd, kelasTh, KotakIkon, Pil, Tabel, Ubin } from "../../ui";
 import { AksiUnitPelapor, FormTarget, FormUnitPelapor, TombolAktif } from "../form-indikator";
 import { muatIndikator } from "./muat";
 
@@ -20,7 +21,8 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
   // Setiap perubahan yang berhasil mengubah data ini, jadi semua form di halaman dibuat ulang dan pesan penolakan lama
   // dari form lain hilang: setiap form hanya menampilkan hasilnya sendiri.
   const versi = JSON.stringify([indikator.aktif, indikator.target, indikator.unitPelapor]);
-  const terbaru = indikator.target.at(-1);
+  // Target bulan berjalan menurut satu-satunya aturan Target berlaku (Target yang mulai bulan depan belum berlaku).
+  const berlaku = targetPadaBulan(indikator.target, bulanBerjalan());
   const definisi: [string, string][] = [
     ["Definisi operasional", indikator.definisiOperasional],
     ["Numerator (N)", indikator.definisiNumerator],
@@ -29,7 +31,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
   ];
 
   return (
-    <Halaman area="atur">
+    <Halaman>
       <KepalaHalaman
         judul={indikator.nama}
         kembali={[{ href: "/indikator", label: "Indikator" }]}
@@ -43,6 +45,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
           bolehKelolaIndikator(pengguna) && (
             <>
               <Link href={`/indikator/${indikator.id}/ubah`} className={tombolUtama}>
+                <Ikon nama="isi" className="size-[18px]" />
                 Ubah
               </Link>
               <TombolAktif key={versi} id={indikator.id} aktif={indikator.aktif} />
@@ -51,17 +54,25 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <Ubin
-          nada="atur"
+          nada="brand"
+          ikon="target"
           label="Target berlaku"
-          nilai={terbaru ? `${TANDA_ARAH[indikator.arah]} ${terbaru.nilai.toLocaleString("id-ID")} ${indikator.satuan}` : "–"}
-          keterangan={terbaru ? `mulai ${labelBulan(terbaru.berlakuMulai)}` : undefined}
+          nilai={berlaku === undefined ? "–" : `${TANDA_ARAH[indikator.arah]} ${berlaku.toLocaleString("id-ID")} ${indikator.satuan}`}
+          keterangan={`berlaku ${labelBulan(bulanBerjalan())}`}
         />
-        <Ubin nada="pantau" label="Cara hitung" nilai={`× ${indikator.faktor}`} keterangan={`N ÷ D × ${indikator.faktor}, satuan ${indikator.satuan}`} />
-        <Ubin nada="brand" label="Arah" nilai={TANDA_ARAH[indikator.arah]} keterangan={LABEL_ARAH[indikator.arah]} />
         <Ubin
           nada="ukur"
+          ikon="dokumen"
+          label="Cara hitung"
+          nilai={`× ${indikator.faktor}`}
+          keterangan={`N ÷ D × ${indikator.faktor}, satuan ${indikator.satuan}`}
+        />
+        <Ubin nada="pantau" ikon="monitoring" label="Arah" nilai={TANDA_ARAH[indikator.arah]} keterangan={LABEL_ARAH[indikator.arah]} />
+        <Ubin
+          nada="tindak"
+          ikon="jam"
           label="Frekuensi"
           nilai={LABEL_FREKUENSI[indikator.frekuensi]}
           keterangan={indikator.frekuensi === "semesteran" ? "diisi Juni dan Desember" : "diisi setiap bulan"}
@@ -69,10 +80,10 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
       </div>
 
       <Kartu judul="Definisi">
-        <dl className="grid gap-3 px-5 pb-5 md:grid-cols-2">
+        <dl className="grid gap-x-8 px-5 pb-2 md:grid-cols-2">
           {definisi.map(([label, isi]) => (
-            <div key={label} className="rounded-2xl bg-background p-4">
-              <dt className="text-[13px] font-semibold text-atur-ink">{label}</dt>
+            <div key={label} className="min-w-0 border-t border-rule py-4">
+              <dt className="text-[13px] font-semibold text-muted-foreground">{label}</dt>
               <dd className="mt-1 whitespace-pre-line">{isi}</dd>
             </div>
           ))}
@@ -81,21 +92,29 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
 
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <Kartu judul="Target" sub="Setiap bulan dinilai dengan Target yang berlaku mulai paling akhir sebelum atau pada bulan itu.">
-          <ol className="grid gap-2 px-5 pb-4">
-            {indikator.target.toReversed().map((t, i, semua) => (
-              <li key={t.berlakuMulai} className="flex flex-wrap items-baseline justify-between gap-x-3 rounded-xl bg-background px-4 py-2.5">
-                <span className="text-[17px] font-bold">
-                  {TANDA_ARAH[indikator.arah]} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
-                </span>
-                <span className="text-[13px] text-muted-foreground">
-                  mulai {labelBulan(t.berlakuMulai)}
-                  {i === semua.length - 1 && " (juga bulan-bulan sebelumnya)"}
-                </span>
-              </li>
-            ))}
-          </ol>
+          <Tabel label="Riwayat Target" lebarMin="min-w-[18rem]">
+            <thead>
+              <tr>
+                <th className={kelasTh}>Berlaku mulai</th>
+                <th className={`${kelasTh} text-right`}>Target</th>
+              </tr>
+            </thead>
+            <tbody>
+              {indikator.target.toReversed().map((t, i, semua) => (
+                <tr key={t.berlakuMulai}>
+                  <td className={kelasTd}>
+                    <span className="block font-medium">{labelBulan(t.berlakuMulai)}</span>
+                    {i === semua.length - 1 && <span className="text-[13px] text-muted-foreground">juga bulan-bulan sebelumnya</span>}
+                  </td>
+                  <td className={`${kelasTd} text-right text-[16px] font-bold whitespace-nowrap`}>
+                    {TANDA_ARAH[indikator.arah]} {t.nilai.toLocaleString("id-ID")} {indikator.satuan}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Tabel>
           {bolehKelolaIndikator(pengguna) && (
-            <div className="m-3 rounded-2xl bg-atur-tint/60 p-4">
+            <div className="m-3 mt-2 rounded-xl border border-border bg-head p-4">
               <FormTarget key={versi} indikatorId={indikator.id} bulanIni={bulanBerjalan()} />
             </div>
           )}
@@ -110,15 +129,18 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
           {indikator.unitPelapor.length === 0 ? (
             <p className="px-5 pb-4 text-muted-foreground">Belum ada Unit Pelapor.</p>
           ) : (
-            <ul className="grid gap-2 px-3 pb-3">
+            <ul className="divide-y divide-rule border-t border-rule px-5">
               {indikator.unitPelapor.map((p) => (
-                <li key={p.id} className="grid gap-2 rounded-xl bg-background px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-start">
-                  <div>
-                    <span className="flex flex-wrap items-center gap-2 font-semibold">
-                      {p.namaUnit}
-                      {!p.unitAktif && <Pil nada="netral">Unit nonaktif</Pil>}
-                    </span>
-                    <span className="block text-[13px] text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanBerhenti)}</span>
+                <li key={p.id} className="grid gap-3 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <KotakIkon nada="atur" ikon="unit" kecil />
+                    <div className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2 font-semibold">
+                        {p.namaUnit}
+                        {!p.unitAktif && <Pil nada="netral">Unit nonaktif</Pil>}
+                      </span>
+                      <span className="block text-[13px] text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanBerhenti)}</span>
+                    </div>
                   </div>
                   {pilihan && (
                     // Setelah perubahan apa pun berhasil, aksi dibuat ulang sehingga form tertutup dan pesannya hilang.
@@ -129,9 +151,9 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
             </ul>
           )}
           {pilihan && (
-            <div className="m-3 rounded-2xl bg-atur-tint/60 p-4">
+            <div className="m-3 mt-2 rounded-xl border border-border bg-head p-4">
               {pilihan.length === 0 ? (
-                <p className="text-atur-ink">Belum ada Unit aktif. Admin Sistem menambahkannya di menu Unit.</p>
+                <p className="text-muted-foreground">Belum ada Unit aktif. Admin Sistem menambahkannya di menu Unit.</p>
               ) : (
                 <FormUnitPelapor key={versi} indikatorId={indikator.id} unit={pilihan} bulanIni={bulanBerjalan()} />
               )}

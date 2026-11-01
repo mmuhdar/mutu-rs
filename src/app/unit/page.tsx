@@ -4,7 +4,7 @@ import { daftarUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
 import { Pesan, pesanAtau } from "../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman } from "../ui";
+import { Halaman, Kartu, KepalaHalaman, kelasTh, Tabel } from "../ui";
 import { BarisUnit, FormTambahUnit } from "./form-unit";
 
 export const metadata: Metadata = { title: "Unit" };
@@ -15,7 +15,7 @@ export default async function HalamanUnit() {
   const daftar = await pesanAtau(daftarUnit(pengguna));
   if (typeof daftar === "string") {
     return (
-      <Halaman area="atur">
+      <Halaman>
         <KepalaHalaman judul="Unit" />
         <Pesan>{daftar}</Pesan>
       </Halaman>
@@ -24,7 +24,7 @@ export default async function HalamanUnit() {
   const aktif = daftar.filter((u) => u.aktif).length;
 
   return (
-    <Halaman area="atur">
+    <Halaman>
       <KepalaHalaman
         judul="Unit"
         meta={`${aktif} Unit aktif${daftar.length > aktif ? ` · ${daftar.length - aktif} nonaktif` : ""}`}
@@ -32,15 +32,23 @@ export default async function HalamanUnit() {
       >
         <FormTambahUnit />
       </KepalaHalaman>
-      <Kartu>
+      <Kartu judul="Daftar Unit" sub={`${daftar.length} Unit`}>
         {daftar.length === 0 ? (
-          <p className="p-5 text-muted-foreground">Belum ada Unit.</p>
+          <p className="px-5 pb-5 text-muted-foreground">Belum ada Unit.</p>
         ) : (
-          <ul className="divide-y divide-rule">
-            {daftar.map((unit) => (
-              <BarisUnit key={`${unit.id}:${unit.nama}`} unit={unit} />
-            ))}
-          </ul>
+          <Tabel label="Daftar Unit" lebarMin="min-w-[20rem]">
+            <thead>
+              <tr>
+                <th className={kelasTh}>Unit</th>
+                <th className={`${kelasTh} text-right`}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {daftar.map((unit) => (
+                <BarisUnit key={`${unit.id}:${unit.nama}`} unit={unit} />
+              ))}
+            </tbody>
+          </Tabel>
         )}
       </Kartu>
     </Halaman>

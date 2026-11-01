@@ -7,6 +7,7 @@ import { ambilPengukuran, bolehIsiPengukuran, bolehVerifikasi } from "@/modules/
 import { requireUser } from "@/server/sesi";
 
 import { tombolUtama } from "../../form";
+import { Ikon } from "../../ikon";
 import { Halaman, Kartu, KepalaHalaman, Ubin } from "../../ui";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 import { FormVerifikasi } from "./form-verifikasi";
@@ -29,7 +30,7 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
     : [{ href: `/pengukuran/pantau?${kunci}`, label: "Status Pengukuran" }];
 
   return (
-    <Halaman area="ukur">
+    <Halaman>
       <KepalaHalaman
         judul={indikator.nama}
         kembali={kembali}
@@ -44,25 +45,42 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
 
       <AlasanPengembalian status={p.status} riwayat={p.riwayat} />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Ubin nada="ukur" label="Numerator (N)" nilai={p.n} keterangan={indikator.definisiNumerator} />
-        <Ubin nada="ukur" label="Denominator (D)" nilai={p.d} keterangan={indikator.definisiDenominator} />
-        <Ubin nada="pantau" label="Capaian" nilai={formatCapaian(p.capaian, indikator.satuan)} keterangan={`N ÷ D × ${indikator.faktor}`} />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <Ubin nada="ukur" ikon="dokumen" label="Numerator (N)" nilai={p.n} keterangan={indikator.definisiNumerator} />
+        <Ubin nada="atur" ikon="indikator" label="Denominator (D)" nilai={p.d} keterangan={indikator.definisiDenominator} />
+        {/* Di HP N dan D berdampingan, Capaian selebar penuh di bawahnya. */}
+        <div className="col-span-2 grid sm:col-span-1">
+          <Ubin
+            nada="brand"
+            ikon="target"
+            label="Capaian"
+            nilai={formatCapaian(p.capaian, indikator.satuan)}
+            keterangan={`N ÷ D × ${indikator.faktor}`}
+          />
+        </div>
       </div>
 
-      <Kartu judul="Catatan">
-        <p className="px-5 pb-5 whitespace-pre-line">{p.catatan || <span className="text-muted-foreground">Tidak ada catatan.</span>}</p>
-      </Kartu>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+        <div className="grid min-w-0 gap-5">
+          <Kartu judul="Catatan">
+            <p className="px-5 pb-5 whitespace-pre-line">{p.catatan || <span className="text-muted-foreground">Tidak ada catatan.</span>}</p>
+          </Kartu>
 
-      {p.status === "draf"
-        ? bolehIsiPengukuran(pengguna) && (
-            <Link href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan: p.bulan })}`} className={tombolUtama}>
-              Ubah isian
-            </Link>
-          )
-        : bolehVerifikasi(pengguna) && <FormVerifikasi id={p.id} status={p.status} />}
+          {p.status === "draf"
+            ? bolehIsiPengukuran(pengguna) && (
+                <Link
+                  href={`/pengukuran/isi?${new URLSearchParams({ indikator: indikator.id, unit: unit.id, bulan: p.bulan })}`}
+                  className={tombolUtama}
+                >
+                  <Ikon nama="isi" className="size-[18px]" />
+                  Ubah isian
+                </Link>
+              )
+            : bolehVerifikasi(pengguna) && <FormVerifikasi id={p.id} status={p.status} />}
+        </div>
 
-      <RiwayatStatus riwayat={p.riwayat} />
+        <RiwayatStatus riwayat={p.riwayat} />
+      </div>
     </Halaman>
   );
 }

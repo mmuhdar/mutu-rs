@@ -13,6 +13,7 @@ import {
 import type { PlanPdsa } from "@/modules/perbaikan/service";
 
 import { kelasArea, kelasInput, Kolom, PesanError, Segmen, tombolGaris, tombolUtama } from "../form";
+import { Ikon } from "../ikon";
 import { buatPdsaAction, simpanTahapPdsaAction } from "./actions";
 
 function Teks({ nama, label, petunjuk, awal, baris = 3 }: { nama: string; label: string; petunjuk?: string; awal?: string; baris?: number }) {
@@ -114,9 +115,12 @@ export function FormPdsaBaru(p: {
       )}
       <IsianPlan awal={awal} judulTetap={Boolean(p.sebelumnyaId)} />
       <PesanError pesan={state.error} />
-      <button type="submit" disabled={pending} className={tombolUtama}>
-        {pending ? "Menyimpan…" : "Simpan Plan dan mulai Do"}
-      </button>
+      <div className="grid border-t border-border pt-5">
+        <button type="submit" disabled={pending} className={tombolUtama}>
+          {pending ? "Menyimpan…" : "Simpan Plan dan mulai Do"}
+          <Ikon nama="kanan" className="size-[18px]" />
+        </button>
+      </div>
     </form>
   );
 }
@@ -191,10 +195,11 @@ export function FormTahap({
       <input type="hidden" name="tahap" value={tahap} />
       {tahap === "plan" ? <IsianPlan awal={nilai as AwalPlan} /> : <IsianTahap tahap={tahap} awal={nilai} />}
       <PesanError pesan={state.error} />
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2.5 sm:grid-flow-col sm:justify-start">
         {aktif && (
           <button type="submit" name="lanjut" value="ya" disabled={pending} className={tombolUtama}>
             {berikut === "selesai" ? "Simpan dan selesaikan PDSA" : `Simpan dan lanjut ke ${LABEL_TAHAP_PDSA[berikut]}`}
+            <Ikon nama={berikut === "selesai" ? "centang" : "kanan"} className="size-[18px]" />
           </button>
         )}
         <button type="submit" disabled={pending} className={aktif ? tombolGaris : tombolUtama}>

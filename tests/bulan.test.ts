@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { bulanBerjalan, bulanDariAlamat, bulanLalu, hariIni, tanggalValid } from "@/lib/bulan";
+import { bulanBerjalan, bulanDariAlamat, bulanLalu, hariIni, salam, tanggalValid } from "@/lib/bulan";
 
 // Tes dijalankan dengan zona waktu Asia/Makassar (WITA, UTC+8), lihat scripts/test.sh.
 describe("bulan berjalan", () => {
@@ -28,6 +28,17 @@ describe("hari ini", () => {
     assert.equal(tanggalValid("2026-02-28"), true);
     assert.equal(tanggalValid("2028-02-29"), true);
     for (const t of ["2026-02-29", "2026-13-01", "2026-1-05", "05/11/2026", ""]) assert.equal(tanggalValid(t), false, t);
+  });
+});
+
+describe("salam", () => {
+  it("mengikuti jam WITA: pagi mulai 04.00, siang 11.00, sore 15.00, malam 18.00", () => {
+    const pada = (jamUtc: string) => salam(new Date(`2026-03-10T${jamUtc}:00Z`));
+    assert.equal(pada("19:59"), "Selamat malam"); // 03.59 WITA
+    assert.equal(pada("20:00"), "Selamat pagi"); // 04.00 WITA
+    assert.equal(pada("03:00"), "Selamat siang"); // 11.00 WITA
+    assert.equal(pada("07:00"), "Selamat sore"); // 15.00 WITA
+    assert.equal(pada("10:00"), "Selamat malam"); // 18.00 WITA
   });
 });
 

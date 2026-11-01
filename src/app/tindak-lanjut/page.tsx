@@ -11,6 +11,7 @@ import { requireUser } from "@/server/sesi";
 import { tautanAnalisis } from "../analisis/tautan";
 import { kelasInput, kelasLabel, Segmen, tombolUtama } from "../form";
 import { Pesan, pesanAtau } from "../pengukuran/status";
+import { Ikon } from "../ikon";
 import { Halaman, Kartu, KepalaHalaman, Ubin } from "../ui";
 import { TabelTindakLanjut } from "./tabel";
 
@@ -42,9 +43,9 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
   const alamat = (s: string) => `/tindak-lanjut?${new URLSearchParams({ status: s, unit })}`;
 
   return (
-    <Halaman area="tindak">
+    <Halaman>
       <KepalaHalaman judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis. Yang lewat tenggat paling atas; status diubah di halaman Analisis-nya.">
-        <form method="get" className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem_auto] lg:items-end">
+        <form method="get" className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem_auto] lg:items-end">
           {/* key: pilihan saringan mengikuti alamat. */}
           <Segmen key={status} nama="status" label="Status" pilihan={PILIHAN_STATUS} nilai={status} />
           <label className={`grid min-w-0 gap-1.5 ${kelasLabel}`}>
@@ -60,22 +61,45 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
             </select>
           </label>
           <button type="submit" className={tombolUtama}>
+            <Ikon nama="cari" className="size-[18px]" />
             Tampilkan
           </button>
         </form>
       </KepalaHalaman>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Ubin
           nada={hitung((t) => t.lewatTenggat) > 0 ? "neg" : "netral"}
+          ikon="jam"
           href={alamat("terbuka")}
           label="Lewat tenggat"
           nilai={hitung((t) => t.lewatTenggat)}
           keterangan="masih Direncanakan atau Berjalan"
         />
-        <Ubin nada="netral" href={alamat("direncanakan")} label="Direncanakan" nilai={hitung((t) => t.status === "direncanakan")} />
-        <Ubin nada="tindak" href={alamat("berjalan")} label="Berjalan" nilai={hitung((t) => t.status === "berjalan")} />
-        <Ubin nada="pos" href={alamat("selesai")} label="Selesai" nilai={hitung((t) => t.status === "selesai")} />
+        <Ubin
+          nada="atur"
+          ikon="dokumen"
+          href={alamat("direncanakan")}
+          label="Direncanakan"
+          nilai={hitung((t) => t.status === "direncanakan")}
+          keterangan="belum dimulai"
+        />
+        <Ubin
+          nada="tindak"
+          ikon="tindakLanjut"
+          href={alamat("berjalan")}
+          label="Berjalan"
+          nilai={hitung((t) => t.status === "berjalan")}
+          keterangan="sedang dikerjakan"
+        />
+        <Ubin
+          nada="pos"
+          ikon="centang"
+          href={alamat("selesai")}
+          label="Selesai"
+          nilai={hitung((t) => t.status === "selesai")}
+          keterangan="dengan catatan hasil"
+        />
       </div>
 
       {typeof daftar === "string" ? (
