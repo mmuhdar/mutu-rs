@@ -9,7 +9,7 @@ import { BarisPengguna, FormTambahPengguna } from "./form-pengguna";
 
 export const metadata: Metadata = { title: "Pengguna" };
 
-const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
+const kelasKartu = "rounded-lg border border-border bg-surface";
 
 export default async function HalamanPengguna() {
   const pengguna = await requireUser();

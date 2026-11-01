@@ -21,7 +21,7 @@ export default async function HalamanUbahIndikator({ params }: PageProps<"/indik
           Kode dan kelompok tidak bisa diubah. Target ditetapkan lewat riwayat Target.
         </p>
       </div>
-      <div className="rounded-lg border border-border bg-surface p-4 shadow-xs">
+      <div className="rounded-lg border border-border bg-surface p-4">
         <FormIndikator indikator={indikator} terkunci={indikator.terkunci} />
       </div>
     </section>

@@ -35,7 +35,7 @@ export async function buatPdsaAction(_prev: StateForm, formData: FormData): Prom
   redirect(`/pdsa/${hasil.hasil.id}`);
 }
 
-/** Menyimpan isian satu tahap (`tahap`), lalu maju ke tahap berikutnya bila tombol `lanjut` = "ya". */
+/** Menyimpan isian satu tahap (`tahap`), lalu maju ke tahap berikutnya bila tombol `lanjut` = "ya" (dan membuka tabnya). */
 export async function simpanTahapPdsaAction(_prev: StateForm, formData: FormData): Promise<StateForm> {
   // Tahap di luar daftar ditolak service.
   const tahap = teks(formData, "tahap") as TahapIsianPdsa;
@@ -45,10 +45,12 @@ export async function simpanTahapPdsaAction(_prev: StateForm, formData: FormData
     study: { hasil: teks(formData, "hasil") },
     act: { keputusan: teks(formData, "keputusan") as KeputusanPdsa, penjelasan: teks(formData, "penjelasan") },
   };
-  const hasil = await hasilAtauError(
-    simpanTahapPdsa(await getSessionUser(), teks(formData, "id"), tahap, isian[tahap], formData.get("lanjut") === "ya"),
-  );
+  const id = teks(formData, "id");
+  const lanjut = formData.get("lanjut") === "ya";
+  const hasil = await hasilAtauError(simpanTahapPdsa(await getSessionUser(), id, tahap, isian[tahap], lanjut));
   if ("error" in hasil) return ditolak(formData, hasil.error);
   revalidatePath("/", "layout");
+  // Setelah lanjut, buka tab tahap aktif yang baru (alamat tanpa `?tahap=`).
+  if (lanjut) redirect(`/pdsa/${id}`);
   return {};
 }

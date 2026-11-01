@@ -61,16 +61,16 @@ export function GrafikCapaian({
     <figure className="grid gap-2">
       <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 rounded bg-primary" />
+          <span aria-hidden className="h-0.5 w-4 rounded bg-accent" />
           {judul}
         </span>
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 rounded bg-chart-target" />
+          <span aria-hidden className="w-4 border-t-2 border-dashed border-chart-target" />
           Target
         </span>
         {disorot.length > 0 && (
           <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-4 rounded-sm bg-primary/10" />
+            <span aria-hidden className="h-3 w-4 rounded-sm bg-foreground/5" />
             Periode uji coba
           </span>
         )}
@@ -87,7 +87,7 @@ export function GrafikCapaian({
             y={RUANG.atas}
             width={bulat(slot * disorot.length)}
             height={tinggiPlot}
-            className="fill-primary/10"
+            className="fill-foreground/5"
           />
         )}
         {[0, atas / 2, atas].map((v) => (
@@ -97,7 +97,7 @@ export function GrafikCapaian({
               x2={LEBAR - RUANG.kanan}
               y1={y(v)}
               y2={y(v)}
-              className="stroke-border"
+              className="stroke-grid"
               vectorEffect="non-scaling-stroke"
             />
             <text
@@ -131,8 +131,8 @@ export function GrafikCapaian({
         <path
           d={garisTarget}
           fill="none"
-          strokeWidth={2}
-          strokeLinejoin="round"
+          strokeWidth={1.5}
+          strokeDasharray="4 3"
           className="stroke-chart-target"
           vectorEffect="non-scaling-stroke"
         />
@@ -142,7 +142,7 @@ export function GrafikCapaian({
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
-          className="stroke-primary"
+          className="stroke-accent"
           vectorEffect="non-scaling-stroke"
         />
         {titik.map(
@@ -154,7 +154,10 @@ export function GrafikCapaian({
                     LABEL_STATUS_CAPAIAN[t.status!]}
                 </title>
                 <circle cx={x(i)} cy={y(t.capaian)} r={12} fill="transparent" />
-                <circle cx={x(i)} cy={y(t.capaian)} r={4} strokeWidth={2} className="fill-primary stroke-surface" />
+                {/* Titik hanya untuk bulan tanpa tetangga (tidak tergambar sebagai garis). */}
+                {titik[i - 1]?.capaian == null && titik[i + 1]?.capaian == null && (
+                  <circle cx={x(i)} cy={y(t.capaian)} r={3} className="fill-accent" />
+                )}
               </g>
             ),
         )}
@@ -185,34 +188,36 @@ export function Tren(p: {
   catatan: (t: TitikCapaian) => string | null;
   analisis?: (t: TitikCapaian) => React.ReactNode;
   sorot?: Sorot;
+  /** Tanpa bingkai kartu sendiri, bila sudah berada di dalam kartu lain (tidak lebih dari tiga tingkat). */
+  polos?: boolean;
 }) {
   return (
-    <div className={kelasKartu}>
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="text-[15px] font-semibold">{p.judul}</h2>
+    <div className={p.polos ? undefined : kelasKartu}>
+      <div className={p.polos ? "pb-2" : "border-b border-border px-4 py-3"}>
+        <h2 className="text-[16px] font-medium">{p.judul}</h2>
         <p className="mt-0.5 text-[13px] text-muted-foreground">{p.keterangan}</p>
       </div>
-      <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-2 lg:items-start">
+      <div className={`grid gap-4 lg:grid-cols-2 lg:items-start ${p.polos ? "" : "p-3 sm:p-4"}`}>
         <GrafikCapaian titik={p.titik} satuan={p.satuan} judul={p.judul} sorot={p.sorot} />
         <div className="-mx-1.5 min-w-0 overflow-x-auto">
           <table className="w-full border-collapse text-[13px] tabular-nums">
             <thead>
               <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
-                <th className="px-1.5 py-2 font-semibold">Bulan</th>
-                <th className="px-1.5 py-2 text-right font-semibold">Capaian</th>
-                <th className="px-1.5 py-2 text-right font-semibold">Target</th>
-                <th className="px-1.5 py-2 text-right font-semibold">Selisih</th>
-                <th className="px-1.5 py-2 font-semibold">Status</th>
+                <th className="px-1.5 py-2 font-normal">Bulan</th>
+                <th className="px-1.5 py-2 text-right font-normal">Capaian</th>
+                <th className="px-1.5 py-2 text-right font-normal">Target</th>
+                <th className="px-1.5 py-2 text-right font-normal">Selisih</th>
+                <th className="px-1.5 py-2 font-normal">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-rule">
               {p.titik.map((t) => {
                 const catatan = p.catatan(t);
                 return (
                   <tr key={t.bulan} className="align-top">
                     <td className="px-1.5 py-2">
                       <span className="whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
-                      {p.sorot && dalamSorot(t.bulan, p.sorot) && <span className="block text-[12px] text-primary">uji coba</span>}
+                      {p.sorot && dalamSorot(t.bulan, p.sorot) && <span className="block text-[12px] text-accent">uji coba</span>}
                       {p.analisis?.(t)}
                     </td>
                     <td className="px-1.5 py-2 text-right">

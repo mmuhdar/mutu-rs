@@ -166,3 +166,16 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
     belumTercapai: baris.filter((b) => b.status === "belumTercapai"),
   };
 }
+
+/**
+ * Jumlah Indikator yang dinilai, Tercapai, dan Belum Tercapai setiap bulan selama 12 bulan sampai `bulanAkhir` (grafik
+ * Dashboard), dari `ringkasanCapaian` bulan demi bulan dengan hak akses yang sama. Tanpa bulan = bulan lalu.
+ */
+// ponytail: 12 × ringkasanCapaian (2 query per bulan); gabungkan jadi satu query bila Dashboard terasa lambat.
+export async function trenRingkasan(aktor: Pengguna | null, bulanAkhir?: string, sekarang = new Date()) {
+  wajibPengguna(aktor);
+  bulanAkhir ||= bulanLalu(sekarang);
+  wajibBulanBerjalan(bulanAkhir, sekarang);
+  const bulan = Array.from({ length: 12 }, (_, i) => geserBulan(bulanAkhir, i - 11));
+  return Promise.all(bulan.map(async (b) => ({ bulan: b, ...(await ringkasanCapaian(aktor, b, sekarang)).jumlah })));
+}

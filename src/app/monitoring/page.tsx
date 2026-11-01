@@ -25,7 +25,7 @@ function TautanAnalisis({ href, ada }: { href: string; ada: boolean }) {
   return (
     <Link
       href={href}
-      className={`block text-[12px] font-medium whitespace-nowrap hover:underline pointer-coarse:py-1 ${ada ? "text-primary" : "text-warning"}`}
+      className={`block text-[12px] font-medium whitespace-nowrap hover:underline pointer-coarse:py-1 ${ada ? "text-accent" : "text-muted-foreground"}`}
     >
       {ada ? "Analisis" : "Belum dianalisis"}
     </Link>
@@ -57,7 +57,7 @@ function RincianPerUnit({ tren, tautan }: { tren: TrenCapaian; tautan: TautanTit
                       {k && k.wajib > 0 ? `${k.terverifikasi}/${k.wajib} Unit Terverifikasi` : "tidak ada Unit Pelapor"}
                     </span>
                   </summary>
-                  <ul className="divide-y divide-border border-t border-border bg-background/40">
+                  <ul className="divide-y divide-border border-t border-border">
                     {unit.map(({ unit: u, titik }) => {
                       const t = titik[i];
                       return (
@@ -154,14 +154,12 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
         <Pesan>{tren}</Pesan>
       ) : (
         <>
-          <div className={`${kelasKartu} px-4 py-3`}>
-            <p className="text-[12.5px] font-medium text-muted-foreground">
-              {tren.indikator.kode} · {tren.indikator.kelompok}
-              {!tren.indikator.aktif && " · nonaktif"}
-            </p>
-            <p className="font-semibold">{tren.indikator.nama}</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {LABEL_ARAH[tren.indikator.arah]} · {LABEL_FREKUENSI[tren.indikator.frekuensi]} · satuan {tren.indikator.satuan}
+          <div>
+            <h2 className="text-[16px] font-medium">{tren.indikator.nama}</h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              <span className="font-mono text-[12px]">{tren.indikator.kode}</span> · {tren.indikator.kelompok}
+              {!tren.indikator.aktif && " · nonaktif"} · {LABEL_ARAH[tren.indikator.arah]} ·{" "}
+              {LABEL_FREKUENSI[tren.indikator.frekuensi]} · satuan {tren.indikator.satuan}
             </p>
           </div>
           <IsiTren tren={tren} bulanAkhir={bulan} tautan={tautan} />

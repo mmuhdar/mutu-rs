@@ -11,7 +11,7 @@ import { FormVerifikasi } from "./form-verifikasi";
 
 export const metadata: Metadata = { title: "Detail Pengukuran" };
 
-const kelasTautan = "text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2";
+const kelasTautan = "text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2";
 
 export default async function HalamanDetailPengukuran({ params }: PageProps<"/pengukuran/[id]">) {
   const pengguna = await requireUser();
@@ -38,8 +38,8 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
             </Link>
           ))}
         </p>
-        <p className="mt-2 text-[13px] font-medium text-muted-foreground">{indikator.kode}</p>
-        <h1 className="text-[20px] leading-tight font-semibold tracking-[-0.02em] sm:text-[22px]">{indikator.nama}</h1>
+<h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-[-0.01em]">{indikator.nama}</h1>
+        <p className="mt-1 font-mono text-[12px] text-muted-foreground">{indikator.kode}</p>
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-medium">
             {unit.nama} · {labelBulan(p.bulan)}

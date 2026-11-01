@@ -18,7 +18,7 @@ export default async function HalamanTambahIndikator() {
         <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">Tambah IMP</h1>
         <p className="mt-1 text-[13.5px] text-muted-foreground">IMP-RS atau IMP-Unit beserta Target awalnya.</p>
       </div>
-      <div className="rounded-lg border border-border bg-surface p-4 shadow-xs">
+      <div className="rounded-lg border border-border bg-surface p-4">
         <FormIndikator bulanIni={bulanBerjalan()} />
       </div>
     </section>

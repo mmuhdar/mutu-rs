@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
@@ -10,7 +9,8 @@ import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
-import { kelasInput, kelasKartu, Pesan, pesanAtau, RincianTindakLanjut } from "../pengukuran/status";
+import { kelasInput, kelasKartu, Pesan, pesanAtau } from "../pengukuran/status";
+import { TabelTindakLanjut } from "./tabel";
 
 export const metadata: Metadata = { title: "Tindak Lanjut" };
 
@@ -80,27 +80,13 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
       ) : daftar.length === 0 ? (
         <Pesan>Tidak ada Tindak Lanjut dengan saringan ini.</Pesan>
       ) : (
-        <ul className={`${kelasKartu} divide-y divide-border`}>
-          {daftar.map((t) => (
-            <li key={t.id}>
-              <Link
-                href={tautanAnalisis(t.indikator.id, t.unit?.id ?? null, t.bulan)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-background"
-              >
-                <span className="grid min-w-0 flex-1 gap-1">
-                  <span className="text-[12.5px] font-medium text-muted-foreground">
-                    {t.indikator.kode} · {labelLingkup(t.unit)} · Analisis{" "}
-                    {labelBulan(t.bulan, { pendek: true })}
-                  </span>
-                  <RincianTindakLanjut t={t} />
-                </span>
-                <span aria-hidden className="text-muted-foreground">
-                  ›
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className={`${kelasKartu} overflow-hidden`}>
+          <TabelTindakLanjut
+            daftar={daftar}
+            atas={(t) => `${t.indikator.kode} · ${labelLingkup(t.unit)} · Analisis ${labelBulan(t.bulan, { pendek: true })}`}
+            href={(t) => tautanAnalisis(t.indikator.id, t.unit?.id ?? null, t.bulan)}
+          />
+        </div>
       )}
     </section>
   );

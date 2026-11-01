@@ -23,7 +23,7 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
   const kembali = (
     <Link
       href={`/pengukuran?${new URLSearchParams({ unit: kunci.unitId, bulan: kunci.bulan })}`}
-      className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2"
+      className="text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2"
     >
       ← Daftar isian
     </Link>
@@ -48,8 +48,8 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
     <section className="grid gap-4">
       <div>
         {kembali}
-        <p className="mt-2 text-[13px] font-medium text-muted-foreground">{indikator.kode}</p>
-        <h1 className="text-[20px] leading-tight font-semibold tracking-[-0.02em] sm:text-[22px]">{indikator.nama}</h1>
+<h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-[-0.01em]">{indikator.nama}</h1>
+        <p className="mt-1 font-mono text-[12px] text-muted-foreground">{indikator.kode}</p>
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-medium">
             {unit.nama} · {labelBulan(isian.bulan)}
@@ -71,7 +71,7 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
           <dd className="whitespace-pre-line">{indikator.sumberData}</dd>
         </div>
         <details className="px-4 py-3">
-          <summary className="cursor-pointer text-[13px] font-medium text-primary pointer-coarse:py-1">
+          <summary className="cursor-pointer text-[13px] font-medium text-accent pointer-coarse:py-1">
             Definisi operasional
           </summary>
           <p className="mt-2 whitespace-pre-line">{indikator.definisiOperasional}</p>

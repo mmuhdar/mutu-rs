@@ -6,9 +6,9 @@ import { formatCapaian, hitungCapaian } from "@/lib/capaian";
 
 import { simpanPengukuranAction } from "./actions";
 
-const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
+const kelasKartu = "rounded-lg border border-border bg-surface";
 const kelasInput =
-  "w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring";
+  "w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-ring";
 const kelasTombol = "h-12 rounded-md px-4 font-semibold disabled:opacity-70";
 
 /** Bilangan bulat ≥ 0 dari isian, atau null (aturan yang sama dengan server action). */
@@ -105,7 +105,7 @@ export function FormPengukuran(p: {
       </div>
 
       {state.error && (
-        <p role="alert" className="rounded-md border border-danger-border bg-danger-soft px-3 py-2.5 text-danger">
+        <p role="alert" className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-danger-ink">
           {state.error}
         </p>
       )}

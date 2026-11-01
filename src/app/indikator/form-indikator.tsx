@@ -18,7 +18,7 @@ import {
 } from "./actions";
 
 const kelasInput =
-  "w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring";
+  "w-full min-w-0 rounded-md border border-input bg-surface px-3 text-base outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-ring";
 const kelasBaris = `${kelasInput} h-10 pointer-coarse:h-11`;
 const kelasTombol = "h-10 shrink-0 rounded-md px-4 font-semibold disabled:opacity-70 pointer-coarse:h-11";
 const tombolUtama = `${kelasTombol} bg-primary text-primary-foreground hover:bg-primary-hover`;
@@ -26,7 +26,7 @@ const tombolGaris = `${kelasTombol} inline-flex items-center border border-borde
 
 function PesanError({ pesan }: { pesan?: string }) {
   return pesan ? (
-    <p role="alert" className="rounded-md border border-danger-border bg-danger-soft px-3 py-2.5 text-[13px] text-danger">
+    <p role="alert" className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger-ink">
       {pesan}
     </p>
   ) : null;
@@ -110,7 +110,7 @@ export function FormIndikator({
           <strong className="font-semibold">Cara hitung terkunci.</strong> Indikator ini sudah punya Pengukuran, jadi
           faktor, satuan, Arah, definisi N dan D, serta Frekuensi tidak bisa diubah supaya tren tidak mencampur dua cara
           hitung. Untuk mengubahnya,{" "}
-          <Link href="/indikator/baru" className="font-medium text-primary hover:underline">
+          <Link href="/indikator/baru" className="font-medium text-accent hover:underline">
             buat Indikator baru
           </Link>{" "}
           lalu nonaktifkan Indikator ini. Nama, definisi operasional, Sumber Data, dan PIC tetap bisa diubah.
@@ -349,7 +349,7 @@ export function AksiUnitPelapor({
     <div className="grid gap-2">
       <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
         <details>
-          <summary className="cursor-pointer text-[13px] font-medium text-primary pointer-coarse:py-2">
+          <summary className="cursor-pointer text-[13px] font-medium text-accent pointer-coarse:py-2">
             {bulanBerhenti ? "Ubah bulan berhenti" : "Akhiri"}
           </summary>
           <form action={akhiriAction} className="mt-2 grid gap-1.5">

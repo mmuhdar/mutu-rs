@@ -1,58 +1,94 @@
 @import "tailwindcss";
 
 /*
- * Token warna MutuRS (palet mengikuti sistem-radiologi-digital). Komponen hanya memakai token
- * (`bg-surface`, `text-danger`, `border-border`), jangan menulis hex di komponen.
- * Status (Tercapai/Belum Tercapai, error) selalu disertai teks, bukan warna saja.
+ * Token MutuRS, gaya "framed sheet" (tasteskill, seed 1676796536). Bingkai abu kehijauan (sidebar dan bar atas,
+ * satu nada dari dinding bangsal dan baju jaga), pekerjaan di lembar putih bertepi 1px tanpa bayangan. Warna hanya pada
+ * data (teal, `--accent`) dan status; tombol utama hampir hitam. Komponen hanya memakai token (`bg-surface`,
+ * `text-danger`, `border-border`), jangan menulis hex di komponen. Status selalu disertai teks, bukan warna saja.
  */
 :root {
-  --background: #f1f5f6;
+  /* Bingkai, juga satu langkah nada di dalam lembar (hover baris, baki). */
+  --background: #f4f7f6;
   --surface: #ffffff;
-  --foreground: #0d2128;
-  --muted-foreground: #46595f;
-  --border: #dce4e7;
-  --input: #7b8f97;
+  /* Pil menu aktif dan label netral. */
+  --active: #e3e9e8;
+  --foreground: #131416;
+  --muted-foreground: #5d5f60;
+  /* Tepi lembar dan kartu; garis baris tabel satu langkah lebih muda. */
+  --border: #e8eaec;
+  --rule: #f0f1f2;
+  /* Tepi isian: ≥ 3:1 terhadap putih supaya batasnya terlihat (lebih tegas dari lembar gaya, demi aksesibilitas). */
+  --input: #878c91;
 
-  --primary: #0e7490;
-  --primary-hover: #0b5f76;
+  /* Tombol utama hampir hitam; satu-satunya warna di bingkai adalah teal pada data, tautan, dan pilihan aktif. */
+  --primary: #1d1f20;
+  --primary-hover: #000000;
   --primary-foreground: #ffffff;
-  --ring: rgb(14 116 144 / 0.38);
+  --accent: #1b6c80;
+  --ring: rgb(27 108 128 / 0.35);
 
-  --danger: #be2a2a;
-  --danger-soft: #fdecec;
-  --danger-border: #f2c0c0;
-  --success: #157a3d;
-  --success-soft: #e6f5ec;
-  --warning: #a8480a;
-  --warning-soft: #fff4e0;
+  /* Status: pasangan pucat untuk label, warna penuh hanya untuk teks pendek. */
+  --danger: #c4242a;
+  --danger-soft: #ffedea;
+  --danger-ink: #831c1e;
+  --danger-border: #f5c2bd;
+  --success: #1e7b4f;
+  --success-soft: #dcfae5;
+  --success-ink: #04250e;
+  --warning: #92400e;
+  --warning-soft: #fffbeb;
+  --warning-border: #fde68a;
 
-  /* Garis Target di grafik: abu-abu muda supaya terbedakan dari garis Capaian (primary), juga untuk buta warna. */
-  --chart-target: #9aaab0;
+  /* Grafik: garis kisi pucat; Target = garis rujukan abu-abu putus-putus. */
+  --grid: #e5e5e5;
+  --chart-target: #5d5f60;
 }
 
 @theme inline {
+  --font-sans: var(--font-plex), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-active: var(--active);
   --color-foreground: var(--foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
+  --color-rule: var(--rule);
   --color-input: var(--input);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
   --color-ring: var(--ring);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
   --color-danger-border: var(--danger-border);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-grid: var(--grid);
   --color-chart-target: var(--chart-target);
 }
 
 @layer base {
   body {
     -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+  a,
+  button,
+  summary {
+    transition:
+      background-color 120ms ease,
+      color 120ms ease,
+      border-color 120ms ease;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 }

@@ -79,7 +79,7 @@ export function FormUbahTindakLanjut({
   const awal = state.nilai ?? t;
   return (
     <details open={Boolean(state.error)}>
-      <summary className="cursor-pointer text-[13px] font-medium text-primary pointer-coarse:py-2">
+      <summary className="cursor-pointer text-[13px] font-medium text-accent pointer-coarse:py-2">
         Ubah atau perbarui status
       </summary>
       <form action={action} className="mt-2 grid gap-3">

@@ -9,7 +9,8 @@ import { labelLingkup } from "@/lib/perbaikan";
 import { ambilAnalisis } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { formatWaktu, kelasKartu, LabelCapaian, Pesan, pesanAtau, RincianTindakLanjut } from "../pengukuran/status";
+import { formatWaktu, kelasKartu, LabelCapaian, Pesan, pesanAtau } from "../pengukuran/status";
+import { TabelTindakLanjut } from "../tindak-lanjut/tabel";
 import { FormAnalisis } from "./form-analisis";
 import { FormTambahTindakLanjut, FormUbahTindakLanjut } from "./form-tindak-lanjut";
 import { keteranganRs, keteranganUnit } from "../monitoring/grafik";
@@ -46,17 +47,14 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
       <div>
         <Link
           href={`/monitoring?${new URLSearchParams({ indikator: ind.id, bulan: a.bulan })}`}
-          className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2"
+          className="text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2"
         >
           ← Monitoring
         </Link>
-        <p className="mt-2 text-[13px] font-medium text-muted-foreground">
-          {ind.kode} · {ind.kelompok}
-          {!ind.aktif && " · nonaktif"}
-        </p>
-        <h1 className="text-[20px] leading-tight font-semibold tracking-[-0.02em] sm:text-[22px]">{ind.nama}</h1>
-        <p className="mt-1 font-medium">
-          Analisis {lingkup} · {labelBulan(a.bulan)}
+<h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-[-0.01em]">{ind.nama}</h1>
+        <p className="mt-1 text-muted-foreground">
+          <span className="font-mono text-[12px]">{ind.kode}</span> · {ind.kelompok}
+          {!ind.aktif && " · nonaktif"} · Analisis {lingkup} · {labelBulan(a.bulan)}
         </p>
       </div>
 
@@ -121,14 +119,10 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
         {a.tindakLanjut.length === 0 ? (
           <p className="px-4 py-3 text-muted-foreground">Belum ada Tindak Lanjut.</p>
         ) : (
-          <ul className="divide-y divide-border">
-            {a.tindakLanjut.map((t) => (
-              <li key={t.id} className="grid gap-2 px-4 py-3">
-                <RincianTindakLanjut t={t} />
-                {a.bolehTulis && <FormUbahTindakLanjut key={versi} t={t} />}
-              </li>
-            ))}
-          </ul>
+          <TabelTindakLanjut
+            daftar={a.tindakLanjut}
+            bawah={a.bolehTulis ? (t) => <FormUbahTindakLanjut key={versi} t={t} /> : undefined}
+          />
         )}
         {a.bolehTulis && (
           <div className="border-t border-border p-4">
@@ -150,7 +144,7 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
           {a.bolehTulis && (
             <Link
               href={`/pdsa/baru?${new URLSearchParams({ indikator: ind.id, ...(unit ? { unit: unit.id } : {}) })}`}
-              className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2"
+              className="text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2"
             >
               Mulai PDSA
             </Link>
@@ -183,19 +177,11 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
               Dari Analisis {lingkup} bulan-bulan sebelumnya; statusnya diubah di Analisis bulan itu.
             </p>
           </div>
-          <ul className="divide-y divide-border">
-            {a.tindakLanjutSebelumnya.map((t) => (
-              <li key={t.id} className="grid gap-1 px-4 py-3">
-                <RincianTindakLanjut t={t} />
-                <Link
-                  href={tautanAnalisis(ind.id, unit?.id ?? null, t.bulan)}
-                  className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2"
-                >
-                  Analisis {labelBulan(t.bulan)}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <TabelTindakLanjut
+            daftar={a.tindakLanjutSebelumnya}
+            atas={(t) => `Analisis ${labelBulan(t.bulan)}`}
+            href={(t) => tautanAnalisis(ind.id, unit?.id ?? null, t.bulan)}
+          />
         </div>
       )}
     </section>

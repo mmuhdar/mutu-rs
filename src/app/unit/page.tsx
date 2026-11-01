@@ -8,7 +8,7 @@ import { BarisUnit, FormTambahUnit } from "./form-unit";
 
 export const metadata: Metadata = { title: "Unit" };
 
-const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
+const kelasKartu = "rounded-lg border border-border bg-surface";
 
 export default async function HalamanUnit() {
   const pengguna = await requireUser();

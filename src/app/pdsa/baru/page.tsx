@@ -38,7 +38,7 @@ export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa
   return (
     <section className="grid gap-4">
       <div>
-        <Link href={sebelumnya ? `/pdsa/${sebelumnya.id}` : "/pdsa"} className="text-[13px] font-medium text-primary hover:underline pointer-coarse:py-2">
+        <Link href={sebelumnya ? `/pdsa/${sebelumnya.id}` : "/pdsa"} className="text-[13px] font-medium text-accent hover:underline pointer-coarse:py-2">
           ← {sebelumnya ? "PDSA sebelumnya" : "Daftar PDSA"}
         </Link>
         <h1 className="mt-2 text-[22px] leading-tight font-semibold tracking-[-0.02em]">

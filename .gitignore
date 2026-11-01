@@ -18,3 +18,6 @@ npm-debug.log*
 
 # backup database (docker compose)
 /backup/
+
+# Berkas kerja design-taste-frontend (inspeksi, lembar arah)
+.taste-skill/

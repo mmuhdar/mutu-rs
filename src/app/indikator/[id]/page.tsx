@@ -33,7 +33,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
   return (
     <section className="grid gap-4">
       <div>
-        <Link href="/indikator" className="text-[13px] font-medium text-primary hover:underline">
+        <Link href="/indikator" className="text-[13px] font-medium text-accent hover:underline">
           ← Daftar Indikator
         </Link>
         <h1 className="mt-2 text-[22px] leading-tight font-semibold tracking-[-0.02em]">
@@ -57,7 +57,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
         </div>
       )}
 
-      <dl className="divide-y divide-border rounded-lg border border-border bg-surface shadow-xs">
+      <dl className="divide-y divide-border rounded-lg border border-border bg-surface">
         {field.map(([label, isi]) => (
           <div key={label} className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4">
             <dt className="text-[13px] font-medium text-muted-foreground">{label}</dt>
@@ -66,7 +66,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
         ))}
       </dl>
 
-      <div className="rounded-lg border border-border bg-surface shadow-xs">
+      <div className="rounded-lg border border-border bg-surface">
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-[15px] font-semibold">Target</h2>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
@@ -93,7 +93,7 @@ export default async function HalamanDetailIndikator({ params }: PageProps<"/ind
         )}
       </div>
 
-      <div className="rounded-lg border border-border bg-surface shadow-xs">
+      <div className="rounded-lg border border-border bg-surface">
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-[15px] font-semibold">Unit Pelapor</h2>
           <p className="mt-0.5 text-[13px] text-muted-foreground">

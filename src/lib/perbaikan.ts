@@ -30,6 +30,7 @@ export const TAHAP_PDSA = ["plan", "do", "study", "act", "selesai"] as const;
 export type TahapPdsa = (typeof TAHAP_PDSA)[number];
 /** Tahap yang punya isian (semua kecuali Selesai). */
 export type TahapIsianPdsa = Exclude<TahapPdsa, "selesai">;
+export const TAHAP_ISIAN_PDSA = TAHAP_PDSA.filter((t): t is TahapIsianPdsa => t !== "selesai");
 export const LABEL_TAHAP_PDSA: Record<TahapPdsa, string> = {
   plan: "Plan",
   do: "Do",

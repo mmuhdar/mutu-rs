@@ -1,5 +1,4 @@
 import { LABEL_STATUS_CAPAIAN, type StatusCapaian } from "@/lib/capaian";
-import { labelTanggal } from "@/lib/bulan";
 import { config } from "@/lib/config";
 import { ServiceError } from "@/lib/errors";
 import { LABEL_STATUS_PENGUKURAN, type StatusPengukuran } from "@/lib/pengukuran";
@@ -7,7 +6,7 @@ import { LABEL_STATUS_TINDAK_LANJUT, type StatusTindakLanjut } from "@/lib/perba
 
 /* Bagian tampilan bersama halaman Pengukuran, Monitoring, Dashboard, dan Perbaikan (server component). */
 
-export const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
+export const kelasKartu = "rounded-lg border border-border bg-surface";
 export { kelasInput } from "../form";
 
 export const formatWaktu = (waktu: Date) =>
@@ -20,9 +19,10 @@ export const pesanAtau = <T,>(janji: Promise<T>) =>
     throw error;
   });
 
+/** Pesan pengganti isi bagian (penolakan service, daftar kosong): satu kalimat di dalam bingkai bagian itu. */
 export function Pesan({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className={`${kelasKartu} p-4`}>
+    <p role="alert" className="rounded-lg border border-dashed border-border px-4 py-3 text-muted-foreground">
       {children}
     </p>
   );
@@ -32,18 +32,21 @@ export function Pesan({ children }: { children: React.ReactNode }) {
 export function Pemberitahuan({ children }: { children?: React.ReactNode }) {
   if (!children) return null;
   return (
-    <p role="status" className="rounded-md border border-warning/40 bg-warning-soft px-3 py-2.5 text-[13px]">
+    <p role="status" className="rounded-md border border-warning-border bg-warning-soft px-3 py-2 text-[13px] text-warning">
       {children}
     </p>
   );
 }
 
+/** Label status: pasangan pucat bernada sama (teks gelap di atas warna muda), tidak pernah terjepit. */
+const kelasPil = "inline-flex h-5 flex-none items-center rounded-full px-2 text-[12px] font-medium whitespace-nowrap";
+
 const WARNA: Record<StatusPengukuran | "belum" | "dikembalikan", string> = {
   belum: "bg-warning-soft text-warning",
-  draf: "border border-border bg-background",
+  draf: "bg-active text-foreground",
   dikembalikan: "bg-warning-soft text-warning",
-  diajukan: "bg-primary/10 text-primary",
-  terverifikasi: "bg-success-soft text-success",
+  diajukan: "bg-accent/10 text-accent",
+  terverifikasi: "bg-success-soft text-success-ink",
 };
 
 /**
@@ -53,9 +56,7 @@ const WARNA: Record<StatusPengukuran | "belum" | "dikembalikan", string> = {
 export function LabelStatus({ status, dikembalikan = false }: { status: StatusPengukuran | null; dikembalikan?: boolean }) {
   const kembali = dikembalikan && status === "draf";
   return (
-    <span
-      className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${WARNA[kembali ? "dikembalikan" : (status ?? "belum")]}`}
-    >
+    <span className={`${kelasPil} ${WARNA[kembali ? "dikembalikan" : (status ?? "belum")]}`}>
       {status ? LABEL_STATUS_PENGUKURAN[status] : "Belum diisi"}
       {kembali && " · dikembalikan"}
     </span>
@@ -110,8 +111,8 @@ export function RiwayatStatus({ riwayat }: { riwayat: Riwayat }) {
 }
 
 const WARNA_STATUS_CAPAIAN: Record<StatusCapaian, string> = {
-  tercapai: "bg-success-soft text-success",
-  belumTercapai: "bg-danger-soft text-danger",
+  tercapai: "bg-success-soft text-success-ink",
+  belumTercapai: "bg-danger-soft text-danger-ink",
 };
 
 /** Status Capaian sebagai teks (warna hanya pelengkap); Capaian kosong tidak punya status. */
@@ -125,44 +126,20 @@ export function LabelCapaian({ status }: { status: StatusCapaian | null }) {
     );
   }
   return (
-    <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${WARNA_STATUS_CAPAIAN[status]}`}>
+    <span className={`${kelasPil} ${WARNA_STATUS_CAPAIAN[status]}`}>
       {LABEL_STATUS_CAPAIAN[status]}
     </span>
   );
 }
 
 const WARNA_TINDAK_LANJUT: Record<StatusTindakLanjut, string> = {
-  direncanakan: "border border-border bg-background",
-  berjalan: "bg-primary/10 text-primary",
-  selesai: "bg-success-soft text-success",
-  dibatalkan: "bg-background text-muted-foreground",
+  direncanakan: "bg-active text-foreground",
+  berjalan: "bg-accent/10 text-accent",
+  selesai: "bg-success-soft text-success-ink",
+  dibatalkan: "bg-active text-muted-foreground",
 };
 
-/** Isi satu Tindak Lanjut: status (+ "Lewat tenggat"), tindakan, PIC, tenggat, dan catatannya. */
-export function RincianTindakLanjut({
-  t,
-}: {
-  t: { tindakan: string; pic: string; tenggat: string; status: StatusTindakLanjut; catatan: string; lewatTenggat: boolean };
-}) {
-  return (
-    <div className="grid min-w-0 gap-1">
-      <p className="flex flex-wrap gap-1.5">
-        <span className={`rounded px-2 py-0.5 text-xs font-semibold ${WARNA_TINDAK_LANJUT[t.status]}`}>
-          {LABEL_STATUS_TINDAK_LANJUT[t.status]}
-        </span>
-        {t.lewatTenggat && (
-          <span className="rounded bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger">Lewat tenggat</span>
-        )}
-      </p>
-      <p className="font-medium whitespace-pre-line">{t.tindakan}</p>
-      <p className="text-[13px] text-muted-foreground">
-        PIC {t.pic} · tenggat {labelTanggal(t.tenggat)}
-      </p>
-      {t.catatan && (
-        <p className="text-[13px] whitespace-pre-line">
-          {t.status === "dibatalkan" ? "Alasan" : "Catatan"}: {t.catatan}
-        </p>
-      )}
-    </div>
-  );
+/** Status Tindak Lanjut sebagai label pucat (teksnya tetap ditulis). */
+export function LabelTindakLanjut({ status }: { status: StatusTindakLanjut }) {
+  return <span className={`${kelasPil} ${WARNA_TINDAK_LANJUT[status]}`}>{LABEL_STATUS_TINDAK_LANJUT[status]}</span>;
 }

@@ -23,7 +23,7 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
       : ["bukaKembali", "Buka kembali", "Statusnya kembali Diajukan sehingga bisa dikembalikan ke Draf untuk dikoreksi."];
 
   return (
-    <div className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-xs">
+    <div className="grid gap-3 rounded-lg border border-border bg-surface p-4">
       <h2 className="text-[15px] font-semibold">Verifikasi</h2>
       {status === "diajukan" && (
         <form action={action}>
@@ -40,7 +40,7 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
         </form>
       )}
       <details>
-        <summary className="cursor-pointer font-medium text-primary pointer-coarse:py-2">{label}</summary>
+        <summary className="cursor-pointer font-medium text-accent pointer-coarse:py-2">{label}</summary>
         <form action={action} className="mt-2 grid gap-2">
           <input type="hidden" name="id" value={id} />
           <label htmlFor="alasan" className="font-semibold">
@@ -58,7 +58,7 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
             aria-describedby="alasan-petunjuk"
             value={alasan}
             onChange={(e) => setAlasan(e.target.value)}
-            className="w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2 text-base outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-ring"
+            className="w-full min-w-0 rounded-md border border-input bg-surface px-3 py-2 text-base outline-none focus-visible:border-accent focus-visible:ring-3 focus-visible:ring-ring"
           />
           <button
             type="submit"
@@ -72,7 +72,7 @@ export function FormVerifikasi({ id, status }: { id: string; status: "diajukan" 
         </form>
       </details>
       {state.error && (
-        <p role="alert" className="rounded-md border border-danger-border bg-danger-soft px-3 py-2.5 text-danger">
+        <p role="alert" className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-danger-ink">
           {state.error}
         </p>
       )}

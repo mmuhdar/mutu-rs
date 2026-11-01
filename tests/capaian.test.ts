@@ -5,7 +5,7 @@ import { before, describe, it } from "node:test";
 import { ServiceError } from "@/lib/errors";
 import { LABEL_PERAN, type Peran } from "@/lib/peran";
 import type { Pengguna } from "@/modules/auth/service";
-import { ringkasanCapaian, trenCapaian } from "@/modules/capaian/service";
+import { ringkasanCapaian, trenCapaian, trenRingkasan } from "@/modules/capaian/service";
 import { akhiriUnitPelapor, ambilIndikator, aturAktifIndikator, tambahUnitPelapor, tetapkanTarget } from "@/modules/indikator/service";
 import {
   ajukanPengukuran,
@@ -395,5 +395,24 @@ describe("ringkasan Capaian sebulan (bahan Dashboard)", () => {
       message: "November 2026 belum berjalan.",
     });
     assert.equal((await trenCapaian(komite, indikatorId, "2026-10", sekarang)).bulan.at(-1), "2026-10");
+  });
+});
+
+describe("tren ringkasan Dashboard", () => {
+  it("12 bulan sampai bulan akhir, jumlah Tercapai dan Belum Tercapai per bulan sama dengan ringkasan bulan itu", async () => {
+    const indikatorId = await indikatorBaru(target(80));
+    const icu = await unitPelapor(indikatorId, "ICU");
+    await terverifikasi(indikatorId, icu.id, "2026-02", 9, 10);
+    await terverifikasi(indikatorId, icu.id, "2026-03", 5, 10);
+    // Kepala Unit melihat Unit-nya saja, jadi data tes lain tidak ikut terhitung.
+    const kepala = await sebagai("kepalaUnit", [icu.id]);
+    const tren = await trenRingkasan(kepala, "2026-03");
+    assert.deepEqual([tren.length, tren[0].bulan, tren.at(-1)?.bulan], [12, "2025-04", "2026-03"]);
+    const pada = (b: string) => tren.find((t) => t.bulan === b);
+    assert.deepEqual([pada("2026-02")?.tercapai, pada("2026-02")?.belumTercapai], [1, 0]);
+    assert.deepEqual([pada("2026-03")?.tercapai, pada("2026-03")?.belumTercapai, pada("2026-03")?.dinilai], [0, 1, 1]);
+    assert.equal(pada("2025-12")?.dinilai, 0);
+    assert.deepEqual(pada("2026-03"), { bulan: "2026-03", ...(await ringkasanCapaian(kepala, "2026-03")).jumlah });
+    await assert.rejects(trenRingkasan(kepala, "2026-04", new Date("2026-03-15T04:00:00Z")), { status: 400 });
   });
 });

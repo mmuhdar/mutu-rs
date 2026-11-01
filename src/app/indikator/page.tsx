@@ -7,7 +7,7 @@ import { requireUser } from "@/server/sesi";
 
 export const metadata: Metadata = { title: "Indikator" };
 
-const kelasKartu = "rounded-lg border border-border bg-surface shadow-xs";
+const kelasKartu = "rounded-lg border border-border bg-surface";
 const kelasTh = "h-9 px-3 text-left text-[11.5px] font-semibold tracking-[0.06em] whitespace-nowrap text-muted-foreground uppercase";
 
 export default async function HalamanIndikator() {
@@ -48,7 +48,7 @@ export default async function HalamanIndikator() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b border-border">
+                    <tr className="bg-table-head">
                       <th className={kelasTh}>Kode</th>
                       <th className={kelasTh}>Nama</th>
                       <th className={kelasTh}>Frekuensi</th>
@@ -59,7 +59,7 @@ export default async function HalamanIndikator() {
                     {baris.map((i) => (
                       <tr key={i.id} className={i.aktif ? undefined : "text-muted-foreground"}>
                         <td className="px-3 py-2.5 whitespace-nowrap">
-                          <Link href={`/indikator/${i.id}`} className="font-medium text-primary hover:underline">
+                          <Link href={`/indikator/${i.id}`} className="font-medium text-accent hover:underline">
                             {i.kode}
                           </Link>
                         </td>
