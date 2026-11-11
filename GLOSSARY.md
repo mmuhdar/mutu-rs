@@ -85,7 +85,7 @@ Catatan tertulis tentang Capaian satu Indikator dalam satu Lingkup untuk satu bu
 _Avoid_: Evaluasi, analisa capaian
 
 **Tindak Lanjut**:
-Satu tindakan perbaikan konkret hasil sebuah Analisis, dengan PIC, tenggat, status (Direncanakan, Berjalan, Selesai, Dibatalkan), dan catatan hasil; lewat tenggat bila tenggatnya sudah lewat sedangkan statusnya Direncanakan atau Berjalan.
+Satu tindakan perbaikan konkret hasil sebuah Analisis, dengan PIC, tenggat, status (Direncanakan, Berjalan, Selesai, Dibatalkan), dan catatan hasil; lewat tenggat bila tenggatnya sudah lewat sedangkan statusnya Direncanakan atau Berjalan, mendekati tenggat bila tenggatnya hari ini sampai 7 hari lagi dengan status yang sama.
 _Avoid_: RTL, rencana tindak lanjut
 
 **PDSA**:

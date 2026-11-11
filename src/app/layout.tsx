@@ -3,7 +3,8 @@ import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 
-import { bulanBerjalan, bulanLalu, labelBulan } from "@/lib/bulan";
+import { bulanLalu, hariIni, labelBulan, labelTanggal } from "@/lib/bulan";
+import { tenggatSimar } from "@/lib/laporan";
 import { config } from "@/lib/config";
 import { LABEL_PERAN, PERAN, type Peran } from "@/lib/peran";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
@@ -85,7 +86,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               bolehKelolaIndikator(pengguna)
                 ? {
                     judul: "Lapor SIMAR",
-                    isi: `INM ${labelBulan(bulanLalu())} paling lambat 10 ${labelBulan(bulanBerjalan())}.`,
+                    isi: `INM ${labelBulan(bulanLalu())} paling lambat ${labelTanggal(tenggatSimar(bulanLalu()))}${
+                      hariIni() > tenggatSimar(bulanLalu()) ? ", sudah lewat" : ""
+                    }.`,
                     tautan: { href: "/simar", label: "Rekap SIMAR" },
                   }
                 : undefined

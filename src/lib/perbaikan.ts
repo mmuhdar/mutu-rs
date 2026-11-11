@@ -1,3 +1,4 @@
+import { tambahHari } from "./bulan";
 import type { Kelompok } from "./indikator";
 
 /* Konstanta dan aturan murni modul Perbaikan (Analisis, Tindak Lanjut, PDSA); service di `src/modules/perbaikan`. */
@@ -24,6 +25,13 @@ export const STATUS_TERBUKA: readonly StatusTindakLanjut[] = ["direncanakan", "b
 /** Lewat tenggat: tenggat ("YYYY-MM-DD") sebelum hari ini dan status masih terbuka. Dihitung, bukan status. */
 export const lewatTenggat = (tl: { status: StatusTindakLanjut; tenggat: string }, hariIni: string) =>
   STATUS_TERBUKA.includes(tl.status) && tl.tenggat < hariIni;
+
+/** Berapa hari sebelum tenggat Tindak Lanjut ditandai mendekati tenggat. */
+export const HARI_MENDEKATI_TENGGAT = 7;
+
+/** Mendekati tenggat: status masih terbuka dan tenggat hari ini sampai 7 hari lagi ("YYYY-MM-DD"). Dihitung, bukan status. */
+export const mendekatiTenggat = (tl: { status: StatusTindakLanjut; tenggat: string }, hariIni: string) =>
+  STATUS_TERBUKA.includes(tl.status) && tl.tenggat >= hariIni && tl.tenggat <= tambahHari(hariIni, HARI_MENDEKATI_TENGGAT);
 
 /** Tahap aktif PDSA, berurutan; PDSA yang baru dibuat (Plan sudah diisi) langsung berada di tahap Do. */
 export const TAHAP_PDSA = ["plan", "do", "study", "act", "selesai"] as const;

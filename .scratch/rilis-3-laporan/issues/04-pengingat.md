@@ -4,12 +4,12 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** selesai (branch `rilis-3-laporan`)
 
-- [ ] `tambahHari` (`src/lib/bulan.ts`) dan `mendekatiTenggat` (`src/lib/perbaikan.ts`); baris Tindak Lanjut dari service membawa `mendekatiTenggat`.
-- [ ] Tabel Tindak Lanjut: "· mendekati"; ubin Lewat tenggat menyebut jumlah mendekati tenggat.
-- [ ] Dashboard "Perlu tindakan": Tindak Lanjut mendekati tenggat; SIMAR bulan lalu (siap/jumlah, tenggat) untuk `bolehKelolaIndikator`.
-- [ ] Kartu "Lapor SIMAR" di sidebar menaut ke `/simar`.
-- [ ] Glosarium: Mendekati tenggat (definisi Tindak Lanjut).
-- [ ] Tes: batas 0 dan 7 hari, lewat, Selesai; `jadwalSimar`.
-- [ ] Dicek manual di browser.
+- [x] `tambahHari` (`src/lib/bulan.ts`) dan `mendekatiTenggat` (`src/lib/perbaikan.ts`); baris Tindak Lanjut dari service membawa `mendekatiTenggat`.
+- [x] Tabel Tindak Lanjut: "· mendekati"; ubin Lewat tenggat menyebut jumlah mendekati tenggat.
+- [x] Dashboard "Perlu tindakan": Tindak Lanjut mendekati tenggat; SIMAR bulan lalu (siap/jumlah, tenggat) untuk `bolehKelolaIndikator`.
+- [x] Kartu "Lapor SIMAR" di sidebar menaut ke `/simar`.
+- [x] Glosarium: Mendekati tenggat (definisi Tindak Lanjut).
+- [x] Tes: batas 0 dan 7 hari, lewat, Selesai; `tambahHari`; `tenggatSimar` (tiket 03).
+- [x] Dicek manual di browser.

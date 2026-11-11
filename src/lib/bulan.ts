@@ -28,6 +28,10 @@ export function tanggalValid(tanggal: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(tanggal) && !Number.isNaN(waktu) && new Date(waktu).toISOString().startsWith(tanggal);
 }
 
+/** Tanggal "YYYY-MM-DD" digeser sejumlah hari (negatif = mundur): tambahHari("2026-12-28", 7) = "2027-01-04". */
+export const tambahHari = (tanggal: string, jumlah: number) =>
+  new Date(Date.parse(`${tanggal}T00:00:00Z`) + jumlah * 86_400_000).toISOString().slice(0, 10);
+
 /** Tanggal "YYYY-MM-DD" untuk tampilan: "5 Nov 2026". */
 export const labelTanggal = (tanggal: string) =>
   new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(

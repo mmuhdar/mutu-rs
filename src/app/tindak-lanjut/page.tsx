@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
-import { LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
+import { HARI_MENDEKATI_TENGGAT, LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
 import { melihatCapaianRs } from "@/modules/capaian/service";
 import { bolehBacaLingkup, daftarTindakLanjut, type SaringanStatusTindakLanjut } from "@/modules/perbaikan/service";
 import { pilihanUnit } from "@/modules/unit/service";
@@ -40,13 +40,13 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
     pesanAtau(daftarTindakLanjut(pengguna, { status, lingkup })),
     pesanAtau(daftarTindakLanjut(pengguna, { status: "semua", lingkup })),
   ]);
-  const hitung = (cocok: (t: { status: string; lewatTenggat: boolean }) => boolean) =>
+  const hitung = (cocok: (t: { status: string; lewatTenggat: boolean; mendekatiTenggat: boolean }) => boolean) =>
     typeof semua === "string" ? 0 : semua.filter(cocok).length;
   const alamat = (s: string) => `/tindak-lanjut?${new URLSearchParams({ status: s, unit })}`;
 
   return (
     <Halaman>
-      <KepalaHalaman judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis. Yang lewat tenggat paling atas; status diubah di halaman Analisis-nya.">
+      <KepalaHalaman judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis. Yang lewat tenggat paling atas, lalu yang mendekati tenggat; status diubah di halaman Analisis-nya.">
         <form method="get" className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem_auto] lg:items-end">
           {/* key: pilihan saringan mengikuti alamat. */}
           <Segmen key={status} nama="status" label="Status" pilihan={PILIHAN_STATUS} nilai={status} />
@@ -78,7 +78,11 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
           href={alamat("terbuka")}
           label="Lewat tenggat"
           nilai={hitung((t) => t.lewatTenggat)}
-          keterangan="masih Direncanakan atau Berjalan"
+          keterangan={
+            hitung((t) => t.mendekatiTenggat) > 0
+              ? `${hitung((t) => t.mendekatiTenggat)} lainnya mendekati tenggat (≤ ${HARI_MENDEKATI_TENGGAT} hari)`
+              : "masih Direncanakan atau Berjalan"
+          }
         />
         <Ubin
           nada="atur"

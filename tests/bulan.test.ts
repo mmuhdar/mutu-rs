@@ -9,6 +9,7 @@ import {
   hariIni,
   labelTriwulan,
   salam,
+  tambahHari,
   tanggalValid,
   triwulanDari,
   triwulanLalu,
@@ -118,5 +119,14 @@ describe("Triwulan", () => {
     assert.throws(() => wajibTriwulanSelesai("2026-4", sekarang), { status: 400, message: "Triwulan IV 2026 belum selesai." });
     assert.throws(() => wajibTriwulanSelesai("2027-1", sekarang), { status: 400 });
     assert.throws(() => wajibTriwulanSelesai("2026-03", sekarang), { status: 400, message: "Triwulan tidak valid." });
+  });
+});
+
+describe("tambah hari", () => {
+  it("melewati akhir bulan, akhir tahun, dan 29 Februari", () => {
+    assert.equal(tambahHari("2026-03-10", 7), "2026-03-17");
+    assert.equal(tambahHari("2026-12-28", 7), "2027-01-04");
+    assert.equal(tambahHari("2028-02-25", 4), "2028-02-29");
+    assert.equal(tambahHari("2026-03-01", -1), "2026-02-28");
   });
 });

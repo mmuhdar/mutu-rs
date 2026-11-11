@@ -12,14 +12,19 @@ type BarisTindakLanjut = {
   status: StatusTindakLanjut;
   catatan: string;
   lewatTenggat: boolean;
+  mendekatiTenggat: boolean;
 };
 
-/** Tenggat dalam teks; yang lewat ditulis merah dengan kata "lewat" (satu tanda status per baris). */
+/**
+ * Tenggat dalam teks; yang lewat ditulis merah dengan kata "lewat", yang mendekati tenggat (≤ 7 hari) jingga dengan
+ * kata "mendekati" (satu tanda tenggat per baris).
+ */
 function Tenggat({ t }: { t: BarisTindakLanjut }) {
   return (
-    <span className={t.lewatTenggat ? "font-semibold text-danger-ink" : undefined}>
+    <span className={t.lewatTenggat ? "font-semibold text-danger-ink" : t.mendekatiTenggat ? "font-semibold text-warning" : undefined}>
       {labelTanggal(t.tenggat)}
       {t.lewatTenggat && " · lewat"}
+      {t.mendekatiTenggat && " · mendekati"}
     </span>
   );
 }

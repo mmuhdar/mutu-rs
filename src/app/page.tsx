@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { bulanBerjalan, bulanDariAlamat, INPUT_BULAN, labelBulan, salam } from "@/lib/bulan";
+import { bulanBerjalan, bulanDariAlamat, INPUT_BULAN, labelBulan, labelTanggal, salam } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { TANDA_ARAH } from "@/lib/indikator";
-import { LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
+import { HARI_MENDEKATI_TENGGAT, LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
 import { melihatCapaianRs, ringkasanCapaian, trenRingkasan } from "@/modules/capaian/service";
+import { bolehKelolaIndikator } from "@/modules/indikator/service";
+import { rekapSimar } from "@/modules/laporan/service";
 import { antreanVerifikasi, bolehIsiPengukuran, bolehVerifikasi, pengukuranDikembalikan } from "@/modules/pengukuran/service";
 import { belumDianalisis, bolehTulisLingkup, daftarPdsa, daftarTindakLanjut } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
@@ -49,7 +51,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   // Bulan tidak valid atau belum berjalan diganti bulan bawaan (ditentukan service) dengan pemberitahuan.
   const { bulan, pemberitahuan } = bulanDariAlamat((await searchParams).bulan);
   const perUnit = !melihatCapaianRs(pengguna);
-  const [ringkasan, tren, antrean, dikembalikan, belum, tindakLanjut, pdsa] = await Promise.all([
+  const [ringkasan, tren, antrean, dikembalikan, belum, tindakLanjut, pdsa, simar] = await Promise.all([
     pesanAtau(ringkasanCapaian(pengguna, bulan)),
     pesanAtau(trenRingkasan(pengguna, bulan)),
     bolehVerifikasi(pengguna) ? antreanVerifikasi(pengguna) : null,
@@ -57,8 +59,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     pesanAtau(belumDianalisis(pengguna, bulan)),
     daftarTindakLanjut(pengguna, { status: "semua" }),
     daftarPdsa(pengguna),
+    // Kesiapan SIMAR bulan lalu untuk pengelola Indikator (yang melapor ke SIMAR).
+    bolehKelolaIndikator(pengguna) ? rekapSimar(pengguna) : null,
   ]);
   const lewatTenggat = tindakLanjut.filter((t) => t.lewatTenggat).length;
+  const mendekatiTenggat = tindakLanjut.filter((t) => t.mendekatiTenggat).length;
   const daftarBelum = typeof belum === "string" ? [] : belum.daftar;
   const belumRs = new Set(daftarBelum.filter((b) => b.unit === null).map((b) => b.indikator.id));
 
@@ -93,7 +98,19 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const punyaCapaian = jumlah.dinilai - jumlah.kosong;
   const persenDari = (n: number) =>
     punyaCapaian > 0 ? <Pil nada={n === jumlah.tercapai ? "pos" : "neg"}>{Math.round((n / punyaCapaian) * 100)}%</Pil> : null;
-  const perluTindakan: { label: string; nilai: number; ikon: NamaIkon; nada: Nada; href: string }[] = [
+  const perluTindakan: { label: string; nilai: number | string; ikon: NamaIkon; nada: Nada; href: string; keterangan?: string }[] = [
+    ...(simar
+      ? [
+          {
+            label: `SIMAR ${labelBulan(simar.bulan)}`,
+            nilai: `${simar.jumlahSiap}/${simar.baris.length}`,
+            keterangan: `INM siap · paling lambat ${labelTanggal(simar.tenggat)}${simar.lewatTenggat ? " · sudah lewat" : ""}`,
+            ikon: "simar" as const,
+            nada: simar.jumlahSiap === simar.baris.length ? ("pos" as const) : ("warn" as const),
+            href: "/simar",
+          },
+        ]
+      : []),
     ...(antrean
       ? [
           {
@@ -122,6 +139,14 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
       nilai: lewatTenggat,
       ikon: "jam",
       nada: lewatTenggat > 0 ? "neg" : "tindak",
+      href: "/tindak-lanjut",
+    },
+    {
+      label: "Tindak Lanjut mendekati tenggat",
+      nilai: mendekatiTenggat,
+      keterangan: `tenggat ≤ ${HARI_MENDEKATI_TENGGAT} hari lagi`,
+      ikon: "jam",
+      nada: mendekatiTenggat > 0 ? "warn" : "tindak",
       href: "/tindak-lanjut",
     },
     { label: "PDSA berjalan", nilai: pdsa.length, ikon: "pdsa", nada: "pdsa", href: "/pdsa" },
@@ -235,8 +260,13 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
               <li key={t.label}>
                 <Link href={t.href} className="flex min-h-14 items-center gap-3 rounded-xl px-2 py-2 hover:bg-muted">
                   <KotakIkon nada={t.nada} ikon={t.ikon} kecil />
-                  <span className="min-w-0 flex-1 text-[14px] font-medium">{t.label}</span>
-                  <span className={`text-[18px] font-bold ${t.nilai > 0 && t.nada === "neg" ? "text-danger" : ""}`}>{t.nilai}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-medium">{t.label}</span>
+                    {t.keterangan && <span className="block text-[12px] leading-4 text-muted-foreground">{t.keterangan}</span>}
+                  </span>
+                  <span className={`text-[18px] font-bold whitespace-nowrap ${t.nilai === 0 ? "" : t.nada === "neg" ? "text-danger" : t.nada === "warn" ? "text-warning" : ""}`}>
+                    {t.nilai}
+                  </span>
                   <Ikon nama="kanan" className="size-4 text-muted-foreground" />
                 </Link>
               </li>

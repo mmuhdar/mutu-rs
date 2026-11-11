@@ -9,6 +9,7 @@ import {
   KEPUTUSAN_PDSA,
   LABEL_TAHAP_PDSA,
   lewatTenggat,
+  mendekatiTenggat,
   punyaLingkupRs,
   STATUS_TERBUKA,
   STATUS_TINDAK_LANJUT,
@@ -183,11 +184,12 @@ const pilihTindakLanjut = () =>
     .leftJoin(unit, eq(unit.id, analisis.unitId))
     .innerJoin(pengguna, eq(pengguna.id, tindakLanjut.diubahOlehId));
 
-/** Baris `pilihTindakLanjut` untuk tampilan: bulan "YYYY-MM" dan apakah lewat tenggat pada hari ini. */
+/** Baris `pilihTindakLanjut` untuk tampilan: bulan "YYYY-MM" dan apakah lewat atau mendekati tenggat pada hari ini. */
 const denganLewat = (hari: string) => (t: Awaited<ReturnType<typeof pilihTindakLanjut>>[number]) => ({
   ...t,
   bulan: dariTanggal(t.bulan),
   lewatTenggat: lewatTenggat(t, hari),
+  mendekatiTenggat: mendekatiTenggat(t, hari),
 });
 
 /**

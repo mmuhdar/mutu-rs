@@ -124,6 +124,35 @@ describe("daftar Tindak Lanjut", () => {
     );
   });
 
+  it("mendekati tenggat bila tenggat hari ini sampai 7 hari lagi menurut zona waktu konfigurasi dan belum Selesai/Dibatalkan", async () => {
+    const a = await analisisBaru();
+    const tambah = async (tenggat: string) => (await tambahTindakLanjut(komite, a.id, isian({ tenggat }))).id;
+    const [kemarin, hariIni, tujuh, delapan, selesai] = [
+      await tambah("2026-03-09"),
+      await tambah("2026-03-10"),
+      await tambah("2026-03-17"),
+      await tambah("2026-03-18"),
+      await tambah("2026-03-12"),
+    ];
+    await ubahStatus(komite, selesai, "selesai", "Selesai", isian({ tenggat: "2026-03-12" }));
+    // 10 Maret 23.30 WITA (masih 10 Maret UTC 15.30).
+    const daftar = await daftarTindakLanjut(komite, { lingkup: a.unitId, status: "semua" }, new Date("2026-03-10T15:30:00Z"));
+    const tanda = (id: string) => {
+      const t = daftar.find((x) => x.id === id)!;
+      return [t.lewatTenggat, t.mendekatiTenggat];
+    };
+    assert.deepEqual(
+      [kemarin, hariIni, tujuh, delapan, selesai].map(tanda),
+      [
+        [true, false],
+        [false, true],
+        [false, true],
+        [false, false],
+        [false, false],
+      ],
+    );
+  });
+
   it("bawaan hanya yang Direncanakan/Berjalan, lewat tenggat paling atas lalu urut tenggat; bisa disaring status", async () => {
     const a = await analisisBaru();
     const tambah = async (tindakan: string, tenggat: string) =>
