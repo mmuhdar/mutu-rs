@@ -76,7 +76,14 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
         aksi={
           <>
             {saringan}
-            <span className="w-full sm:w-auto print:hidden">
+            <span className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto print:hidden">
+              {/* Tautan biasa, bukan `Link`: tujuannya route handler yang mengunduh berkas. */}
+              <Button asChild variant="outline" size="lg">
+                <a href={`/laporan/unduh?triwulan=${lap.triwulan}`} download>
+                  <Ikon nama="unduh" className="size-[18px]" />
+                  Unduh CSV
+                </a>
+              </Button>
               <TombolCetak />
             </span>
           </>
