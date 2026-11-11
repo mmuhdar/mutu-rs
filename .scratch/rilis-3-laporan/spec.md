@@ -98,11 +98,11 @@ Istilah baru:
 - `simpanRekomendasi(aktor, { triwulan, teks }, sekarang)`: Komite Mutu dan Admin Sistem; upsert per Triwulan; teks wajib, maks 8000 karakter. Panjangnya dua kali Analisis karena merangkum satu Triwulan.
 - Hak baca: `melihatCapaianRs` (Komite Mutu, Direktur, Admin Sistem). Peran lain ditolak 403 dengan pesan "Laporan Triwulan hanya untuk …".
 - Tabel `rekomendasi` (tahun, triwulan 1–4, teks, diubah_oleh, diubah_pada), unik per tahun + triwulan. Tidak ada hapus.
-- Laporan selalu dihitung dari data terkini, tanpa snapshot. Arsipnya adalah PDF hasil cetak, yang memuat "Dicetak pada …".
+- Laporan selalu dihitung dari data terkini, tanpa snapshot. Arsipnya adalah PDF hasil cetak. Kepala laporan memuat "data per <waktu halaman dibuka>", yaitu saat angkanya dibaca, dan kolom tanda tangan bertanggal.
 
 ### Halaman Laporan Triwulan
 
-- `/laporan?triwulan=`: pemilih Triwulan (`PilihCari` dari 8 Triwulan selesai terakhir), tombol **Cetak / Simpan PDF** (`window.print()`), dan tombol **Unduh CSV**.
+- `/laporan?triwulan=`: pemilih Triwulan (`PilihCari` dari 8 Triwulan selesai terakhir, ditambah Triwulan yang dibuka bila lebih lama), tombol **Cetak / Simpan PDF** (`window.print()`), dan tombol **Unduh CSV**. `?triwulan=` yang tidak valid atau belum selesai diganti Triwulan bawaan disertai pemberitahuan (`triwulanDariAlamat`), seperti `bulanDariAlamat`.
 - Urutan bagian:
   1. Ringkasan
   2. Capaian per kelompok (IMP-Unit dengan nama Unit-nya)
@@ -130,7 +130,7 @@ Istilah baru:
     | `tanpaUnitPelapor` | belum ada Unit Pelapor |
     | `belumLengkap` | Kelengkapan belum penuh |
     | `dNol` | D = 0 dengan Kelengkapan penuh dan belum ada Analisis (menggantikan `belumDianalisis`; SIMAR meminta keterangan di Analisa Capaian) |
-    | `dKurang` | D di bawah minimum SIMAR (`MIN_D_SIMAR`, INM-01 = 200) |
+    | `dKurang` | D > 0 tetapi di bawah minimum SIMAR (`MIN_D_SIMAR`, INM-01 = 200); D = 0 berarti tidak ada layanan, yang ditangani `dNol` / keterangan di Analisis |
     | `belumDianalisis` | belum ada Analisis |
     | `tanpaTindakLanjut` | belum ada Tindak Lanjut |
     | `terlaluPanjang` | teks melebihi 1000 karakter (`BATAS_TEKS_SIMAR`) |
@@ -138,9 +138,9 @@ Istilah baru:
   - INM tanpa Unit Pelapor hanya diberi `tanpaUnitPelapor`. `dKurang` hanya bila Kelengkapan penuh. Setiap tanda membawa pesan untuk tampilan.
   - INM tanpa tanda = siap. Hasil juga membawa `tenggat` (`tenggatSimar(bulan)` = tanggal 10 bulan berikutnya), `lewatTenggat`, dan `jumlahSiap`.
 - Tidak ada isian SIMAR tersendiri. Teks diubah lewat Analisis dan Tindak Lanjut.
-- Halaman `/simar?bulan=` (`bulanDariAlamat`) menampilkan baris per INM: kode dan nama, N, D, Capaian, tanda, dan isian teks.
+- Halaman `/simar?bulan=` (`bulanDariAlamat`) menampilkan baris per INM: kode dan nama, N, D, Capaian, tanda, dan isian teks. Tenggat ditulis "pukul 23.59" sesuai Juknis hal. 19.
   - Setiap isian punya tombol **Salin** (`TombolSalin`, client). Tombol ini memakai `navigator.clipboard` bila tersedia, dan cadangan `textarea` + `execCommand("copy")` untuk `http://` di LAN, karena Clipboard API hanya ada di secure context.
-  - Ada tautan "Tulis Analisis" ke halaman Analisis Lingkup RS.
+  - Ada tautan "Tulis Analisis" ke halaman Analisis Lingkup RS untuk yang boleh menulis (`bolehTulisLingkup`). Direktur mendapat "Lihat Analisis" bila Analisis-nya sudah ada.
 
 ### Pengingat
 

@@ -2,10 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { bulanTriwulan, geserBulan, hariIni, labelBulan, labelPeriode, labelTanggal, labelTriwulan, triwulanDari, triwulanLalu } from "@/lib/bulan";
+import {
+  bulanTriwulan,
+  geserBulan,
+  hariIni,
+  labelBulan,
+  labelPeriode,
+  labelTanggal,
+  labelTriwulan,
+  triwulanDari,
+  triwulanDariAlamat,
+  triwulanLalu,
+} from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { config } from "@/lib/config";
-import { teksAlamat } from "@/lib/form";
 import { KELOMPOK, TANDA_ARAH } from "@/lib/indikator";
 import { LABEL_KEPUTUSAN_PDSA, labelLingkup } from "@/lib/perbaikan";
 import { laporanTriwulan, type LaporanTriwulan } from "@/modules/laporan/service";
@@ -16,7 +26,7 @@ import { Kolom } from "../form";
 import { Ikon } from "../ikon";
 import { LabelTahap } from "../pdsa/tahap";
 import { PilihCari } from "../pilih-cari";
-import { formatWaktu, LabelCapaian, LabelTindakLanjut, Pesan, pesanAtau } from "../pengukuran/status";
+import { formatWaktu, LabelCapaian, LabelTindakLanjut, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
 import { BarKemajuan, Halaman, Kartu, KepalaHalaman, Pil, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, Ubin } from "../ui";
 import { FormRekomendasi, TombolCetak } from "./klien";
 
@@ -29,12 +39,14 @@ export const metadata: Metadata = { title: "Laporan Triwulan" };
  */
 export default async function HalamanLaporan({ searchParams }: PageProps<"/laporan">) {
   const pengguna = await requireUser();
-  const diminta = teksAlamat(await searchParams, "triwulan");
-  const lap = await pesanAtau(laporanTriwulan(pengguna, diminta || undefined));
-  // Delapan Triwulan selesai terakhir.
+  // Triwulan tidak valid atau belum selesai diganti Triwulan bawaan (ditentukan service) dengan pemberitahuan.
+  const { triwulan: diminta, pemberitahuan } = triwulanDariAlamat((await searchParams).triwulan);
+  const lap = await pesanAtau(laporanTriwulan(pengguna, diminta));
+  const triwulan = typeof lap === "string" ? diminta : lap.triwulan;
+  // Delapan Triwulan selesai terakhir, ditambah Triwulan yang sedang dibuka bila lebih lama.
   const awal = bulanTriwulan(triwulanLalu())[0];
   const pilihan = Array.from({ length: 8 }, (_, i) => triwulanDari(geserBulan(awal, -3 * i)));
-  const triwulan = typeof lap === "string" ? diminta : lap.triwulan;
+  if (triwulan && !pilihan.includes(triwulan)) pilihan.push(triwulan);
 
   const saringan = (
     <form method="get" className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:flex-none print:hidden">
@@ -61,6 +73,7 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
     return (
       <Halaman>
         <KepalaHalaman judul="Laporan Triwulan" sub="Laporan Komite Mutu kepada Direktur." aksi={saringan} />
+        <Pemberitahuan>{pemberitahuan}</Pemberitahuan>
         <Pesan>{lap}</Pesan>
       </Halaman>
     );
@@ -89,6 +102,10 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
           </>
         }
       />
+
+      <div className="print:hidden">
+        <Pemberitahuan>{pemberitahuan}</Pemberitahuan>
+      </div>
 
       <section aria-labelledby="ringkasan" className="grid gap-4">
         <h2 id="ringkasan" className="sr-only">
@@ -318,6 +335,7 @@ function AnalisisDanTindakLanjut({ lap }: { lap: LaporanTriwulan }) {
                                 <span className="inline-flex flex-wrap gap-1 align-middle">
                                   <LabelTindakLanjut status={t.status} />
                                   {t.lewatTenggat && <Pil nada="neg">Lewat tenggat</Pil>}
+                                  {t.mendekatiTenggat && <Pil nada="warn">Mendekati tenggat</Pil>}
                                 </span>
                                 {t.catatan && (
                                   <span className="block text-[13px] text-muted-foreground">

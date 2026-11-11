@@ -185,7 +185,7 @@ const pilihTindakLanjut = () =>
     .innerJoin(pengguna, eq(pengguna.id, tindakLanjut.diubahOlehId));
 
 /** Baris `pilihTindakLanjut` untuk tampilan: bulan "YYYY-MM" dan apakah lewat atau mendekati tenggat pada hari ini. */
-const denganLewat = (hari: string) => (t: Awaited<ReturnType<typeof pilihTindakLanjut>>[number]) => ({
+const denganTenggat = (hari: string) => (t: Awaited<ReturnType<typeof pilihTindakLanjut>>[number]) => ({
   ...t,
   bulan: dariTanggal(t.bulan),
   lewatTenggat: lewatTenggat(t, hari),
@@ -263,9 +263,9 @@ export async function ambilAnalisis(aktor: Pengguna | null, k: KunciAnalisis, se
     bolehTulis: bolehTulisLingkup(aktor, k.unitId),
     bolehTulisAnalisis: bolehTulisLingkup(aktor, k.unitId) && bisaDianalisis,
     /** Tindak Lanjut milik Analisis ini. */
-    tindakLanjut: milik.map(denganLewat(hari)),
+    tindakLanjut: milik.map(denganTenggat(hari)),
     /** Tindak Lanjut bulan-bulan sebelumnya (Indikator + Lingkup sama) yang masih Direncanakan atau Berjalan. */
-    tindakLanjutSebelumnya: sebelumnya.map(denganLewat(hari)),
+    tindakLanjutSebelumnya: sebelumnya.map(denganTenggat(hari)),
     /** PDSA yang belum Selesai untuk Indikator + Lingkup yang sama. */
     pdsa: pdsaBerjalan,
   };
@@ -319,7 +319,7 @@ export async function analisisPada(aktor: Pengguna | null, indikatorIds: string[
           await pilihTindakLanjut()
             .where(inArray(tindakLanjut.analisisId, daftar.map((a) => a.id)))
             .orderBy(asc(tindakLanjut.createdAt))
-        ).map(denganLewat(hariIni(sekarang)));
+        ).map(denganTenggat(hariIni(sekarang)));
   return daftar.map((a) => ({ ...a, bulan: dariTanggal(a.bulan), tindakLanjut: tindak.filter((t) => t.analisisId === a.id) }));
 }
 
@@ -416,7 +416,7 @@ export async function daftarTindakLanjut(
     )
     .orderBy(asc(tindakLanjut.tenggat), asc(tindakLanjut.createdAt));
   return baris
-    .map(denganLewat(hari))
+    .map(denganTenggat(hari))
     .sort((a, b) => Number(b.lewatTenggat) - Number(a.lewatTenggat) || a.tenggat.localeCompare(b.tenggat));
 }
 

@@ -3,10 +3,11 @@ import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 
-import { bulanLalu, hariIni, labelBulan, labelTanggal } from "@/lib/bulan";
-import { tenggatSimar } from "@/lib/laporan";
+import { bulanLalu, labelBulan, labelTanggal } from "@/lib/bulan";
+import { jadwalSimar } from "@/lib/laporan";
 import { config } from "@/lib/config";
 import { LABEL_PERAN, PERAN, type Peran } from "@/lib/peran";
+import { PELIHAT_RS } from "@/modules/capaian/service";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { getSessionUser } from "@/server/sesi";
 
@@ -49,8 +50,8 @@ const MENU: { judul: string; item: (ItemMenu & { peran: readonly Peran[] })[] }[
   {
     judul: "Laporan",
     item: [
-      { href: "/laporan", label: "Laporan Triwulan", ikon: "laporan", peran: ["komiteMutu", "direktur", "adminSistem"] },
-      { href: "/simar", label: "Rekap SIMAR", ikon: "simar", peran: ["komiteMutu", "direktur", "adminSistem"] },
+      { href: "/laporan", label: "Laporan Triwulan", ikon: "laporan", peran: PELIHAT_RS },
+      { href: "/simar", label: "Rekap SIMAR", ikon: "simar", peran: PELIHAT_RS },
     ],
   },
   {
@@ -67,6 +68,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Render per request: nama RS dibaca dari environment saat server berjalan, bukan saat build.
   await connection();
   const pengguna = await getSessionUser();
+  const simar = jadwalSimar(bulanLalu());
   return (
     <html lang="id" className={`${plex.variable} ${plexMono.variable}`}>
       <body className="min-h-dvh bg-background font-sans text-[15px] leading-6 text-foreground">
@@ -86,9 +88,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               bolehKelolaIndikator(pengguna)
                 ? {
                     judul: "Lapor SIMAR",
-                    isi: `INM ${labelBulan(bulanLalu())} paling lambat ${labelTanggal(tenggatSimar(bulanLalu()))}${
-                      hariIni() > tenggatSimar(bulanLalu()) ? ", sudah lewat" : ""
-                    }.`,
+                    isi: `INM ${labelBulan(bulanLalu())} paling lambat ${labelTanggal(simar.tenggat)}${simar.lewatTenggat ? ", sudah lewat" : ""}.`,
                     tautan: { href: "/simar", label: "Rekap SIMAR" },
                   }
                 : undefined

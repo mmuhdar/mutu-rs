@@ -95,10 +95,16 @@ export const INPUT_BULAN = {
 /** Benar bila teks berbentuk Triwulan "YYYY-T" (T = 1–4): "2026-3" = Juli–September 2026. */
 export const triwulanValid = (triwulan: string) => /^\d{4}-[1-4]$/.test(triwulan);
 
+/** Tahun dan nomor (1–4) sebuah Triwulan "YYYY-T": "2026-3" → { tahun: 2026, nomor: 3 }. */
+export function uraiTriwulan(triwulan: string) {
+  const [tahun, nomor] = triwulan.split("-").map(Number);
+  return { tahun, nomor };
+}
+
 /** Tiga bulan "YYYY-MM" sebuah Triwulan: "2026-3" → ["2026-07", "2026-08", "2026-09"]. */
 export function bulanTriwulan(triwulan: string) {
-  const [tahun, t] = triwulan.split("-");
-  return [0, 1, 2].map((i) => geserBulan(`${tahun}-01`, (Number(t) - 1) * 3 + i));
+  const { tahun, nomor } = uraiTriwulan(triwulan);
+  return [0, 1, 2].map((i) => geserBulan(`${tahun}-01`, (nomor - 1) * 3 + i));
 }
 
 /** Triwulan sebuah bulan "YYYY-MM": "2026-08" → "2026-3". */
@@ -109,8 +115,10 @@ export const triwulanLalu = (sekarang = new Date()) =>
   triwulanDari(geserBulan(bulanTriwulan(triwulanDari(bulanBerjalan(sekarang)))[0], -1));
 
 /** Nama Triwulan untuk tampilan: "2026-3" → "Triwulan III 2026". */
-export const labelTriwulan = (triwulan: string) =>
-  `Triwulan ${["I", "II", "III", "IV"][Number(triwulan.slice(5)) - 1]} ${triwulan.slice(0, 4)}`;
+export function labelTriwulan(triwulan: string) {
+  const { tahun, nomor } = uraiTriwulan(triwulan);
+  return `Triwulan ${["I", "II", "III", "IV"][nomor - 1]} ${tahun}`;
+}
 
 /** Penjaga di service: Triwulan "YYYY-T" yang valid dan sudah selesai (bulan terakhirnya sebelum bulan berjalan). */
 export function wajibTriwulanSelesai(triwulan: unknown, sekarang: Date): asserts triwulan is string {
@@ -118,6 +126,24 @@ export function wajibTriwulanSelesai(triwulan: unknown, sekarang: Date): asserts
   if (bulanTriwulan(triwulan)[2] >= bulanBerjalan(sekarang)) {
     throw new ServiceError(400, `${labelTriwulan(triwulan)} belum selesai.`);
   }
+}
+
+/**
+ * Triwulan dari alamat halaman (`?triwulan=`, Laporan Triwulan), seperti `bulanDariAlamat`: kosong = tanpa `triwulan`
+ * (bawaan halaman); tidak valid atau belum selesai = tanpa `triwulan` disertai pemberitahuan singkat.
+ */
+export function triwulanDariAlamat(
+  nilai: string | string[] | undefined,
+  sekarang = new Date(),
+): { triwulan?: string; pemberitahuan?: string } {
+  if (!nilai) return {};
+  if (typeof nilai !== "string" || !triwulanValid(nilai)) {
+    return { pemberitahuan: "Triwulan pada alamat tidak valid, jadi yang ditampilkan Triwulan bawaan." };
+  }
+  if (bulanTriwulan(nilai)[2] >= bulanBerjalan(sekarang)) {
+    return { pemberitahuan: `${labelTriwulan(nilai)} belum selesai, jadi yang ditampilkan Triwulan bawaan.` };
+  }
+  return { triwulan: nilai };
 }
 
 /** Kolom bulan di database = tanggal 1 bulan itu: "2026-10" ↔ "2026-10-01". */

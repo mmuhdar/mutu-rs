@@ -3,12 +3,12 @@ import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { indikator, pengukuran, unit, unitPelapor } from "@/db/schema";
 import { bulanLalu, bulanTriwulan, geserBulan, keTanggal, wajibBulanBerjalan, wajibTriwulanSelesai } from "@/lib/bulan";
-import { capaianDari } from "@/lib/capaian";
+import { capaianDari, ringkasStatus } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan, targetPadaBulan } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
-import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
+import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
 import { bersinggungan, riwayatTarget } from "@/modules/indikator/service";
 
 /*
@@ -16,8 +16,11 @@ import { bersinggungan, riwayatTarget } from "@/modules/indikator/service";
  * pembacaan data (hanya Pengukuran Terverifikasi dari Unit Pelapor yang aktif bulan itu) dan pembatasan peran + Unit.
  */
 
-/** Komite Mutu, Direktur, dan Admin Sistem melihat Capaian RS dan semua Unit; peran lain hanya Capaian Unit-nya. */
-const PELIHAT_RS: readonly Peran[] = ["komiteMutu", "direktur", "adminSistem"];
+/**
+ * Komite Mutu, Direktur, dan Admin Sistem melihat Capaian RS dan semua Unit; peran lain hanya Capaian Unit-nya. Juga
+ * peran halaman Laporan (Laporan Triwulan, Rekap SIMAR) dan menunya.
+ */
+export const PELIHAT_RS: readonly Peran[] = ["komiteMutu", "direktur", "adminSistem"];
 /** Benar bila aktor melihat Capaian RS (dan semua Unit); salah = hanya Capaian Unit-nya. Juga untuk tampilan. */
 export const melihatCapaianRs = (aktor: Pengguna) => PELIHAT_RS.includes(aktor.peran);
 
@@ -143,26 +146,14 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
   const baris: (ReturnType<typeof barisCapaian> & { unit: (typeof pelapor)[number]["unit"] | null })[] = melihatCapaianRs(aktor)
     ? daftar.map((ind) => ({ ...barisCapaian(ind, pelapor.filter((p) => p.indikator.id === ind.id)), unit: null }))
     : pelapor.map((p) => ({ ...barisCapaian(p.indikator, [p]), unit: p.unit }));
-  const jumlahStatus = (status: (typeof baris)[number]["status"], daftar = baris) =>
-    daftar.filter((b) => b.status === status).length;
-  const belumLengkap = baris.filter((b) => b.kelengkapan.terverifikasi < b.kelengkapan.wajib);
+  const { kelengkapan, ...jumlah } = ringkasStatus(baris);
+  const belumLengkap = ringkasStatus(baris.filter((b) => b.kelengkapan.terverifikasi < b.kelengkapan.wajib));
   return {
     bulan,
     baris,
-    jumlah: {
-      dinilai: baris.length,
-      tercapai: jumlahStatus("tercapai"),
-      belumTercapai: jumlahStatus("belumTercapai"),
-      kosong: jumlahStatus(null),
-    },
-    jumlahBelumLengkap: {
-      tercapai: jumlahStatus("tercapai", belumLengkap),
-      belumTercapai: jumlahStatus("belumTercapai", belumLengkap),
-    },
-    kelengkapan: {
-      terverifikasi: baris.reduce((total, b) => total + b.kelengkapan.terverifikasi, 0),
-      wajib: baris.reduce((total, b) => total + b.kelengkapan.wajib, 0),
-    },
+    jumlah,
+    jumlahBelumLengkap: { tercapai: belumLengkap.tercapai, belumTercapai: belumLengkap.belumTercapai },
+    kelengkapan,
     belumTercapai: baris.filter((b) => b.status === "belumTercapai"),
   };
 }
@@ -177,8 +168,7 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
  * - `unit`: Unit Pelapor selama Triwulan itu, urut nama.
  */
 export async function capaianTriwulan(aktor: Pengguna | null, triwulan: string, sekarang = new Date()) {
-  wajibPengguna(aktor);
-  if (!melihatCapaianRs(aktor)) throw new ServiceError(403, "Capaian Triwulan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
+  wajibPeran(aktor, PELIHAT_RS, "Capaian Triwulan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
   wajibTriwulanSelesai(triwulan, sekarang);
   const bulan = bulanTriwulan(triwulan);
   const pelapor = (await Promise.all(bulan.map((b) => unitPelaporBulan(b, undefined)))).flatMap((baris, i) =>
@@ -186,8 +176,8 @@ export async function capaianTriwulan(aktor: Pengguna | null, triwulan: string, 
   );
   const daftar = [...new Map(pelapor.map((p) => [p.indikator.id, p.indikator])).values()].sort((a, b) => a.kode.localeCompare(b.kode));
   const targetPada = await targetUntuk(daftar.map((i) => i.id));
-  const urutNama = (unit: (typeof pelapor)[number]["unit"][]) =>
-    [...new Map(unit.map((u) => [u.id, u])).values()].sort((a, b) => a.nama.localeCompare(b.nama, "id"));
+  const urutNama = (daftarUnit: (typeof pelapor)[number]["unit"][]) =>
+    [...new Map(daftarUnit.map((u) => [u.id, u])).values()].sort((a, b) => a.nama.localeCompare(b.nama, "id"));
 
   return daftar
     .map((ind) => {

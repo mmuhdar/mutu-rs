@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-import { tenggatSimar } from "@/lib/laporan";
+import { jadwalSimar, tandaSimar } from "@/lib/laporan";
 import type { Pengguna } from "@/modules/auth/service";
 import { daftarIndikator, tambahUnitPelapor } from "@/modules/indikator/service";
 import { rekapSimar } from "@/modules/laporan/service";
@@ -93,8 +93,14 @@ describe("Rekap SIMAR", () => {
     await assert.rejects(rekapSimar(null, "2015-07"), { status: 401 });
   });
 
-  it("tenggat SIMAR = tanggal 10 bulan berikutnya", () => {
-    assert.equal(tenggatSimar("2026-10"), "2026-11-10");
-    assert.equal(tenggatSimar("2026-12"), "2027-01-10");
+  it("tenggat SIMAR = tanggal 10 bulan berikutnya, lewat mulai tanggal 11 menurut zona waktu konfigurasi", () => {
+    assert.deepEqual(jadwalSimar("2026-10", new Date("2026-11-10T15:59:00Z")), { tenggat: "2026-11-10", lewatTenggat: false });
+    assert.deepEqual(jadwalSimar("2026-10", new Date("2026-11-10T16:00:00Z")), { tenggat: "2026-11-10", lewatTenggat: true });
+    assert.equal(jadwalSimar("2026-12").tenggat, "2027-01-10");
+  });
+
+  it("Rencana Tindak Lanjut lebih dari 1000 karakter juga ditandai", () => {
+    const tanda = tandaSimar({ kode: "INM-02", d: 10, kelengkapan: { terverifikasi: 1, wajib: 1 }, analisa: "A", rencana: "x".repeat(1001) });
+    assert.deepEqual(tanda, [{ kode: "terlaluPanjang", pesan: "Rencana Tindak Lanjut 1001 karakter, melebihi 1000." }]);
   });
 });

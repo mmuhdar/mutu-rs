@@ -12,6 +12,7 @@ import {
   tambahHari,
   tanggalValid,
   triwulanDari,
+  triwulanDariAlamat,
   triwulanLalu,
   triwulanValid,
   wajibTriwulanSelesai,
@@ -110,6 +111,20 @@ describe("Triwulan", () => {
     // 30 September 23.59 WITA: TW III belum selesai.
     assert.equal(triwulanLalu(new Date("2026-09-30T15:59:00Z")), "2026-2");
     assert.equal(triwulanLalu(new Date("2027-02-01T04:00:00Z")), "2026-4");
+  });
+
+  it("Triwulan dari alamat halaman: tidak valid atau belum selesai = Triwulan bawaan dengan pemberitahuan", () => {
+    const sekarang = new Date("2026-11-11T04:00:00Z");
+    assert.deepEqual(triwulanDariAlamat("2025-2", sekarang), { triwulan: "2025-2" });
+    assert.deepEqual(triwulanDariAlamat(undefined, sekarang), {});
+    assert.deepEqual(triwulanDariAlamat("2026-4", sekarang), {
+      pemberitahuan: "Triwulan IV 2026 belum selesai, jadi yang ditampilkan Triwulan bawaan.",
+    });
+    for (const nilai of ["2026-5", "abc", ["2026-1", "2026-2"]]) {
+      assert.deepEqual(triwulanDariAlamat(nilai, sekarang), {
+        pemberitahuan: "Triwulan pada alamat tidak valid, jadi yang ditampilkan Triwulan bawaan.",
+      });
+    }
   });
 
   it("hanya Triwulan yang sudah selesai yang diterima service; yang lain ditolak 400", () => {

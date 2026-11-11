@@ -46,7 +46,7 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
 
   return (
     <Halaman>
-      <KepalaHalaman judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis. Yang lewat tenggat paling atas, lalu yang mendekati tenggat; status diubah di halaman Analisis-nya.">
+      <KepalaHalaman judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis. Yang lewat tenggat paling atas, lalu urut tenggat; status diubah di halaman Analisis-nya.">
         <form method="get" className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_16rem_auto] lg:items-end">
           {/* key: pilihan saringan mengikuti alamat. */}
           <Segmen key={status} nama="status" label="Status" pilihan={PILIHAN_STATUS} nilai={status} />

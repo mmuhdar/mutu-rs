@@ -83,10 +83,13 @@ describe("Capaian Triwulan", () => {
     const ind = await indikatorBaru({ frekuensi: "semesteran" });
     const s = await pelapor2016(ind, "Unit S");
     await terverifikasi(ind, s.id, "2016-06", 7, 10);
+    await terverifikasi(ind, s.id, "2016-12", 9, 10);
     assert.equal(await barisCapaian("2016-1", ind), undefined);
+    assert.equal(await barisCapaian("2016-3", ind), undefined);
     const r = (await barisCapaian("2016-2", ind))!;
     assert.deepEqual(r.bulan.map((m) => m.bulan), ["2016-06"]);
     assert.equal(r.triwulan.capaian, 70);
+    assert.deepEqual((await barisCapaian("2016-4", ind))!.bulan.map((m) => [m.bulan, m.capaian]), [["2016-12", 90]]);
   });
 
   it("Indikator nonaktif hanya dimuat bila punya Pengukuran Terverifikasi dalam Triwulan itu", async () => {
@@ -108,6 +111,7 @@ describe("Capaian Triwulan", () => {
     await assert.rejects(capaianTriwulan(await sebagai("petugasInputData"), "2016-1"), { status: 403 });
     await assert.rejects(capaianTriwulan(null, "2016-1"), { status: 401 });
     await assert.rejects(capaianTriwulan(komite, "2026-4", new Date("2026-11-11T04:00:00Z")), { status: 400 });
+    await assert.rejects(capaianTriwulan(komite, "2016-03"), { status: 400, message: "Triwulan tidak valid." });
   });
 });
 
@@ -202,5 +206,6 @@ describe("Laporan Triwulan", () => {
     });
     await assert.rejects(laporanTriwulan(await sebagai("petugasInputData"), "2016-1"), { status: 403 });
     await assert.rejects(laporanTriwulan(komite, "2016-2", new Date("2016-05-10T04:00:00Z")), { status: 400 });
+    await assert.rejects(laporanTriwulan(komite, "2016-5"), { status: 400, message: "Triwulan tidak valid." });
   });
 });

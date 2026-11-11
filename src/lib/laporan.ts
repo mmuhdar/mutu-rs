@@ -1,11 +1,14 @@
-import { geserBulan, labelTanggal } from "./bulan";
+import { geserBulan, hariIni, labelTanggal } from "./bulan";
 import type { Kelengkapan } from "./capaian";
 import type { StatusTindakLanjut } from "./perbaikan";
 
 /*
- * Aturan murni Rekap SIMAR (isian INM bulanan di SIMAR Kemenkes, Juknis SIMAR Ver.07.2024 hal. 17–21). Service di
- * `src/modules/laporan/service.ts`.
+ * Aturan murni modul Laporan: Rekomendasi Laporan Triwulan dan Rekap SIMAR (isian INM bulanan di SIMAR Kemenkes,
+ * Juknis SIMAR Ver.07.2024 hal. 17–21). Service di `src/modules/laporan/service.ts`.
  */
+
+/** Panjang maksimal Rekomendasi (dua kali Analisis, karena merangkum satu Triwulan). */
+export const MAKS_REKOMENDASI = 8000;
 
 /** Batas teks "Analisa Capaian" dan "Rencana Tindak Lanjut" (angka 1000 di bawah kotak teks form SIMAR). */
 export const BATAS_TEKS_SIMAR = 1000;
@@ -13,8 +16,14 @@ export const BATAS_TEKS_SIMAR = 1000;
 /** Denominator minimal yang diminta SIMAR per kode INM (kebersihan tangan ≥ 200 peluang per bulan). */
 export const MIN_D_SIMAR: Readonly<Record<string, number>> = { "INM-01": 200 };
 
-/** Tenggat lapor SIMAR untuk data bulan "YYYY-MM": tanggal 10 bulan berikutnya ("YYYY-MM-DD"). */
-export const tenggatSimar = (bulan: string) => `${geserBulan(bulan, 1)}-10`;
+/**
+ * Tenggat lapor SIMAR untuk data bulan "YYYY-MM": tanggal 10 bulan berikutnya ("YYYY-MM-DD", pukul 23.59 menurut
+ * Juknis hal. 19); lewat mulai tanggal 11 menurut zona waktu konfigurasi.
+ */
+export function jadwalSimar(bulan: string, sekarang = new Date()) {
+  const tenggat = `${geserBulan(bulan, 1)}-10`;
+  return { tenggat, lewatTenggat: hariIni(sekarang) > tenggat };
+}
 
 /**
  * "Rencana Tindak Lanjut" SIMAR dari Tindak Lanjut sebuah Analisis: satu baris bernomor per Tindak Lanjut (urut dibuat),

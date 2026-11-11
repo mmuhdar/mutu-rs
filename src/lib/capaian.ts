@@ -34,6 +34,24 @@ export const tercapai = (capaian: number, target: number, arah: Arah) =>
 export type Kelengkapan = { terverifikasi: number; wajib: number };
 
 /**
+ * Jumlah baris per Status Capaian dan Kelengkapan keseluruhannya (Dashboard, Laporan Triwulan): `dinilai` = semua
+ * baris, `kosong` = tanpa Capaian.
+ */
+export function ringkasStatus(baris: readonly { status: StatusCapaian | null; kelengkapan: Kelengkapan }[]) {
+  const jumlah = (status: StatusCapaian | null) => baris.filter((b) => b.status === status).length;
+  return {
+    dinilai: baris.length,
+    tercapai: jumlah("tercapai"),
+    belumTercapai: jumlah("belumTercapai"),
+    kosong: jumlah(null),
+    kelengkapan: {
+      terverifikasi: baris.reduce((total, b) => total + b.kelengkapan.terverifikasi, 0),
+      wajib: baris.reduce((total, b) => total + b.kelengkapan.wajib, 0),
+    } satisfies Kelengkapan,
+  };
+}
+
+/**
  * Capaian satu Indikator pada satu bulan. `pengukuran` = satu baris per Unit Pelapor yang aktif bulan itu beserta
  * Pengukuran Terverifikasi-nya (n dan d null = belum Terverifikasi). Capaian RS = semua Unit Pelapor itu (ΣN/ΣD,
  * bukan rata-rata Capaian Unit); Capaian Unit = baris Unit itu saja (kosong bila bukan Unit Pelapor bulan itu).

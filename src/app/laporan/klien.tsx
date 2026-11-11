@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { MAKS_REKOMENDASI } from "@/lib/laporan";
 
 import { kelasPetunjuk, PesanError } from "../form";
 import { Ikon } from "../ikon";
@@ -37,7 +38,7 @@ export function FormRekomendasi(p: { triwulan: string; teks: string }) {
         name="teks"
         rows={8}
         required
-        maxLength={8000}
+        maxLength={MAKS_REKOMENDASI}
         aria-describedby="rekomendasi-petunjuk"
         defaultValue={state.nilai?.teks ?? p.teks}
         className="text-[16px] leading-7 sm:text-[16px]"

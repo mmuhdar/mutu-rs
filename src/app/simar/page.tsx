@@ -7,6 +7,7 @@ import { bulanBerjalan, bulanDariAlamat, INPUT_BULAN, labelBulan, labelTanggal }
 import { formatAngka, formatCapaian } from "@/lib/capaian";
 import { BATAS_TEKS_SIMAR } from "@/lib/laporan";
 import { rekapSimar } from "@/modules/laporan/service";
+import { bolehTulisLingkup } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
@@ -24,6 +25,8 @@ export default async function HalamanSimar({ searchParams }: PageProps<"/simar">
   const pengguna = await requireUser();
   const { bulan, pemberitahuan } = bulanDariAlamat((await searchParams).bulan);
   const rekap = await pesanAtau(rekapSimar(pengguna, bulan));
+  // Analisis Lingkup RS: Direktur hanya membaca.
+  const menulis = bolehTulisLingkup(pengguna, null);
 
   const saringan = (
     <form method="get" className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:flex-none">
@@ -98,8 +101,8 @@ export default async function HalamanSimar({ searchParams }: PageProps<"/simar">
                 </ul>
               )}
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(3,minmax(0,12rem))]">
-                <Angka label="Num" nilai={x.n} />
-                <Angka label="Denum" nilai={x.d} />
+                <Angka label="N" nilai={x.n} />
+                <Angka label="D" nilai={x.d} />
                 <div className="grid content-start gap-1 rounded-xl bg-muted px-4 py-3">
                   <dt className="text-[12px] font-semibold text-muted-foreground">Capaian (dihitung SIMAR)</dt>
                   <dd className="text-[18px] font-bold">{x.capaian === null ? "–" : formatCapaian(x.capaian, x.indikator.satuan)}</dd>
@@ -111,12 +114,12 @@ export default async function HalamanSimar({ searchParams }: PageProps<"/simar">
                 kosong={adaPelapor ? "Belum ada Analisis Lingkup RS." : "Belum ada Unit Pelapor, jadi belum bisa dianalisis."}
               />
               <IsianTeks label="Rencana Tindak Lanjut" teks={x.analisa === null ? null : x.rencana || null} kosong="Belum ada Tindak Lanjut." />
-              {adaPelapor && (
+              {adaPelapor && (menulis || x.analisa !== null) && (
                 <Link
                   href={tautanAnalisis(x.indikator.id, null, rekap.bulan)}
                   className="justify-self-start text-[13px] font-semibold text-primary-ink hover:underline"
                 >
-                  {x.analisa === null ? "Tulis Analisis →" : "Ubah Analisis dan Tindak Lanjut →"}
+                  {!menulis ? "Lihat Analisis →" : x.analisa === null ? "Tulis Analisis →" : "Ubah Analisis dan Tindak Lanjut →"}
                 </Link>
               )}
             </div>
