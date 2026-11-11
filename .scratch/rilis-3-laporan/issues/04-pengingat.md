@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** selesai (branch `rilis-3-laporan`)
+**Status:** selesai (2026-11-11, branch `rilis-3-laporan`)
 
 - [x] `tambahHari` (`src/lib/bulan.ts`) dan `mendekatiTenggat` (`src/lib/perbaikan.ts`); baris Tindak Lanjut dari service membawa `mendekatiTenggat`.
 - [x] Tabel Tindak Lanjut: "· mendekati"; ubin Lewat tenggat menyebut jumlah mendekati tenggat.

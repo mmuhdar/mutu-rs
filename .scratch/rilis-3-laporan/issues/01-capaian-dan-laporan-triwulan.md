@@ -4,7 +4,7 @@
 
 **Blocked by:** –
 
-**Status:** selesai (branch `rilis-3-laporan`)
+**Status:** selesai (2026-11-11, branch `rilis-3-laporan`)
 
 - [x] Triwulan `"YYYY-T"` di `src/lib/bulan.ts`: `triwulanValid`, `bulanTriwulan`, `triwulanDari`, `triwulanLalu`, `labelTriwulan`; tes murni.
 - [x] `capaianTriwulan` di modul Capaian (`capaianDari` atas baris tiga bulan; Target bulan terakhir; Indikator aktif atau punya Pengukuran Terverifikasi dalam Triwulan).

@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (modul laporan)
 
-**Status:** selesai (branch `rilis-3-laporan`)
+**Status:** selesai (2026-11-11, branch `rilis-3-laporan`)
 
 - [x] `src/lib/laporan.ts`: `teksRencanaTindakLanjut`, `tandaSimar` (kode + pesan), `BATAS_TEKS_SIMAR`, `MIN_D_SIMAR`, `tenggatSimar`.
 - [x] `rekapSimar(aktor, bulan?, sekarang)` di modul laporan; hak baca `melihatCapaianRs`.

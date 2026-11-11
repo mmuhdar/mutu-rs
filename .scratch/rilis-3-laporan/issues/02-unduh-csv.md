@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** selesai (branch `rilis-3-laporan`)
+**Status:** selesai (2026-11-11, branch `rilis-3-laporan`)
 
 - [x] `keCsv` di `src/lib/csv.ts`: BOM, pemisah `;`, kutip ganda bila perlu, koma desimal tanpa pemisah ribuan, CRLF; tes murni.
 - [x] Route handler `src/app/laporan/unduh/route.ts` (`GET ?triwulan=`) memakai `laporanTriwulan` dengan sesi; penolakan service = respons teks dengan status-nya.

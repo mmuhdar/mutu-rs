@@ -1,6 +1,6 @@
 # Spec: MutuRS Rilis 3 — Laporan Triwulan, Rekap SIMAR, dan pengingat
 
-Status: berjalan (branch `rilis-3-laporan`)
+Status: selesai (2026-11-11, branch `rilis-3-laporan`)
 
 ## Problem Statement
 
