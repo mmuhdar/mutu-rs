@@ -2,7 +2,7 @@ import { labelTanggal } from "@/lib/bulan";
 import type { StatusTindakLanjut } from "@/lib/perbaikan";
 
 import { LabelTindakLanjut } from "../pengukuran/status";
-import { KotakIkon, TautanIkon } from "../ui";
+import { TautanIkon } from "../ui";
 
 type BarisTindakLanjut = {
   id: string;
@@ -16,25 +16,25 @@ type BarisTindakLanjut = {
 };
 
 /**
- * Tenggat dalam teks; yang lewat ditulis merah dengan kata "lewat", yang mendekati tenggat (≤ 7 hari) jingga dengan
- * kata "mendekati" (satu tanda tenggat per baris).
+ * Tenggat dalam teks; yang lewat ditulis amber (penyimpangan yang harus ditindaklanjuti) dengan kata "lewat", yang
+ * mendekati tenggat (≤ 7 hari) dengan kata "mendekati" dalam amber (satu tanda tenggat per baris).
  */
 function Tenggat({ t }: { t: BarisTindakLanjut }) {
   return (
-    <span className={t.lewatTenggat ? "font-semibold text-danger-ink" : t.mendekatiTenggat ? "font-semibold text-warning" : undefined}>
+    <span className={t.lewatTenggat ? "font-medium text-signal" : undefined}>
       {labelTanggal(t.tenggat)}
-      {t.lewatTenggat && " · lewat"}
-      {t.mendekatiTenggat && " · mendekati"}
+      {t.lewatTenggat && ", lewat"}
+      {t.mendekatiTenggat && <span className="text-signal">, mendekati</span>}
     </span>
   );
 }
 
 /**
- * Tindak Lanjut sebagai tabel: kepala abu muda bersudut bulat, garis baris tipis, status sebagai label pucat, dan
- * tombol ikon ke Analisis-nya. Tata letak mengikuti lebar tabel (container query), bukan lebar layar: bila tabel lebih
- * sempit dari 42rem (HP atau kolom samping) setiap baris menjadi dua baris teks (tindakan + status, lalu PIC dan
- * tenggat + tombol). `atas` = keterangan kecil di atas tindakan, `href` = tautan ke Analisis-nya (kolom Aksi), `bawah` =
- * isi selebar tabel di bawah baris (mis. form ubah).
+ * Tindak Lanjut sebagai buku (ledger): kepala tabel bergaris rambut tanpa latar, garis baris tipis, status sebagai label
+ * pucat, dan tombol ikon ke Analisis-nya. Tata letak mengikuti lebar tabel (container query), bukan lebar layar: bila
+ * tabel lebih sempit dari 42rem (HP atau kolom samping) setiap baris menjadi dua baris teks (tindakan + status, lalu PIC
+ * dan tenggat + tombol). `atas` = keterangan kecil di atas tindakan, `href` = tautan ke Analisis-nya (kolom Aksi),
+ * `bawah` = isi selebar tabel di bawah baris (mis. form ubah).
  */
 export function TabelTindakLanjut<T extends BarisTindakLanjut>({
   daftar,
@@ -54,11 +54,8 @@ export function TabelTindakLanjut<T extends BarisTindakLanjut>({
   }`;
   const aksi = (t: T) => href && <TautanIkon href={href(t)} ikon="lihat" label={`Buka Analisis: ${t.tindakan}`} />;
   return (
-    <div role="table" aria-label="Tindak Lanjut" className="@container px-3 pb-2">
-      <div
-        role="row"
-        className={`hidden rounded-xl bg-head px-4 py-3 text-[12px] font-semibold text-muted-foreground @2xl:grid ${kolom}`}
-      >
+    <div role="table" aria-label="Tindak Lanjut" className="@container px-2 pb-2 sm:px-3">
+      <div role="row" className={`hidden border-b border-rule-2 px-3 pb-2.5 text-[13px] font-medium text-ink-3 @2xl:grid ${kolom}`}>
         <span role="columnheader">Tindakan</span>
         <span role="columnheader">PIC</span>
         <span role="columnheader">Tenggat</span>
@@ -71,21 +68,16 @@ export function TabelTindakLanjut<T extends BarisTindakLanjut>({
       </div>
       {daftar.map((t) => (
         <div key={t.id} role="rowgroup" className="border-b border-rule last:border-0">
-          <div role="row" className={`grid gap-1.5 px-2 py-3.5 @2xl:px-4 ${kolom}`}>
+          <div role="row" className={`grid gap-2 px-3 py-4 ${kolom}`}>
             <span role="cell" className="flex min-w-0 items-start justify-between gap-3">
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="hidden @2xl:block">
-                  <KotakIkon nada="tindak" ikon="tindakLanjut" kecil />
-                </span>
-                <span className="min-w-0">
-                  {atas && <span className="block text-[12px] text-muted-foreground">{atas(t)}</span>}
-                  <span className="block font-semibold whitespace-pre-line">{t.tindakan}</span>
-                  {t.catatan && (
-                    <span className="mt-0.5 block text-[13px] whitespace-pre-line text-muted-foreground">
-                      {t.status === "dibatalkan" ? "Alasan" : "Catatan"}: {t.catatan}
-                    </span>
-                  )}
-                </span>
+              <span className="min-w-0">
+                {atas && <span className="mb-1 block text-[13px] text-ink-3">{atas(t)}</span>}
+                <span className="block text-[15px] leading-6 font-medium whitespace-pre-line">{t.tindakan}</span>
+                {t.catatan && (
+                  <span className="mt-1 block text-[14px] leading-5 whitespace-pre-line text-ink-2">
+                    {t.status === "dibatalkan" ? "Alasan" : "Catatan"}: {t.catatan}
+                  </span>
+                )}
               </span>
               <span className="@2xl:hidden">
                 <LabelTindakLanjut status={t.status} />
@@ -93,19 +85,21 @@ export function TabelTindakLanjut<T extends BarisTindakLanjut>({
             </span>
             <span
               role="cell"
-              className="flex items-center justify-between gap-3 text-[13px] text-muted-foreground @2xl:block @2xl:text-[14px] @2xl:text-foreground"
+              className="flex items-center justify-between gap-3 text-[14px] text-ink-2 @2xl:block @2xl:text-[15px] @2xl:text-ink"
             >
-              <span className="min-w-0">
-                <span className="@2xl:hidden">PIC </span>
-                {t.pic}
+              <span className="flex min-w-0 flex-wrap gap-x-4 gap-y-0.5">
+                <span>
+                  <span className="text-ink-3 @2xl:hidden">PIC </span>
+                  {t.pic}
+                </span>
                 <span className="@2xl:hidden">
-                  {" · "}
+                  <span className="text-ink-3">Tenggat </span>
                   <Tenggat t={t} />
                 </span>
               </span>
               {href && <span className="@2xl:hidden">{aksi(t)}</span>}
             </span>
-            <span role="cell" className="hidden whitespace-nowrap @2xl:block">
+            <span role="cell" className="hidden text-[15px] whitespace-nowrap @2xl:block">
               <Tenggat t={t} />
             </span>
             <span role="cell" className="hidden @2xl:block">
@@ -117,7 +111,7 @@ export function TabelTindakLanjut<T extends BarisTindakLanjut>({
               </span>
             )}
           </div>
-          {bawah && <div className="px-2 pb-3.5 @2xl:pr-4 @2xl:pl-16">{bawah(t)}</div>}
+          {bawah && <div className="px-3 pb-4">{bawah(t)}</div>}
         </div>
       ))}
     </div>

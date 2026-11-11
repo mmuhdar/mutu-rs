@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { Ikon } from "../../ikon";
-import { Halaman, Kartu, KepalaHalaman, KotakIkon } from "../../ui";
+import { Halaman, KepalaHalaman } from "../../ui";
 import { FormPengukuran } from "../form-pengukuran";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 
@@ -50,37 +50,46 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
         kembali={kembali}
         meta={
           <>
-            <span className="font-mono text-[13px]">{indikator.kode}</span> · {unit.nama} · {labelBulan(isian.bulan)}
+            <span className="terukur">{indikator.kode}</span>, {unit.nama}, {labelBulan(isian.bulan)}
           </>
         }
         aksi={<LabelStatus status={pengukuran?.status ?? null} />}
-        sub={pengukuran ? `Terakhir disimpan oleh ${pengukuran.pengisi}, ${formatWaktu(pengukuran.disimpan)}.` : undefined}
+        sub={
+          pengukuran ? (
+            <>
+              Terakhir disimpan oleh <span className="text-signal">{pengukuran.pengisi}</span>,{" "}
+              <span className="terukur text-cool">{formatWaktu(pengukuran.disimpan)}</span>.
+            </>
+          ) : undefined
+        }
       />
 
       {pengukuran && <AlasanPengembalian status={pengukuran.status} riwayat={riwayat} />}
 
-      <Kartu>
-        <dl className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          <div className="flex min-w-0 items-start gap-3">
-            <KotakIkon nada="pantau" ikon="dokumen" kecil />
-            <div className="min-w-0">
-              <dt className="text-[13px] font-semibold text-muted-foreground">Sumber Data</dt>
-              <dd className="mt-0.5 font-medium whitespace-pre-line">{indikator.sumberData}</dd>
-            </div>
-          </div>
-          <Collapsible className="min-w-0">
+      {/* Bahan isian: Sumber Data dan Definisi operasional dalam satu permukaan dibagi garis rambut. */}
+      <dl className="grid gap-px overflow-hidden rounded-card border border-rule bg-rule sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="min-w-0 bg-paper-2 px-5 py-4">
+          <dt className="text-[13px] text-ink-3">Sumber Data</dt>
+          <dd className="mt-1 whitespace-pre-line">{indikator.sumberData}</dd>
+        </div>
+        <Collapsible className="min-w-0 bg-paper-2 px-5 py-4">
+          <dt>
             <CollapsibleTrigger asChild>
-              <Button variant="link" size="sm" className="group/definisi h-auto gap-1 px-0 text-[13px] text-primary-ink pointer-coarse:py-1">
-                <Ikon nama="kanan" className="size-4 transition-transform group-data-[state=open]/definisi:rotate-90" />
+              <Button
+                variant="link"
+                size="sm"
+                className="group/definisi h-auto gap-1.5 px-0 text-[14px] text-ink-2 hover:text-signal focus-visible:text-signal active:text-signal disabled:opacity-50 pointer-coarse:py-1"
+              >
+                <Ikon nama="kanan" className="size-4 group-data-[state=open]/definisi:rotate-90" />
                 Definisi operasional
               </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent>
-              <p className="mt-2 whitespace-pre-line">{indikator.definisiOperasional}</p>
-            </CollapsibleContent>
-          </Collapsible>
-        </dl>
-      </Kartu>
+          </dt>
+          <CollapsibleContent asChild>
+            <dd className="mt-2 max-w-[75ch] whitespace-pre-line">{indikator.definisiOperasional}</dd>
+          </CollapsibleContent>
+        </Collapsible>
+      </dl>
 
       <FormPengukuran
         kunci={{ indikatorId: indikator.id, unitId: unit.id, bulan: isian.bulan }}

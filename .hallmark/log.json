@@ -1,0 +1,29 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "app",
+  "shape": "app screen",
+  "theme": "console",
+  "axes": "dark/grotesk-sans/chromatic-amber",
+  "hero": "none (app scope)",
+  "nav": "sidebar kept, deepest graphite step, amber marker",
+  "footer": "none (app shell)",
+  "imagery": "none; the product is the picture",
+  "photos": [],
+  "entry": "Dashboard: Capaian bulan, readings surface, work queue, ledger",
+  "fingerprint": "console/graphite/app-screen/readings-ledger-trails",
+  "sections": [
+   "readings surface",
+   "perlu tindakan",
+   "tren",
+   "ledger Capaian per Indikator",
+   "belum dianalisis",
+   "komposisi Tindak Lanjut"
+  ],
+  "signature": "the Capaian ledger, every reading in the measured face beside its Target",
+  "waived": [],
+  "prompt": "aplikasi indikator mutu rumah sakit: komite mutu dan kepala unit memantau capaian indikator bulanan terhadap target, memverifikasi pengukuran, menulis analisis dan tindak lanjut, menyusun laporan triwulan",
+  "date": "2026-11-11"
+ }
+]

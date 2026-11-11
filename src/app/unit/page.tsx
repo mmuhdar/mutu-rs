@@ -22,28 +22,40 @@ export default async function HalamanUnit() {
     );
   }
   const aktif = daftar.filter((u) => u.aktif).length;
+  const nonaktif = daftar.length - aktif;
 
   return (
     <Halaman>
       <KepalaHalaman
         judul="Unit"
-        meta={`${aktif} Unit aktif${daftar.length > aktif ? ` · ${daftar.length - aktif} nonaktif` : ""}`}
+        meta={
+          <>
+            <span className="terukur text-ink-2">{aktif}</span> Unit aktif
+            {nonaktif > 0 && (
+              <>
+                , <span className="terukur text-ink-2">{nonaktif}</span> nonaktif
+              </>
+            )}
+          </>
+        }
         sub="Daftar baku Unit. Unit nonaktif hilang dari pilihan Unit, tetapi datanya tetap ada."
-      >
-        <FormTambahUnit />
-      </KepalaHalaman>
-      <Kartu judul="Daftar Unit" sub={`${daftar.length} Unit`}>
+      />
+      {/* Satu panel: tambah Unit di atas daftar, dipisah garis rambut. */}
+      <Kartu judul="Daftar Unit" sub={`${daftar.length} Unit`} className="max-w-3xl">
+        <div className="border-y border-rule px-5 py-5">
+          <FormTambahUnit />
+        </div>
         {daftar.length === 0 ? (
-          <p className="px-5 pb-5 text-muted-foreground">Belum ada Unit.</p>
+          <p className="px-5 py-5 text-[15px] text-ink-3">Belum ada Unit.</p>
         ) : (
           <Tabel label="Daftar Unit" lebarMin="min-w-[20rem]">
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Unit</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="text-[15px]">
               {daftar.map((unit) => (
                 <BarisUnit key={`${unit.id}:${unit.nama}`} unit={unit} />
               ))}

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -46,21 +45,13 @@ const menuAktif = (menu: ItemMenu[], alamat: string) =>
     .filter((m) => (m.href === "/" ? alamat === "/" : alamat === m.href || alamat.startsWith(`${m.href}/`)))
     .sort((a, b) => b.href.length - a.href.length)[0];
 
-/** Tanda MutuRS: palang rumah sakit berisi centang mutu, di kotak bergradasi merah muda ke ungu. */
-export function TandaMutu({ className = "size-10" }: { className?: string }) {
-  // Id unik per tanda: rujukan ke gradasi di elemen yang tersembunyi (display: none) tidak tergambar.
-  const id = useId();
+/** Tanda MutuRS: palang rumah sakit berisi centang mutu, tinta di atas grafit (tanpa gradasi). */
+export function TandaMutu({ className = "size-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={`shrink-0 ${className}`}>
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="var(--aktif-dari)" />
-          <stop offset="1" stopColor="var(--primary)" />
-        </linearGradient>
-      </defs>
-      <rect width="24" height="24" rx="7" fill={`url(#${id})`} />
-      <path d="M9.6 4.5h4.8v5.1h5.1v4.8h-5.1v5.1H9.6v-5.1H4.5V9.6h5.1z" className="fill-white" />
-      <path d="m9.2 12.1 2 2 3.6-3.7" fill="none" className="stroke-primary" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <rect width="24" height="24" rx="6" className="fill-ink" />
+      <path d="M9.6 4.5h4.8v5.1h5.1v4.8h-5.1v5.1H9.6v-5.1H4.5V9.6h5.1z" className="fill-paper" />
+      <path d="m9.2 12.1 2 2 3.6-3.7" fill="none" className="stroke-ink" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -71,14 +62,14 @@ export function Merek() {
     <span className="flex items-center gap-3">
       <TandaMutu />
       <span className="leading-tight">
-        <span className="block text-[20px] font-bold tracking-[-0.02em] text-white">MutuRS</span>
-        <span className="block text-[12px] text-sidebar-foreground">Ukur. Pantau. Perbaiki.</span>
+        <span className="block font-display text-[19px] font-medium tracking-[-0.03em] text-ink">MutuRS</span>
+        <span className="block text-[13px] text-sidebar-muted">Ukur. Pantau. Perbaiki.</span>
       </span>
     </span>
   );
 }
 
-/** Dua huruf pertama nama: "Ns. Komite Mutu" → "NK". */
+/** Dua huruf pertama nama: "Ns. Komite Mutu" menjadi "NK". */
 export const inisial = (nama: string) =>
   nama
     .split(/\s+/)
@@ -93,7 +84,7 @@ function MenuSamping(p: { kelompok: KelompokMenu[]; aktif?: string; kartu?: Kart
   return (
     <Sidebar>
       <SidebarHeader className="px-4 pt-6 pb-2">
-        <Link href="/" onClick={tutup} className="rounded-xl px-2 py-1">
+        <Link href="/" onClick={tutup} aria-label="MutuRS, ke Dashboard" className="rounded-md px-2 py-1">
           <Merek />
         </Link>
       </SidebarHeader>
@@ -102,7 +93,7 @@ function MenuSamping(p: { kelompok: KelompokMenu[]; aktif?: string; kartu?: Kart
           <div key={k.judul}>
             {i > 0 && <SidebarSeparator className="mx-2" />}
             <SidebarGroup>
-              <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.08em] text-sidebar-muted uppercase">{k.judul}</SidebarGroupLabel>
+              <SidebarGroupLabel className="text-[13px] font-medium text-sidebar-muted">{k.judul}</SidebarGroupLabel>
               <SidebarMenu className="gap-1">
                 {k.item.map((m) => (
                   <SidebarMenuItem key={m.href}>
@@ -121,12 +112,12 @@ function MenuSamping(p: { kelompok: KelompokMenu[]; aktif?: string; kartu?: Kart
       </SidebarContent>
       {p.kartu && (
         <SidebarFooter className="p-4">
-          <div className="rounded-2xl bg-linear-to-br from-primary-ink to-brand p-4">
-            <p className="font-bold text-white">{p.kartu.judul}</p>
-            <p className="mt-1 text-[13px] leading-5 text-white/80">{p.kartu.isi}</p>
-            <Button asChild size="sm" className="mt-3 bg-linear-to-r from-aktif-dari to-aktif-ke text-white shadow-aktif hover:opacity-90">
+          <div className="rounded-card border border-sidebar-border bg-sidebar-accent p-4">
+            <p className="font-medium text-ink">{p.kartu.judul}</p>
+            <p className="mt-1 text-[13px] leading-5 text-ink-2">{p.kartu.isi}</p>
+            <Button asChild size="sm" variant="outline" className="mt-3">
               <Link href={p.kartu.tautan.href} onClick={tutup}>
-                {p.kartu.tautan.label} →
+                {p.kartu.tautan.label}
               </Link>
             </Button>
           </div>
@@ -143,14 +134,14 @@ function MenuAkun({ pengguna, namaRs }: { pengguna: { nama: string; peran: strin
       <form id="form-keluar" action={keluarAction} hidden />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-auto gap-3 rounded-xl py-1.5 pr-2 pl-1.5 hover:bg-card">
-            <Avatar className="size-10">
-              <AvatarFallback className="bg-linear-to-br from-aktif-dari to-primary text-[13px] font-bold text-white">
+          <Button variant="ghost" className="h-auto gap-3 rounded-md py-1.5 pr-2 pl-1.5 hover:bg-card">
+            <Avatar className="size-9">
+              <AvatarFallback className="border border-rule-2 bg-paper-2 text-[13px] font-medium text-ink">
                 {inisial(pengguna.nama)}
               </AvatarFallback>
             </Avatar>
             <span className="hidden text-left leading-tight sm:block">
-              <span className="block max-w-44 truncate text-[14px] font-semibold">{pengguna.nama}</span>
+              <span className="block max-w-44 truncate text-[14px] font-medium">{pengguna.nama}</span>
               <span className="block text-[12px] font-normal text-muted-foreground">{pengguna.peran}</span>
             </span>
             <Ikon nama="bawah" className="size-4 text-muted-foreground" />
@@ -159,10 +150,9 @@ function MenuAkun({ pengguna, namaRs }: { pengguna: { nama: string; peran: strin
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           <DropdownMenuLabel className="font-normal">
-            <span className="block text-[14px] font-semibold">{pengguna.nama}</span>
-            <span className="block text-[13px] text-muted-foreground">
-              {pengguna.peran} · {namaRs}
-            </span>
+            <span className="block text-[14px] font-medium">{pengguna.nama}</span>
+            <span className="block text-[13px] text-muted-foreground">{pengguna.peran}</span>
+            <span className="block text-[13px] text-muted-foreground">{namaRs}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
@@ -204,7 +194,7 @@ export function Bingkai(p: {
     <SidebarProvider defaultOpen={p.bukaAwal}>
       <MenuSamping kelompok={p.kelompok} aktif={aktif?.href} kartu={p.kartu} />
       <SidebarInset className="min-w-0">
-        <header className="sticky top-0 z-20 bg-background/90 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-rule bg-background">
           <div className="mx-auto flex h-[72px] max-w-[1320px] items-center gap-3 px-4 sm:px-6 lg:px-8">
             <SidebarTrigger variant="outline" size="icon" className="shrink-0" />
             <p className="min-w-0 flex-1 truncate text-[16px] font-bold sm:hidden">{aktif?.label ?? "MutuRS"}</p>
@@ -215,7 +205,7 @@ export function Bingkai(p: {
                 name="q"
                 aria-label="Cari Indikator"
                 placeholder="Cari Indikator (kode atau nama)…"
-                className="border-border pl-10 shadow-kartu"
+                className="pl-10"
               />
             </form>
             <div className="ml-auto">

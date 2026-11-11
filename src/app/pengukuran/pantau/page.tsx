@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
@@ -10,26 +11,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import { Kolom } from "../../form";
-import type { NamaIkon } from "../../ikon";
 import { PilihCari } from "../../pilih-cari";
-import { Halaman, Kartu, KepalaHalaman, type Nada, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon, Ubin } from "../../ui";
+import { BarKemajuan, Halaman, KepalaHalaman, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui";
 import { LabelStatus, Pemberitahuan, Pesan, pesanAtau } from "../status";
 
 export const metadata: Metadata = { title: "Status Pengukuran" };
 
-/** Pilihan saringan status; "belum" = Unit Pelapor yang belum mengisi. Nada dan ikon ubinnya sama dengan daftar isian. */
-const IKON_STATUS: Record<string, [Nada, NamaIkon]> = {
-  belum: ["warn", "jam"],
-  draf: ["brand", "isi"],
-  diajukan: ["ukur", "kotakMasuk"],
-  terverifikasi: ["pos", "verifikasi"],
-};
-const PILIHAN_STATUS: [string, string, Nada, NamaIkon][] = [
-  ["belum", "Belum diisi", ...IKON_STATUS.belum],
-  ...STATUS_PENGUKURAN.map((s): [string, string, Nada, NamaIkon] => [s, LABEL_STATUS_PENGUKURAN[s], ...IKON_STATUS[s]]),
-];
+/** Pilihan saringan status; "belum" = Unit Pelapor yang belum mengisi. */
+const PILIHAN_STATUS: [string, string][] = [["belum", "Belum diisi"], ...STATUS_PENGUKURAN.map((s): [string, string] => [s, LABEL_STATUS_PENGUKURAN[s]])];
 
-/** Status semua Pengukuran pada satu bulan; ubin status sekaligus saringan (ketuk untuk menyaring). */
+/**
+ * Status semua Pengukuran pada satu bulan sebagai satu papan: jumlah per status di atas (sekaligus saringan, ketuk untuk
+ * menyaring), tabel Pengukuran di bawahnya, dalam satu permukaan dibagi garis rambut.
+ */
 export default async function HalamanStatusPengukuran({ searchParams }: PageProps<"/pengukuran/pantau">) {
   const pengguna = await requireUser();
   const sp = await searchParams;
@@ -64,7 +58,7 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
               pilihan={[{ nilai: "", label: "Semua Unit" }, ...pilihanUnit.map((u) => ({ nilai: u.id, label: `${u.nama}${u.aktif ? "" : " (nonaktif)"}` }))]}
             />
           </Kolom>
-          <Button type="submit" size="lg" className="w-full sm:w-auto">
+          <Button type="submit" variant="outline" size="lg" className="w-full disabled:opacity-50 sm:w-auto">
             Tampilkan
           </Button>
         </form>
@@ -72,78 +66,106 @@ export default async function HalamanStatusPengukuran({ searchParams }: PageProp
 
       <Pemberitahuan>{dariAlamat.pemberitahuan}</Pemberitahuan>
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        {PILIHAN_STATUS.map(([nilai, label, nada, ikon]) => (
-          <Ubin
-            key={nilai}
-            ikon={ikon}
-            nada={status && status !== nilai ? "netral" : nada}
-            href={alamat({ status: status === nilai ? "" : nilai })}
-            label={status === nilai ? `${label} · tersaring` : label}
-            nilai={jumlah(nilai)}
-            keterangan={status === nilai ? "Ketuk lagi untuk semua" : "Ketuk untuk menyaring"}
-          />
-        ))}
-      </div>
+      <section aria-label={`Status Pengukuran ${labelBulan(bulan)}`} className="grid gap-px overflow-hidden rounded-card border border-rule bg-rule">
+        {/* Bacaan utama: berapa Pengukuran sudah Terverifikasi dari semua yang wajib bulan ini (saringan Unit ikut). */}
+        <div className="grid gap-3 bg-paper-2 p-5 sm:p-6">
+          <p className="text-[14px] font-medium text-ink-2">Terverifikasi, {labelBulan(bulan)}</p>
+          <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="terukur text-[48px] leading-none tracking-[-0.04em] text-ink sm:text-[56px]">
+              {jumlah("terverifikasi")}
+              <span className="text-ink-3">/{perUnit.length}</span>
+            </span>
+            {jumlah("belum") > 0 && <span className="text-[15px] text-signal">{jumlah("belum")} belum diisi</span>}
+          </p>
+          <BarKemajuan nada="pos" nilai={jumlah("terverifikasi")} dari={perUnit.length} />
+        </div>
+        <nav aria-label="Saring menurut status" className="grid grid-cols-2 gap-px md:grid-cols-4">
+          {PILIHAN_STATUS.map(([nilai, label]) => {
+            const dipilih = status === nilai;
+            const redup = Boolean(status) && !dipilih;
+            return (
+              <Link
+                key={nilai}
+                href={alamat({ status: dipilih ? "" : nilai })}
+                aria-current={dipilih ? "true" : undefined}
+                className={`grid min-w-0 content-start gap-2 border-b-2 p-4 transition-colors focus-visible:-outline-offset-2 active:bg-paper-3 sm:p-5 ${dipilih ? "border-signal" : "border-transparent"} ${redup ? "bg-paper-3 hover:bg-paper-2" : "bg-paper-2 hover:bg-paper-3"}`}
+              >
+                <span className={`text-[14px] font-medium ${redup ? "text-ink-3" : "text-ink-2"}`}>{dipilih ? `${label}, tersaring` : label}</span>
+                <span
+                  className={`terukur text-[30px] leading-none tracking-[-0.04em] ${nilai === "belum" && jumlah(nilai) > 0 ? "text-signal" : redup ? "text-ink-3" : "text-ink"}`}
+                >
+                  {jumlah(nilai)}
+                </span>
+                <span className="text-[13px] text-ink-3">{dipilih ? "Ketuk lagi untuk semua" : "Ketuk untuk menyaring"}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-      <Kartu judul={`${tampil.length} Pengukuran`} sub={status ? `Hanya ${PILIHAN_STATUS.find(([n]) => n === status)?.[1] ?? status}.` : "Semua status."}>
-        {tampil.length === 0 ? (
-          <div className="px-5 pb-5">
-            <Pesan>Tidak ada Pengukuran yang cocok dengan saringan ini.</Pesan>
+        <div className="min-w-0 bg-paper-2">
+          <div className="px-5 pt-5 pb-3">
+            <h2 className="text-[17px] leading-6 font-medium tracking-[-0.01em]">{`${tampil.length} Pengukuran`}</h2>
+            <p className="mt-0.5 text-[13px] text-ink-3">
+              {status ? `Hanya ${PILIHAN_STATUS.find(([n]) => n === status)?.[1] ?? status}.` : "Semua status."}
+            </p>
           </div>
-        ) : (
-          // Di HP Unit dan status pindah ke bawah nama Indikator supaya tabel tidak perlu digeser.
-          <Tabel label="Status Pengukuran" lebarMin="min-w-0">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Indikator</TableHead>
-                <TableHead className="max-sm:hidden">Unit</TableHead>
-                <TableHead className="max-sm:hidden">Status</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tampil.map((b) => {
-                const unit = (
-                  <>
-                    {b.unit.nama}
-                    {!b.unit.aktif && <Pil nada="netral">Nonaktif</Pil>}
-                  </>
-                );
-                return (
-                  <TableRow key={`${b.indikator.id}-${b.unit.id}`}>
-                    <TableCell>
-                      <span className="block font-semibold">{b.indikator.nama}</span>
-                      <span className="font-mono text-[12px] text-muted-foreground">{b.indikator.kode}</span>
-                      <span className="mt-1.5 flex flex-wrap items-center gap-2 sm:hidden">
-                        {unit}
-                        <LabelStatus status={b.status} />
-                      </span>
-                    </TableCell>
-                    <TableCell className="max-sm:hidden">
-                      <span className="flex flex-wrap items-center gap-2">{unit}</span>
-                    </TableCell>
-                    <TableCell className="max-sm:hidden">
-                      <LabelStatus status={b.status} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {/* Unit Pelapor yang belum mengisi belum punya Pengukuran untuk dibuka. */}
-                      {b.id ? (
-                        <TautanIkon href={`/pengukuran/${b.id}`} ikon="lihat" label={`Lihat ${b.indikator.kode}, ${b.unit.nama}`} />
-                      ) : (
-                        <span className="text-muted-foreground">
-                          <span aria-hidden>–</span>
-                          <span className="sr-only">Belum ada Pengukuran</span>
+          {tampil.length === 0 ? (
+            <p className="px-5 pb-5 text-[15px] text-ink-2">Tidak ada Pengukuran yang cocok dengan saringan ini.</p>
+          ) : (
+            // Di HP Unit dan status pindah ke bawah nama Indikator supaya tabel tidak perlu digeser.
+            <Tabel label="Status Pengukuran" lebarMin="min-w-0">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Indikator</TableHead>
+                  <TableHead className="max-sm:hidden">Unit</TableHead>
+                  <TableHead className="max-sm:hidden">Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tampil.map((b) => {
+                  const unit = (
+                    <>
+                      {b.unit.nama}
+                      {!b.unit.aktif && <Pil nada="netral">Nonaktif</Pil>}
+                    </>
+                  );
+                  return (
+                    <TableRow key={`${b.indikator.id}-${b.unit.id}`}>
+                      <TableCell className="whitespace-normal">
+                        <span className="block text-[15px] font-medium">{b.indikator.nama}</span>
+                        <span className="terukur text-[12px] text-ink-3">{b.indikator.kode}</span>
+                        <span className="mt-1.5 flex flex-wrap items-center gap-2 text-[14px] text-ink-2 sm:hidden">
+                          {unit}
+                          <LabelStatus status={b.status} />
                         </span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Tabel>
-        )}
-      </Kartu>
+                      </TableCell>
+                      <TableCell className="max-sm:hidden">
+                        <span className="flex flex-wrap items-center gap-2">{unit}</span>
+                      </TableCell>
+                      <TableCell className="max-sm:hidden">
+                        <LabelStatus status={b.status} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {/* Unit Pelapor yang belum mengisi belum punya Pengukuran untuk dibuka. */}
+                        {b.id ? (
+                          <Link href={`/pengukuran/${b.id}`} className="text-primary-ink text-[14px] whitespace-nowrap pointer-coarse:py-2 active:text-signal">
+                            Lihat<span className="sr-only"> {`${b.indikator.kode}, ${b.unit.nama}`}</span>
+                          </Link>
+                        ) : (
+                          <span className="text-[13px] whitespace-nowrap text-ink-3">
+                            belum ada<span className="sr-only"> Pengukuran</span>
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Tabel>
+          )}
+        </div>
+      </section>
     </Halaman>
   );
 }

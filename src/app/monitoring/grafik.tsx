@@ -3,16 +3,14 @@ import { formatAngka, formatCapaian, LABEL_STATUS_CAPAIAN } from "@/lib/capaian"
 import type { TitikCapaian } from "@/modules/capaian/service";
 
 import { LabelCapaian } from "../pengukuran/status";
-import { Card } from "@/components/ui/card";
-
-import { Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui";
+import { Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TUMPUK } from "../ui";
 
 /*
- * Grafik tren Capaian vs Target, dirender di server tanpa pustaka grafik dan tanpa JavaScript. Garis dan bidang
- * Capaian (warna area halaman) serta garis Target putus-putus = SVG yang meregang mengikuti lebar (garisnya tidak ikut
- * diskalakan); label sumbu, garis bantu, sorotan, dan titik bulanan = HTML berposisi persen, jadi hurufnya selalu
- * 12 px sungguhan di HP maupun layar lebar. Titik berwarna menurut Status Capaian (hijau Tercapai, merah Belum
- * Tercapai). Angka lengkap selalu ada di tabel di bawahnya.
+ * Grafik tren Capaian vs Target (run chart), dirender di server tanpa pustaka grafik dan tanpa JavaScript. Garis
+ * Capaian (cool, instrumen) dengan bidang datar tipis di bawahnya, dan garis Target bertangga (tinta redup) = SVG yang
+ * meregang mengikuti lebar (garisnya tidak ikut diskalakan); label sumbu, garis bantu, sorotan, dan titik bulanan = HTML
+ * berposisi persen, jadi hurufnya selalu 12 px sungguhan di HP maupun layar lebar. Titik berwarna menurut Status Capaian
+ * (ok Tercapai, bad Belum Tercapai). Angka lengkap selalu ada di tabel di bawahnya.
  */
 
 /** Rentang bulan "YYYY-MM" yang disorot (keduanya termasuk), mis. periode uji coba PDSA. */
@@ -35,14 +33,12 @@ export function KerangkaGrafik(p: {
   sumbu: { nilai: number; teks: string; dasar?: boolean }[];
   /** Posisi nilai sumbu dari atas bidang plot, dalam persen. */
   y: (v: number) => number;
+  /** Tinggi bidang plot (kelas Tailwind); bawaan = grafik Dashboard. */
+  tinggi?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div
-      role="img"
-      aria-label={p.label}
-      className="@container grid grid-cols-[2.5rem_minmax(0,1fr)] text-[12px] leading-4 text-muted-foreground"
-    >
+    <div role="img" aria-label={p.label} className="@container grid grid-cols-[2.5rem_minmax(0,1fr)] text-[12px] leading-4 text-ink-3">
       <div className="relative">
         {p.sumbu.map((s) => (
           <span key={s.nilai} className="absolute right-2.5 -translate-y-1/2" style={{ top: `${p.y(s.nilai)}%` }}>
@@ -50,7 +46,7 @@ export function KerangkaGrafik(p: {
           </span>
         ))}
       </div>
-      <div className="relative h-52 sm:h-60">
+      <div className={`relative ${p.tinggi ?? "h-52 sm:h-60"}`}>
         {p.sumbu.map((s) => (
           <span
             key={s.nilai}
@@ -60,12 +56,18 @@ export function KerangkaGrafik(p: {
         ))}
         {p.children}
       </div>
-      {/* Di grafik sempit 12 label bulan hampir bersentuhan: huruf 11 px, batas terkecil yang masih terbaca. */}
-      <div className="col-start-2 mt-2 flex @max-md:text-[11px]">
+      {/*
+        Di grafik sempit (< 28rem) label bulan berselang satu, dihitung dari bulan terakhir supaya bulan terakhir selalu
+        berlabel; label tahun tetap terlihat.
+      */}
+      <div className="col-start-2 mt-2 flex">
         {p.bulan.map((b, i) => (
-          <span key={b} className="min-w-0 flex-1 text-center whitespace-nowrap">
+          <span
+            key={b}
+            className={`min-w-0 flex-1 text-center whitespace-nowrap ${(p.bulan.length - 1 - i) % 2 === 1 ? "@max-md:invisible" : ""}`}
+          >
             {labelBulan(b, { pendek: true, tahun: false })}
-            {(b.endsWith("-01") || (i === 0 && !p.bulan[1]?.endsWith("-01"))) && <span className="block">{b.slice(0, 4)}</span>}
+            {(b.endsWith("-01") || (i === 0 && !p.bulan[1]?.endsWith("-01"))) && <span className="block @max-md:visible">{b.slice(0, 4)}</span>}
           </span>
         ))}
       </div>
@@ -83,30 +85,23 @@ export const ruasDari = <T,>(daftar: T[], nilai: (t: T) => number | null, x: (i:
     return [...semua, [titik]];
   }, []);
 
-/** Garis ungu dengan bidang bergradasi di bawahnya, meregang mengikuti bidang plot (garisnya tidak ikut diskalakan). */
+/** Garis nilai ukur (cool) dengan bidang datar tipis di bawahnya (tanpa gradasi), meregang mengikuti bidang plot (garisnya tidak ikut diskalakan). */
 export function GarisArea({ ruas }: { ruas: [number, number][][] }) {
   const garis = (r: [number, number][]) => r.map(([x, y], k) => `${k ? "L" : "M"}${x},${y}`).join(" ");
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden className="absolute inset-0 size-full overflow-visible">
-      <defs>
-        {/* Definisi yang sama di setiap grafik, jadi id ganda di satu halaman tetap menghasilkan gradasi yang sama. */}
-        <linearGradient id="isi-garis" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="var(--primary)" stopOpacity={0.28} />
-          <stop offset="1" stopColor="var(--primary)" stopOpacity={0.02} />
-        </linearGradient>
-      </defs>
       {ruas.map((r) => (
-        <path key={r[0][0]} d={`${garis(r)} L${r.at(-1)![0]},100 L${r[0][0]},100 Z`} fill="url(#isi-garis)" />
+        <path key={r[0][0]} d={`${garis(r)} L${r.at(-1)![0]},100 L${r[0][0]},100 Z`} className="fill-cool/4" />
       ))}
       {ruas.map((r) => (
         <path
           key={r[0][0]}
           d={garis(r)}
           fill="none"
-          strokeWidth={2.5}
+          strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
-          className="stroke-primary"
+          className="stroke-cool"
           vectorEffect="non-scaling-stroke"
         />
       ))}
@@ -119,13 +114,13 @@ export function Gelembung({ x, y, judul, nilai }: { x: number; y: number; judul:
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute z-10 rounded-lg border border-border bg-card px-2.5 py-1.5 whitespace-nowrap shadow-kartu ${
+      className={`pointer-events-none absolute z-10 rounded-md border border-rule-2 bg-paper-3 px-2.5 py-1.5 whitespace-nowrap @max-md:hidden ${
         x > 65 ? "-translate-x-[calc(100%-1rem)]" : "-translate-x-1/2"
       } ${y < 30 ? "translate-y-3.5" : "-translate-y-[calc(100%+0.875rem)]"}`}
       style={{ left: `${x}%`, top: `${y}%` }}
     >
-      <span className="block text-[11px] leading-4 text-muted-foreground">{judul}</span>
-      <span className="block text-[13px] leading-5 font-bold text-foreground">{nilai}</span>
+      <span className="block text-[12px] leading-4 text-ink-3">{judul}</span>
+      <span className="terukur block text-[14px] leading-5 text-ink">{nilai}</span>
     </span>
   );
 }
@@ -145,26 +140,26 @@ export function GrafikCapaian({ titik, satuan, judul, sorot }: { titik: TitikCap
 
   return (
     <figure className="grid gap-4">
-      <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="h-1 w-5 rounded-full bg-primary" />
+      <figcaption className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px] text-ink-3">
+        <span className="flex items-center gap-2">
+          <span aria-hidden className="h-0.5 w-5 bg-cool" />
           {judul}
         </span>
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="size-2.5 rounded-full bg-success" />
+        <span className="flex items-center gap-2">
+          <span aria-hidden className="size-2.5 rounded-full bg-ok" />
           Tercapai
         </span>
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="size-2.5 rounded-full bg-danger" />
+        <span className="flex items-center gap-2">
+          <span aria-hidden className="size-2.5 rounded-full bg-bad" />
           Belum Tercapai
         </span>
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden className="w-5 border-t-2 border-dashed border-chart-target" />
+        <span className="flex items-center gap-2">
+          <span aria-hidden className="h-0.5 w-5 bg-chart-target" />
           Target
         </span>
         {disorot.length > 0 && (
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-3 w-5 rounded-sm bg-primary/15" />
+          <span className="flex items-center gap-2">
+            <span aria-hidden className="h-3 w-5 rounded-[2px] bg-signal-soft" />
             Periode uji coba
           </span>
         )}
@@ -174,10 +169,11 @@ export function GrafikCapaian({ titik, satuan, judul, sorot }: { titik: TitikCap
         bulan={titik.map((t) => t.bulan)}
         sumbu={[0, atas / 2, atas].map((v) => ({ nilai: v, teks: formatAngka(v), dasar: v === 0 }))}
         y={y}
+        tinggi="h-60 sm:h-80"
       >
         {disorot.length > 0 && (
           <span
-            className="absolute inset-y-0 rounded-lg bg-primary/10"
+            className="absolute inset-y-0 rounded-[4px] bg-signal-soft"
             style={{ left: `${(disorot[0] / titik.length) * 100}%`, width: `${(disorot.length / titik.length) * 100}%` }}
           />
         )}
@@ -187,7 +183,6 @@ export function GrafikCapaian({ titik, satuan, judul, sorot }: { titik: TitikCap
             d={garisTarget}
             fill="none"
             strokeWidth={1.5}
-            strokeDasharray="5 4"
             className="stroke-chart-target"
             vectorEffect="non-scaling-stroke"
           />
@@ -198,8 +193,8 @@ export function GrafikCapaian({ titik, satuan, judul, sorot }: { titik: TitikCap
               <span
                 key={t.bulan}
                 title={`${labelBulan(t.bulan)}: ${formatCapaian(t.capaian, satuan)}, Target ${formatCapaian(t.target, satuan)}, ${LABEL_STATUS_CAPAIAN[t.status!]}`}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card ${t.status === "tercapai" ? "bg-success" : "bg-danger"} ${
-                  i === terakhir ? "size-4 ring-4 ring-primary/20" : "size-3"
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper-2 ${t.status === "tercapai" ? "bg-ok" : "bg-bad"} ${
+                  i === terakhir ? "size-3.5" : "size-2.5"
                 }`}
                 style={{ left: `${x(i)}%`, top: `${y(t.capaian)}%` }}
               />
@@ -219,7 +214,7 @@ export function GrafikCapaian({ titik, satuan, judul, sorot }: { titik: TitikCap
 }
 
 /** Selisih Capaian terhadap Target dengan tanda: "+2", "−26,36", "0". */
-export const formatSelisih = (s: number | null) => (s === null ? "–" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${formatAngka(Math.abs(s))}`);
+export const formatSelisih = (s: number | null) => (s === null ? "tidak ada" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${formatAngka(Math.abs(s))}`);
 
 /** Keterangan Capaian RS: Kelengkapan yang belum penuh. */
 export const keteranganRs = ({ kelengkapan: k }: TitikCapaian) =>
@@ -229,9 +224,10 @@ export const keteranganUnit = ({ kelengkapan: k }: TitikCapaian) =>
   k.wajib === 0 ? "bukan Unit Pelapor" : k.terverifikasi === 0 ? "belum Terverifikasi" : null;
 
 /**
- * Grafik dan tabel satu deret Capaian (Capaian RS atau Capaian satu Unit): grafik selebar kartu, tabel bulanan (terbaru
- * di atas) di bawahnya. `analisis` = tautan Analisis di samping nama bulan (Monitoring); `sorot` = periode uji coba
- * PDSA; `polos` = tanpa bingkai kartu sendiri, bila sudah berada di dalam kartu lain.
+ * Satu deret Capaian (Capaian RS atau Capaian satu Unit) sebagai satu permukaan dibagi garis rambut: judul, `children`
+ * (sel bacaan berlatar paper-2 dari pemanggil, mis. bacaan bulan terakhir di Monitoring), run chart selebar permukaan,
+ * lalu tabel bulanan (terbaru di atas). `analisis` = kolom tautan Analisis (Monitoring); `sorot` = periode uji coba
+ * PDSA; `polos` = tanpa bingkai luar, bila sudah berada di dalam permukaan lain.
  */
 export function Tren(p: {
   judul: string;
@@ -242,19 +238,21 @@ export function Tren(p: {
   analisis?: (t: TitikCapaian) => React.ReactNode;
   sorot?: Sorot;
   polos?: boolean;
+  children?: React.ReactNode;
 }) {
   const disorot = (t: TitikCapaian) => p.sorot !== undefined && dalamSorot(t.bulan, p.sorot);
   return (
-    <Card className={p.polos ? "min-w-0 gap-0 py-0 shadow-none ring-0" : "min-w-0 gap-0 py-0"}>
-      <div className={p.polos ? "pb-4" : "px-5 pt-5 pb-4"}>
-        <h2 className="text-[16px] leading-6 font-bold">{p.judul}</h2>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">{p.keterangan}</p>
+    <div className={`grid min-w-0 gap-px bg-rule ${p.polos ? "" : "overflow-hidden rounded-card border border-rule"}`}>
+      <div className="bg-paper-2 px-5 pt-5 pb-4 sm:px-6">
+        <h2 className="font-display text-[18px] leading-6 font-medium tracking-[-0.02em]">{p.judul}</h2>
+        <p className="mt-1 text-[14px] text-ink-3">{p.keterangan}</p>
       </div>
-      <div className={p.polos ? "grid gap-6" : "grid gap-6 pb-3"}>
-        <div className={p.polos ? undefined : "px-5"}>
-          <GrafikCapaian titik={p.titik} satuan={p.satuan} judul={p.judul} sorot={p.sorot} />
-        </div>
-        <Tabel label={`Tabel ${p.judul}`} lebarMin="min-w-[34rem]">
+      {p.children}
+      <div className="min-w-0 bg-paper-2 px-4 pt-5 pb-6 sm:px-6">
+        <GrafikCapaian titik={p.titik} satuan={p.satuan} judul={p.judul} sorot={p.sorot} />
+      </div>
+      <div className="min-w-0 bg-paper-2 pt-2">
+        <Tabel label={`Tabel ${p.judul}`} lebarMin={p.analisis ? "min-w-[40rem]" : "min-w-[34rem]"} tumpuk>
           <TableHeader>
             <TableRow>
               <TableHead>Bulan</TableHead>
@@ -262,43 +260,46 @@ export function Tren(p: {
               <TableHead className="text-right">Target</TableHead>
               <TableHead className="text-right">Selisih</TableHead>
               <TableHead>Status</TableHead>
+              {p.analisis && <TableHead className="text-right">Analisis</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {p.titik.toReversed().map((t) => {
               const catatan = p.catatan(t);
-              const kelas = `py-3 ${disorot(t) ? "bg-primary-tint/50" : ""}`;
+              // Sorotan dengan `!` supaya kolom pertama yang dipaku (berlatar kartu) ikut tersorot.
+              const kelas = `py-3 ${disorot(t) ? "bg-signal-soft!" : ""}`;
               return (
                 <TableRow key={t.bulan}>
-                  <TableCell className={kelas}>
-                    <span className="font-semibold whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
-                    {disorot(t) && <span className="ml-2 text-[12px] font-semibold text-primary-ink">uji coba</span>}
-                    {p.analisis?.(t)}
+                  <TableCell className={`${kelas} ${TUMPUK.dua} ${TUMPUK.urut1}`}>
+                    <span className="font-medium whitespace-nowrap">{labelBulan(t.bulan, { pendek: true })}</span>
+                    {disorot(t) && <span className="ml-2 text-[13px] text-signal">uji coba</span>}
                   </TableCell>
-                  <TableCell className={`${kelas} text-right`}>
-                    <span className="font-bold whitespace-nowrap">
-                      {/* "kosong" hanya untuk ΣD = 0 dari Pengukuran Terverifikasi; tanpa Pengukuran Terverifikasi = "–". */}
-                      {t.kelengkapan.terverifikasi === 0 ? (
-                        <span className="text-muted-foreground">–</span>
-                      ) : (
-                        formatCapaian(t.capaian, p.satuan)
-                      )}
-                    </span>
-                    {catatan && <span className="block text-[12px] text-warning">{catatan}</span>}
+                  <TableCell className={`${kelas} text-right ${TUMPUK.urut3}`}>
+                    {/* "kosong" hanya untuk ΣD = 0 dari Pengukuran Terverifikasi; tanpa Pengukuran Terverifikasi = "belum ada". */}
+                    {t.kelengkapan.terverifikasi === 0 ? (
+                      <span className="text-[13px] text-ink-3">belum ada</span>
+                    ) : (
+                      <span className="terukur text-[15px] whitespace-nowrap text-ink">{formatCapaian(t.capaian, p.satuan)}</span>
+                    )}
+                    {/* Kelengkapan yang belum penuh = penyimpangan yang perlu ditindaklanjuti (amber); keterangan lain redup. */}
+                    {catatan && (
+                      <span className={`block text-[13px] whitespace-nowrap ${t.kelengkapan.wajib > 0 ? "text-signal" : "text-ink-3"}`}>{catatan}</span>
+                    )}
                   </TableCell>
-                  <TableCell className={`${kelas} text-right whitespace-nowrap text-muted-foreground`}>
-                    {formatCapaian(t.target, p.satuan)}
+                  <TableCell className={`${kelas} text-right whitespace-nowrap text-ink-2 ${TUMPUK.urut4}`}>{formatCapaian(t.target, p.satuan)}</TableCell>
+                  <TableCell className={`${kelas} text-right whitespace-nowrap ${TUMPUK.ujung} ${TUMPUK.urut5}`}>
+                    <span className={t.selisih === null ? "text-[13px] text-ink-3" : "terukur text-ink-2"}>{formatSelisih(t.selisih)}</span>
                   </TableCell>
-                  <TableCell className={`${kelas} text-right whitespace-nowrap`}>{formatSelisih(t.selisih)}</TableCell>
-                  <TableCell className={kelas}>
+                  <TableCell className={`${kelas} ${TUMPUK.ujung} ${TUMPUK.urut2}`}>
                     <LabelCapaian status={t.status} />
                   </TableCell>
+                  {p.analisis && <TableCell className={`${kelas} text-right ${TUMPUK.penuh} ${TUMPUK.urut6}`}>{p.analisis(t)}</TableCell>}
                 </TableRow>
               );
             })}
           </TableBody>
         </Tabel>
       </div>
-    </Card>
+    </div>
   );
 }

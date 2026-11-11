@@ -52,7 +52,7 @@ export function FormTambahTindakLanjut({ analisisId }: { analisisId: string }) {
   const [state, action, pending] = useActionState(tambahTindakLanjutAction, {});
   return (
     <form action={action} className="grid gap-3">
-      <h3 className="text-[15px] font-bold">Tambah Tindak Lanjut</h3>
+      <h3 className="font-display text-[16px] leading-6 font-medium tracking-[-0.01em]">Tambah Tindak Lanjut</h3>
       <input type="hidden" name="analisisId" value={analisisId} />
       <IsianDasar id="baru" awal={state.nilai ?? {}} />
       <PesanError pesan={state.error} />
@@ -77,13 +77,14 @@ export function FormUbahTindakLanjut({
     // Tetap terbuka setelah ditolak; setelah berhasil form dibuat ulang (key = versi data) sehingga tertutup.
     <Collapsible>
       <CollapsibleTrigger asChild>
-        <Button variant="outline" size="sm" className="shadow-none">
+        <Button variant="outline" size="sm">
           <Ikon nama="isi" className="size-4" />
           Perbarui status atau ubah
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent asChild>
-        <form action={action} className="mt-2 grid gap-3 rounded-xl border border-border bg-head p-4">
+        {/* Sumur tanpa bingkai di dalam permukaan (bukan kotak bergaris di dalam panel). */}
+        <form action={action} className="mt-3 grid gap-4 rounded-card bg-paper-3 p-4 sm:p-5">
           <input type="hidden" name="id" value={t.id} />
           {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
           <Segmen
@@ -99,7 +100,8 @@ export function FormUbahTindakLanjut({
           </Kolom>
           <IsianDasar id={t.id} awal={awal} />
           <PesanError pesan={state.error} />
-          <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+          {/* Tombol bergaris: tombol utama halaman ini = Simpan Analisis. */}
+          <Button type="submit" variant="outline" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
             {pending ? "Menyimpan…" : "Simpan"}
           </Button>
         </form>

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { INPUT_BULAN } from "@/lib/bulan";
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/lib/perbaikan";
 import type { PlanPdsa } from "@/modules/perbaikan/service";
 
-import { Kolom, PesanError, Segmen } from "../form";
+import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { PilihCari } from "../pilih-cari";
 import { Ikon } from "../ikon";
 import { buatPdsaAction, simpanTahapPdsaAction } from "./actions";
@@ -28,38 +29,68 @@ function Teks({ nama, label, petunjuk, awal, baris = 3 }: { nama: string; label:
   );
 }
 
+/**
+ * Satu baris isian Plan seperti baris rekaman Plan di detail PDSA: label dan petunjuk di kiri, isian di kanan (di layar
+ * sempit bertumpuk); baris dipisah garis rambut.
+ */
+function Baris(p: { label: React.ReactNode; htmlFor?: string; petunjuk?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid min-w-0 gap-2 border-b border-rule py-4 md:grid-cols-[12rem_minmax(0,1fr)] md:gap-8">
+      <div className="grid content-start gap-1">
+        {p.htmlFor ? (
+          <Label htmlFor={p.htmlFor} className="font-medium">
+            {p.label}
+          </Label>
+        ) : (
+          <p className="text-sm font-medium">{p.label}</p>
+        )}
+        {p.petunjuk && <p className={kelasPetunjuk}>{p.petunjuk}</p>}
+      </div>
+      {p.children}
+    </div>
+  );
+}
+
+function TeksPlan({ nama, label, petunjuk, awal }: { nama: string; label: string; petunjuk: string; awal?: string }) {
+  return (
+    <Baris label={label} htmlFor={nama} petunjuk={petunjuk}>
+      <Textarea id={nama} name={nama} rows={3} required maxLength={4000} defaultValue={awal} className="leading-6" />
+    </Baris>
+  );
+}
+
 type AwalPlan = Partial<PlanPdsa>;
 
 /** Isian Plan. `judulTetap` = siklus berikutnya: judul disalin dari siklus sebelumnya, tidak diisi. */
 function IsianPlan({ awal, judulTetap = false }: { awal: AwalPlan; judulTetap?: boolean }) {
   return (
-    <div className="grid gap-4">
+    <div className="grid">
       {judulTetap ? (
         <input type="hidden" name="judul" value={awal.judul ?? ""} />
       ) : (
-        <Kolom label="Judul" htmlFor="judul" petunjuk="Perubahan yang diuji coba, mis. Uji coba handrub di setiap tempat tidur ICU.">
-          <Input id="judul" name="judul" required maxLength={200} defaultValue={awal.judul} className="text-[16px] font-semibold" />
-        </Kolom>
+        <Baris label="Judul" htmlFor="judul" petunjuk="Perubahan yang diuji coba, mis. Uji coba handrub di setiap tempat tidur ICU.">
+          <Input id="judul" name="judul" required maxLength={200} defaultValue={awal.judul} className="text-[16px]" />
+        </Baris>
       )}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Teks nama="masalah" label="Masalah" petunjuk="Apa yang ingin diperbaiki, dari Analisis atau data Capaian." awal={awal.masalah} />
-        <Teks nama="tujuan" label="Tujuan" petunjuk="Hasil yang ingin dicapai, sebisa mungkin dengan angka." awal={awal.tujuan} />
-        <Teks nama="prediksi" label="Prediksi" petunjuk="Apa yang diperkirakan terjadi bila perubahan dijalankan." awal={awal.prediksi} />
-        <Teks
-          nama="rencana"
-          label="Rencana perubahan"
-          petunjuk="Apa yang diubah, siapa, di mana, dan cara mengukurnya. Mulai dari skala kecil."
-          awal={awal.rencana}
-        />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 md:max-w-xl">
-        <Kolom label="Uji coba mulai" htmlFor="bulanMulai">
-          <Input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={awal.bulanMulai} />
-        </Kolom>
-        <Kolom label="Uji coba sampai" htmlFor="bulanAkhir">
-          <Input id="bulanAkhir" name="bulanAkhir" {...INPUT_BULAN} required defaultValue={awal.bulanAkhir} />
-        </Kolom>
-      </div>
+      <TeksPlan nama="masalah" label="Masalah" petunjuk="Apa yang ingin diperbaiki, dari Analisis atau data Capaian." awal={awal.masalah} />
+      <TeksPlan nama="tujuan" label="Tujuan" petunjuk="Hasil yang ingin dicapai, sebisa mungkin dengan angka." awal={awal.tujuan} />
+      <TeksPlan nama="prediksi" label="Prediksi" petunjuk="Apa yang diperkirakan terjadi bila perubahan dijalankan." awal={awal.prediksi} />
+      <TeksPlan
+        nama="rencana"
+        label="Rencana perubahan"
+        petunjuk="Apa yang diubah, siapa, di mana, dan cara mengukurnya. Mulai dari skala kecil."
+        awal={awal.rencana}
+      />
+      <Baris label="Periode uji coba">
+        <div className="grid gap-4 sm:max-w-md sm:grid-cols-2">
+          <Kolom label="Uji coba mulai" htmlFor="bulanMulai">
+            <Input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={awal.bulanMulai} />
+          </Kolom>
+          <Kolom label="Uji coba sampai" htmlFor="bulanAkhir">
+            <Input id="bulanAkhir" name="bulanAkhir" {...INPUT_BULAN} required defaultValue={awal.bulanAkhir} />
+          </Kolom>
+        </div>
+      </Baris>
     </div>
   );
 }
@@ -81,7 +112,7 @@ export function FormPdsaBaru(p: {
       {p.sebelumnyaId ? (
         <input type="hidden" name="sebelumnyaId" value={p.sebelumnyaId} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="-mb-5 grid gap-4 border-b border-rule pb-5 md:grid-cols-2">
           <Kolom label="Indikator" htmlFor="indikatorId">
             {/* key: pilihan yang ditolak tetap terpilih setelah form di-reset. */}
             <PilihCari
@@ -121,12 +152,9 @@ export function FormPdsaBaru(p: {
       )}
       <IsianPlan awal={awal} judulTetap={Boolean(p.sebelumnyaId)} />
       <PesanError pesan={state.error} />
-      <div className="grid border-t border-border pt-5">
-        <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
-          {pending ? "Menyimpan…" : "Simpan Plan dan mulai Do"}
-          <Ikon nama="kanan" className="size-[18px]" />
-        </Button>
-      </div>
+      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+        {pending ? "Menyimpan…" : "Simpan Plan dan mulai Do"}
+      </Button>
     </form>
   );
 }
@@ -205,7 +233,7 @@ export function FormTahap({
         {aktif && (
           <Button type="submit" name="lanjut" value="ya" size="lg" disabled={pending} className="w-full sm:w-auto">
             {berikut === "selesai" ? "Simpan dan selesaikan PDSA" : `Simpan dan lanjut ke ${LABEL_TAHAP_PDSA[berikut]}`}
-            <Ikon nama={berikut === "selesai" ? "centang" : "kanan"} className="size-[18px]" />
+            {berikut === "selesai" && <Ikon nama="centang" className="size-[18px]" />}
           </Button>
         )}
         <Button type="submit" variant={aktif ? "outline" : "default"} size="lg" disabled={pending} className="w-full sm:w-auto">

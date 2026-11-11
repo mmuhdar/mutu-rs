@@ -16,11 +16,17 @@ import { Bingkai, type ItemMenu, type KelompokMenu } from "./nav-samping";
 import "./globals.css";
 
 /*
- * IBM Plex Sans (variabel 100–700) untuk semua teks; IBM Plex Mono hanya untuk kode Indikator. Disimpan di aplikasi
- * (lisensi OFL, `fonts/`), jadi tetap tampil di server RS tanpa internet.
+ * Tema Console (Hallmark): Host Grotesk 400 dan 500 untuk semua yang dibaca orang; Atkinson Hyperlegible Mono untuk
+ * yang ditulis instrumen (kode Indikator, Capaian, N, D, waktu). Disimpan di aplikasi (lisensi OFL, `fonts/`), jadi tetap
+ * tampil di server RS tanpa internet.
  */
-const plex = localFont({ src: "./fonts/ibm-plex-sans-latin.woff2", weight: "100 700", variable: "--font-plex" });
-const plexMono = localFont({ src: "./fonts/ibm-plex-mono-500-latin.woff2", weight: "500", variable: "--font-plex-mono" });
+const host = localFont({ src: "./fonts/host-grotesk-latin.woff2", weight: "400 500", variable: "--font-host", display: "swap" });
+const atkinson = localFont({
+  src: "./fonts/atkinson-hyperlegible-mono-latin.woff2",
+  weight: "400 500",
+  variable: "--font-atkinson",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: { default: "MutuRS", template: "%s · MutuRS" },
@@ -70,8 +76,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const pengguna = await getSessionUser();
   const simar = jadwalSimar(bulanLalu());
   return (
-    <html lang="id" className={`${plex.variable} ${plexMono.variable}`}>
-      <body className="min-h-dvh bg-background font-sans text-[15px] leading-6 text-foreground">
+    <html lang="id" className={`${host.variable} ${atkinson.variable}`}>
+      <body className="min-h-dvh bg-background font-sans text-base leading-6 text-foreground">
         {pengguna ? (
           <Bingkai
             kelompok={

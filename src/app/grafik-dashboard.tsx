@@ -12,7 +12,7 @@ import { Gelembung, GarisArea, KerangkaGrafik, ruasDari } from "./monitoring/gra
 /* Grafik Dashboard, dirender server tanpa pustaka. Angkanya selalu juga tertulis (label kolom, tabel, nilai). */
 
 /**
- * Persentase Indikator Tercapai per bulan (Tercapai dibanding Indikator yang dinilai) sebagai garis bergradasi; bulan
+ * Persentase Indikator Tercapai per bulan (Tercapai dibanding Indikator yang dinilai) sebagai garis nilai ukur; bulan
  * tanpa Indikator yang dinilai memutus garis. Gelembung di bulan terakhir yang dinilai menulis angkanya; semua angka ada
  * di tabel "Lihat angka".
  */
@@ -35,7 +35,7 @@ export function GrafikTercapai({ data }: { data: { bulan: string; dinilai: numbe
             d.dinilai > 0 && (
               <span
                 key={d.bulan}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-card ${i === terakhir ? "size-4 ring-4 ring-primary/20" : "size-3"}`}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-cool bg-paper-2 ${i === terakhir ? "size-3.5 bg-cool" : "size-2.5"}`}
                 style={{ left: `${x(i)}%`, top: `${y(persen(d)!)}%` }}
               />
             ),
@@ -74,7 +74,7 @@ export function GrafikTercapai({ data }: { data: { bulan: string; dinilai: numbe
                     <TableCell className="px-3 py-2 text-right">{d.dinilai}</TableCell>
                     <TableCell className="px-3 py-2 text-right">{d.tercapai}</TableCell>
                     <TableCell className="px-3 py-2 text-right">
-                      {d.dinilai ? `${formatAngka((d.tercapai / d.dinilai) * 100)}%` : <span className="text-muted-foreground">–</span>}
+                      {d.dinilai ? `${formatAngka((d.tercapai / d.dinilai) * 100)}%` : <span className="text-ink-3">tidak ada</span>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -88,7 +88,7 @@ export function GrafikTercapai({ data }: { data: { bulan: string; dinilai: numbe
 }
 
 /**
- * Bar Capaian terhadap Target: panjang bar = Capaian pada skala bersama, garis tegak = Target. Skala persen 0–100; satuan
+ * Bar Capaian terhadap Target: panjang bar = Capaian pada skala bersama, garis tegak = Target. Skala persen 0 sampai 100; satuan
  * lain 0 sampai 1,25 × nilai terbesar. Merah bila Belum Tercapai, hijau bila Tercapai; belum ada Capaian = garis Target
  * saja.
  */
@@ -97,16 +97,16 @@ export function BarTarget(p: { capaian: number | null; target: number; satuan: s
   const persen = (v: number) => `${Math.min(v / skala, 1) * 100}%`;
   return (
     <span
-      className="relative block h-2 rounded-full bg-muted"
+      className="relative block h-1.5 rounded-[2px] bg-paper-3"
       title={`Capaian ${formatCapaian(p.capaian, p.satuan)}, Target ${TANDA_ARAH[p.arah]} ${formatCapaian(p.target, p.satuan)}`}
     >
       {p.capaian !== null && (
         <span
-          className={`absolute inset-y-0 left-0 rounded-full ${p.tercapai ? "bg-success" : "bg-danger"}`}
+          className={`absolute inset-y-0 left-0 rounded-[2px] ${p.tercapai ? "bg-success" : "bg-danger"}`}
           style={{ width: persen(p.capaian) }}
         />
       )}
-      <span aria-hidden className="absolute -inset-y-1 w-0.5 rounded bg-foreground/70" style={{ left: persen(p.target) }} />
+      <span aria-hidden className="absolute -inset-y-1.5 w-0.5 bg-ink" style={{ left: persen(p.target) }} />
     </span>
   );
 }

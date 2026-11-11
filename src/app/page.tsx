@@ -21,14 +21,12 @@ import { LabelCapaian, Pemberitahuan, Pesan, pesanAtau } from "./pengukuran/stat
 import { Ikon, type NamaIkon } from "./ikon";
 import {
   BarKemajuan,
-  Donat,
   Halaman,
+  Komposisi,
   Kartu,
   KepalaHalaman,
   KotakIkon,
   type Nada,
-  Pil,
-  Rincian,
   Tabel,
   TableBody,
   TableCell,
@@ -36,7 +34,7 @@ import {
   TableHeader,
   TableRow,
   TautanIkon,
-  Ubin,
+  TUMPUK,
 } from "./ui";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -96,15 +94,14 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
       : `Semua ${jumlah.dinilai - jumlah.kosong} Indikator ${perUnit ? "Unit Anda " : ""}yang punya Capaian Tercapai pada ${labelBulan(ringkasan.bulan)}.`;
 
   const punyaCapaian = jumlah.dinilai - jumlah.kosong;
-  const persenDari = (n: number) =>
-    punyaCapaian > 0 ? <Pil nada={n === jumlah.tercapai ? "pos" : "neg"}>{Math.round((n / punyaCapaian) * 100)}%</Pil> : null;
+  const persenDari = (n: number) => (punyaCapaian > 0 ? `${Math.round((n / punyaCapaian) * 100)}%` : null);
   const perluTindakan: { label: string; nilai: number | string; ikon: NamaIkon; nada: Nada; href: string; keterangan?: string }[] = [
     ...(simar
       ? [
           {
             label: `SIMAR ${labelBulan(simar.bulan)}`,
             nilai: `${simar.jumlahSiap}/${simar.baris.length}`,
-            keterangan: `INM siap · paling lambat ${labelTanggal(simar.tenggat)}${simar.lewatTenggat ? " · sudah lewat" : ""}`,
+            keterangan: `INM siap, paling lambat ${labelTanggal(simar.tenggat)}${simar.lewatTenggat ? ", sudah lewat" : ""}`,
             ikon: "simar" as const,
             nada: simar.jumlahSiap === simar.baris.length ? ("pos" as const) : ("warn" as const),
             href: "/simar",
@@ -151,13 +148,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     },
     { label: "PDSA berjalan", nilai: pdsa.length, ikon: "pdsa", nada: "pdsa", href: "/pdsa" },
   ];
-  const nadaKelompok = { INM: "brand", "IMP-RS": "ukur", "IMP-Unit": "pantau" } as const;
-
   return (
     <Halaman>
       <KepalaHalaman
-        judul={`${salam()}, ${pengguna.nama}! 👋`}
-        sub={temuan}
+        judul={`Capaian ${labelBulan(ringkasan.bulan)}`}
+        sub={`${salam()}, ${pengguna.nama}. ${temuan}`}
         aksi={
           <>
             <form method="get" className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:flex-none">
@@ -168,7 +163,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                 required
                 max={bulanBerjalan()}
                 defaultValue={ringkasan.bulan}
-                className="shadow-kartu sm:w-44"
+                className="sm:w-44"
               />
               <Button type="submit" variant="outline" size="lg">
                 Tampilkan
@@ -188,109 +183,94 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 
       <Pemberitahuan>{pemberitahuan}</Pemberitahuan>
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <Ubin nada="brand" ikon="indikator" label="Indikator dinilai" nilai={jumlah.dinilai}>
-          <Rincian
-            isi={[
-              { nada: "brand", nilai: punyaCapaian, label: "punya Capaian" },
-              { nada: "netral", nilai: jumlah.kosong, label: "belum" },
-            ]}
-          />
-        </Ubin>
-        <Ubin
-          nada="pos"
-          ikon="centang"
-          label="Tercapai"
-          nilai={jumlah.tercapai}
-          lencana={persenDari(jumlah.tercapai)}
-          keterangan={
-            ringkasan.jumlahBelumLengkap.tercapai > 0
-              ? `${ringkasan.jumlahBelumLengkap.tercapai} di antaranya belum lengkap`
-              : "menurut Target dan Arah"
-          }
-        />
-        <Ubin
-          nada="neg"
-          ikon="peringatan"
-          label="Belum Tercapai"
-          nilai={jumlah.belumTercapai}
-          lencana={jumlah.belumTercapai > 0 ? persenDari(jumlah.belumTercapai) : null}
-          keterangan={
-            ringkasan.jumlahBelumLengkap.belumTercapai > 0
-              ? `${ringkasan.jumlahBelumLengkap.belumTercapai} di antaranya belum lengkap`
-              : "menurut Target dan Arah"
-          }
-        />
-        <Ubin
-          nada="ukur"
-          ikon="verifikasi"
-          label="Kelengkapan"
-          nilai={`${k.terverifikasi}/${k.wajib}`}
-          keterangan="Pengukuran Terverifikasi dari yang wajib"
-        >
-          <BarKemajuan nada="ukur" nilai={k.terverifikasi} dari={k.wajib} />
-        </Ubin>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        <Kartu
-          className="lg:col-span-2 xl:col-span-1"
-          judul="Tren Indikator Tercapai"
-          sub={`12 bulan sampai ${labelBulan(ringkasan.bulan)}`}
-          aksi={<TautanKecil href={`/monitoring?bulan=${ringkasan.bulan}`}>Monitoring</TautanKecil>}
-        >
-          <div className="px-5 pb-5">{typeof tren === "string" ? <Pesan>{tren}</Pesan> : <GrafikTercapai data={tren} />}</div>
-        </Kartu>
-        <Kartu judul="Status Capaian" sub={`${labelBulan(ringkasan.bulan)}, ${perUnit ? "Indikator Unit Anda" : "semua Indikator"}`}>
-          <div className="px-5 pb-6">
-            <Donat
-              label={`Status Capaian ${labelBulan(ringkasan.bulan)}`}
-              tengah={{ nilai: jumlah.dinilai, label: "Indikator" }}
-              bagian={[
-                { label: "Tercapai", nilai: jumlah.tercapai, nada: "pos" },
-                { label: "Belum Tercapai", nilai: jumlah.belumTercapai, nada: "neg" },
-                { label: "Belum ada Capaian", nilai: jumlah.kosong, nada: "netral" },
-              ]}
-            />
+      {/* Bacaan bulan ini: satu permukaan dibagi garis rambut; angka Tercapai sebagai bacaan utama. */}
+      <section aria-label={`Ringkasan Capaian ${labelBulan(ringkasan.bulan)}`} className="overflow-hidden rounded-card border border-rule bg-rule">
+        <div className="grid grid-cols-2 gap-px md:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))]">
+          <div className="col-span-2 grid content-between gap-4 bg-paper-2 p-5 sm:p-6 md:col-span-1">
+            <p className="text-[14px] font-medium text-ink-2">Indikator Tercapai</p>
+            <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="terukur text-[56px] leading-none tracking-[-0.04em] text-ink sm:text-[64px]">
+                {jumlah.tercapai}
+                <span className="text-ink-3">/{punyaCapaian}</span>
+              </span>
+              {persenDari(jumlah.tercapai) && <span className="terukur text-[18px] text-ok">{persenDari(jumlah.tercapai)}</span>}
+            </p>
+            <p className="text-[13px] text-ink-3">
+              {jumlah.dinilai} Indikator dinilai, {punyaCapaian} punya Capaian
+              {ringkasan.jumlahBelumLengkap.tercapai > 0 && `, ${ringkasan.jumlahBelumLengkap.tercapai} Tercapai di antaranya belum lengkap`}.
+            </p>
           </div>
-        </Kartu>
-        <Kartu judul="Perlu tindakan" sub="Pekerjaan yang menunggu Anda">
-          <ul className="grid gap-1 px-3 pb-3">
+          <Bacaan
+            label="Belum Tercapai"
+            nilai={jumlah.belumTercapai}
+            tambahan={jumlah.belumTercapai > 0 ? persenDari(jumlah.belumTercapai) : null}
+            nadaTambahan="text-bad"
+            keterangan={
+              ringkasan.jumlahBelumLengkap.belumTercapai > 0
+                ? `${ringkasan.jumlahBelumLengkap.belumTercapai} di antaranya belum lengkap`
+                : "menurut Target dan Arah"
+            }
+          />
+          <Bacaan label="Belum ada Capaian" nilai={jumlah.kosong} keterangan="tanpa Pengukuran Terverifikasi" />
+          <Bacaan
+            label="Kelengkapan"
+            nilai={`${k.terverifikasi}/${k.wajib}`}
+            keterangan="Pengukuran Terverifikasi dari yang wajib"
+            className="col-span-2 md:col-span-1"
+          >
+            <BarKemajuan nada="ukur" nilai={k.terverifikasi} dari={k.wajib} />
+          </Bacaan>
+        </div>
+      </section>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-start">
+        <Kartu judul="Perlu tindakan" sub="Pekerjaan yang menunggu Anda.">
+          <ul className="grid px-2 pb-2">
             {perluTindakan.map((t) => (
-              <li key={t.label}>
-                <Link href={t.href} className="flex min-h-14 items-center gap-3 rounded-xl px-2 py-2 hover:bg-muted">
-                  <KotakIkon nada={t.nada} ikon={t.ikon} kecil />
+              <li key={t.label} className="border-t border-rule first:border-0">
+                <Link href={t.href} className="flex min-h-14 items-center gap-3 rounded-md px-3 py-2.5 transition-colors hover:bg-paper-3">
+                  <KotakIkon ikon={t.ikon} kecil />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-medium">{t.label}</span>
-                    {t.keterangan && <span className="block text-[12px] leading-4 text-muted-foreground">{t.keterangan}</span>}
+                    {t.keterangan && <span className="block text-[12px] leading-4 text-ink-3">{t.keterangan}</span>}
                   </span>
-                  <span className={`text-[18px] font-bold whitespace-nowrap ${t.nilai === 0 ? "" : t.nada === "neg" ? "text-danger" : t.nada === "warn" ? "text-warning" : ""}`}>
+                  <span
+                    className={`terukur text-[18px] whitespace-nowrap ${t.nilai === 0 ? "text-ink-3" : t.nada === "neg" ? "text-bad" : t.nada === "warn" ? "text-signal" : "text-ink"}`}
+                  >
                     {t.nilai}
                   </span>
-                  <Ikon nama="kanan" className="size-4 text-muted-foreground" />
+                  <Ikon nama="kanan" className="size-4 text-ink-3" />
                 </Link>
               </li>
             ))}
           </ul>
         </Kartu>
+        <Kartu
+          judul="Tren Indikator Tercapai"
+          sub={`12 bulan sampai ${labelBulan(ringkasan.bulan)}.`}
+          aksi={<TautanKecil href={`/monitoring?bulan=${ringkasan.bulan}`}>Buka Monitoring</TautanKecil>}
+        >
+          <div className="px-5 pb-5">{typeof tren === "string" ? <Pesan>{tren}</Pesan> : <GrafikTercapai data={tren} />}</div>
+        </Kartu>
       </div>
 
       <Kartu
         judul="Capaian per Indikator"
-        sub={`${labelBulan(ringkasan.bulan)} · garis tegak = Target · Belum Tercapai di atas`}
-        aksi={<TautanKecil href={`/monitoring?bulan=${ringkasan.bulan}`}>Monitoring</TautanKecil>}
+        sub={`${labelBulan(ringkasan.bulan)}. Garis tegak = Target; Belum Tercapai di atas.`}
+        aksi={<TautanKecil href={`/monitoring?bulan=${ringkasan.bulan}`}>Buka Monitoring</TautanKecil>}
       >
         {urut.length === 0 ? (
           <div className="px-5 pb-5">
             <Pesan>Belum ada Indikator aktif yang dinilai pada {labelBulan(ringkasan.bulan)}.</Pesan>
           </div>
         ) : (
-          <Tabel label="Capaian per Indikator" lebarMin="min-w-[54rem]">
+          <Tabel label="Capaian per Indikator" lebarMin="min-w-[60rem]" tumpuk>
             <TableHeader>
               <TableRow>
                 <TableHead>Indikator</TableHead>
                 <TableHead>{perUnit ? "Unit" : "Kelengkapan"}</TableHead>
-                <TableHead className="w-[26%]">Capaian</TableHead>
+                <TableHead className="w-[20%] min-w-36">Capaian terhadap Target</TableHead>
+                <TableHead className="text-right">Capaian</TableHead>
                 <TableHead className="text-right">Target</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -299,47 +279,39 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             <TableBody>
               {urut.map(({ indikator: i, unit, capaian, target, status, kelengkapan: kb }) => (
                 <TableRow key={`${i.id}-${unit?.id}`}>
-                  <TableCell>
-                    <span className="flex items-center gap-3">
-                      <KotakIkon nada={nadaKelompok[i.kelompok]} ikon="indikator" kecil />
-                      <span className="min-w-0">
-                        <span className="block font-semibold">{i.nama}</span>
-                        <span className="font-mono text-[12px] text-muted-foreground">{i.kode}</span>
-                      </span>
-                    </span>
+                  <TableCell className={`min-w-[17rem] whitespace-normal max-sm:min-w-0 ${TUMPUK.penuh} ${TUMPUK.urut1}`}>
+                    <span className="block font-medium">{i.nama}</span>
+                    <span className="terukur text-[12px] text-ink-3">{i.kode}</span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className={`whitespace-nowrap ${TUMPUK.ujung} ${TUMPUK.urut6}`}>
                     {unit && <span className="block font-medium">{unit.nama}</span>}
-                    <span className={`text-[13px] ${kb.terverifikasi < kb.wajib ? "text-warning" : "text-muted-foreground"}`}>
-                      {kb.terverifikasi < kb.wajib ? "belum lengkap " : ""}
-                      {kb.terverifikasi}/{kb.wajib} Unit
+                    <span className={`terukur text-[13px] ${kb.terverifikasi < kb.wajib ? "text-signal" : "text-ink-3"}`}>
+                      {kb.terverifikasi}/{kb.wajib}
+                    </span>
+                    <span className={`text-[13px] ${kb.terverifikasi < kb.wajib ? "text-signal" : "text-ink-3"}`}>
+                      {kb.terverifikasi < kb.wajib ? " Unit, belum lengkap" : " Unit"}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <span className="flex items-center gap-3">
-                      <span className="min-w-0 flex-1">
-                        <BarTarget capaian={capaian} target={target} satuan={i.satuan} arah={i.arah} tercapai={status === "tercapai"} />
-                      </span>
-                      <span
-                        className={`w-16 text-right font-bold ${status === "belumTercapai" ? "text-danger" : status === "tercapai" ? "text-success-ink" : ""}`}
-                      >
-                        {kb.terverifikasi === 0 ? <span className="text-muted-foreground">–</span> : formatCapaian(capaian, i.satuan)}
-                      </span>
-                    </span>
+                  <TableCell className={`${TUMPUK.dua} ${TUMPUK.urut5}`}>
+                    <BarTarget capaian={capaian} target={target} satuan={i.satuan} arah={i.arah} tercapai={status === "tercapai"} />
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap text-muted-foreground">
+                  <TableCell className={`text-right ${TUMPUK.urut2}`}>
+                    {kb.terverifikasi === 0 ? (
+                      <span className="text-[13px] text-ink-3">belum ada</span>
+                    ) : (
+                      <span className="terukur text-[15px] whitespace-nowrap text-ink">{formatCapaian(capaian, i.satuan)}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className={`text-right whitespace-nowrap text-ink-3 ${TUMPUK.urut3}`}>
                     {TANDA_ARAH[i.arah]} {formatCapaian(target, i.satuan)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className={`${TUMPUK.ujung} ${TUMPUK.urut4}`}>
                     <LabelCapaian status={status} />
                   </TableCell>
-                  <TableCell className="text-right">
-                    <span className="inline-flex items-center gap-2">
+                  <TableCell className={`text-right ${TUMPUK.penuh} ${TUMPUK.urut7}`}>
+                    <span className="inline-flex items-center gap-3">
                       {belumRs.has(i.id) && unit === null && (
-                        <Link
-                          href={tautanAnalisis(i.id, null, ringkasan.bulan)}
-                          className="text-[13px] font-semibold whitespace-nowrap text-primary-ink hover:underline"
-                        >
+                        <Link href={tautanAnalisis(i.id, null, ringkasan.bulan)} className="text-primary-ink text-[13px] whitespace-nowrap">
                           Tulis Analisis
                         </Link>
                       )}
@@ -373,12 +345,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                   {dikembalikan.slice(0, 5).map((p) => (
                     <TableRow key={p.id}>
                       <TableCell>
-                        <span className="block font-semibold">
-                          {p.unit.nama} · {labelBulan(p.bulan, { pendek: true })}
+                        <span className="block font-medium">
+                          {p.unit.nama}, {labelBulan(p.bulan, { pendek: true })}
                         </span>
-                        <span className="font-mono text-[12px] text-muted-foreground">{p.indikator.kode}</span>
+                        <span className="terukur text-[12px] text-ink-3">{p.indikator.kode}</span>
                       </TableCell>
-                      <TableCell className="text-[14px] whitespace-pre-line text-muted-foreground">{p.alasan}</TableCell>
+                      <TableCell className="text-[14px] whitespace-pre-line text-ink-2">{p.alasan}</TableCell>
                       <TableCell className="text-right">
                         <TautanIkon
                           href={`/pengukuran/isi?${new URLSearchParams({ indikator: p.indikator.id, unit: p.unit.id, bulan: p.bulan })}`}
@@ -414,21 +386,13 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                     {daftarBelum.slice(0, 6).map(({ indikator: i, unit }) => (
                       <TableRow key={`${i.id}-${unit?.id}`}>
                         <TableCell>
-                          <span className="flex items-center gap-3">
-                            <KotakIkon nada={nadaKelompok[i.kelompok]} ikon="dokumen" kecil />
-                            <span className="min-w-0">
-                              <span className="block font-semibold">{i.nama}</span>
-                              <span className="font-mono text-[12px] text-muted-foreground">{i.kode}</span>
-                            </span>
-                          </span>
+                          <span className="block font-medium">{i.nama}</span>
+                          <span className="terukur text-[12px] text-ink-3">{i.kode}</span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">{labelLingkup(unit)}</TableCell>
                         <TableCell className="text-right">
-                          <Link
-                            href={tautanAnalisis(i.id, unit?.id ?? null, belum.bulan)}
-                            className="text-[13px] font-semibold whitespace-nowrap text-primary-ink hover:underline"
-                          >
-                            {bolehTulisLingkup(pengguna, unit?.id ?? null) ? "Tulis Analisis →" : "Lihat →"}
+                          <Link href={tautanAnalisis(i.id, unit?.id ?? null, belum.bulan)} className="text-primary-ink text-[13px] whitespace-nowrap">
+                            {bolehTulisLingkup(pengguna, unit?.id ?? null) ? "Tulis Analisis" : "Lihat Analisis"}
                           </Link>
                         </TableCell>
                       </TableRow>
@@ -441,13 +405,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         </div>
         <Kartu
           judul="Tindak Lanjut"
-          sub={`${tindakLanjut.length} Tindak Lanjut · ${lewatTenggat} lewat tenggat`}
-          aksi={<TautanKecil href="/tindak-lanjut?status=semua">Semua</TautanKecil>}
+          sub={`${tindakLanjut.length} Tindak Lanjut, ${lewatTenggat} lewat tenggat.`}
+          aksi={<TautanKecil href="/tindak-lanjut?status=semua">Lihat semua</TautanKecil>}
         >
-          <div className="px-5 pb-6">
-            <Donat
+          <div className="px-5 pb-5">
+            <Komposisi
               label="Tindak Lanjut menurut status"
-              tengah={{ nilai: tindakLanjut.length, label: "Tindak Lanjut" }}
               bagian={STATUS_TINDAK_LANJUT.map((s) => ({
                 label: LABEL_STATUS_TINDAK_LANJUT[s],
                 nilai: tindakLanjut.filter((t) => t.status === s).length,
@@ -461,16 +424,41 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   );
 }
 
-/** Tautan kecil di kepala kartu, mis. "Monitoring →". */
+/** Satu bacaan di permukaan ringkasan: label, angka dalam huruf ukur, keterangan. */
+function Bacaan(p: {
+  label: string;
+  nilai: React.ReactNode;
+  tambahan?: string | null;
+  nadaTambahan?: string;
+  keterangan: string;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className={`grid min-w-0 content-between gap-3 bg-paper-2 p-4 sm:p-5 ${p.className ?? ""}`}>
+      <p className="text-[14px] font-medium text-ink-2">{p.label}</p>
+      <p className="flex flex-wrap items-baseline gap-x-2">
+        <span className="terukur text-[26px] leading-none tracking-[-0.04em] text-ink sm:text-[32px]">{p.nilai}</span>
+        {p.tambahan && <span className={`terukur text-[15px] ${p.nadaTambahan ?? "text-ink-3"}`}>{p.tambahan}</span>}
+      </p>
+      <div>
+        <p className="text-[13px] text-ink-3">{p.keterangan}</p>
+        {p.children}
+      </div>
+    </div>
+  );
+}
+
+/** Tautan kecil di kepala panel, mis. "Buka Monitoring". */
 function TautanKecil({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Button asChild variant="outline" size="sm" className="shadow-none">
-      <Link href={href}>{children} →</Link>
+    <Button asChild variant="outline" size="sm">
+      <Link href={href}>{children}</Link>
     </Button>
   );
 }
 
-const NADA_TINDAK_LANJUT = { direncanakan: "atur", berjalan: "tindak", selesai: "pos", dibatalkan: "netral" } as const satisfies Record<
+const NADA_TINDAK_LANJUT = { direncanakan: "netral", berjalan: "tindak", selesai: "pos", dibatalkan: "redup" } as const satisfies Record<
   string,
   Nada
 >;

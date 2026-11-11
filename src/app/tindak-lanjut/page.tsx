@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { labelBulan } from "@/lib/bulan";
@@ -14,7 +15,7 @@ import { Kolom, Segmen } from "../form";
 import { PilihCari } from "../pilih-cari";
 import { Pesan, pesanAtau } from "../pengukuran/status";
 import { Ikon } from "../ikon";
-import { Halaman, Kartu, KepalaHalaman, Ubin } from "../ui";
+import { Halaman, KepalaHalaman } from "../ui";
 import { TabelTindakLanjut } from "./tabel";
 
 export const metadata: Metadata = { title: "Tindak Lanjut" };
@@ -71,58 +72,71 @@ export default async function HalamanTindakLanjut({ searchParams }: PageProps<"/
         </form>
       </KepalaHalaman>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Ubin
-          nada={hitung((t) => t.lewatTenggat) > 0 ? "neg" : "netral"}
-          ikon="jam"
-          href={alamat("terbuka")}
-          label="Lewat tenggat"
-          nilai={hitung((t) => t.lewatTenggat)}
-          keterangan={
-            hitung((t) => t.mendekatiTenggat) > 0
-              ? `${hitung((t) => t.mendekatiTenggat)} lainnya mendekati tenggat (≤ ${HARI_MENDEKATI_TENGGAT} hari)`
-              : "masih Direncanakan atau Berjalan"
-          }
-        />
-        <Ubin
-          nada="atur"
-          ikon="dokumen"
-          href={alamat("direncanakan")}
-          label="Direncanakan"
-          nilai={hitung((t) => t.status === "direncanakan")}
-          keterangan="belum dimulai"
-        />
-        <Ubin
-          nada="tindak"
-          ikon="tindakLanjut"
-          href={alamat("berjalan")}
-          label="Berjalan"
-          nilai={hitung((t) => t.status === "berjalan")}
-          keterangan="sedang dikerjakan"
-        />
-        <Ubin
-          nada="pos"
-          ikon="centang"
-          href={alamat("selesai")}
-          label="Selesai"
-          nilai={hitung((t) => t.status === "selesai")}
-          keterangan="dengan catatan hasil"
-        />
-      </div>
-
       {typeof daftar === "string" ? (
         <Pesan>{daftar}</Pesan>
-      ) : daftar.length === 0 ? (
-        <Pesan>Tidak ada Tindak Lanjut dengan saringan ini.</Pesan>
       ) : (
-        <Kartu judul={`${daftar.length} Tindak Lanjut`} sub={PILIHAN_STATUS.find((p) => p.nilai === status)?.label}>
-          <TabelTindakLanjut
-            daftar={daftar}
-            atas={(t) => `${t.indikator.kode} · ${labelLingkup(t.unit)} · Analisis ${labelBulan(t.bulan, { pendek: true })}`}
-            href={(t) => tautanAnalisis(t.indikator.id, t.unit?.id ?? null, t.bulan)}
-          />
-        </Kartu>
+        // Buku Tindak Lanjut: hitungan per status (tautan saringan) di atas, tabel di bawahnya, satu permukaan.
+        <div className="grid min-w-0 gap-px overflow-hidden rounded-card border border-rule bg-rule">
+          <div className="grid grid-cols-2 gap-px lg:grid-cols-4">
+            <Hitungan
+              href={alamat("terbuka")}
+              label="Lewat tenggat"
+              nilai={hitung((t) => t.lewatTenggat)}
+              penyimpangan
+              keterangan={
+                hitung((t) => t.mendekatiTenggat) > 0
+                  ? `${hitung((t) => t.mendekatiTenggat)} lainnya mendekati tenggat (≤ ${HARI_MENDEKATI_TENGGAT} hari)`
+                  : "masih Direncanakan atau Berjalan"
+              }
+            />
+            <Hitungan
+              href={alamat("direncanakan")}
+              label="Direncanakan"
+              nilai={hitung((t) => t.status === "direncanakan")}
+              keterangan="belum dimulai"
+            />
+            <Hitungan href={alamat("berjalan")} label="Berjalan" nilai={hitung((t) => t.status === "berjalan")} keterangan="sedang dikerjakan" />
+            <Hitungan href={alamat("selesai")} label="Selesai" nilai={hitung((t) => t.status === "selesai")} keterangan="dengan catatan hasil" />
+          </div>
+          <section aria-labelledby="judul-buku" className="min-w-0 bg-paper-2">
+            <div className="px-5 pt-5 pb-3 sm:px-6">
+              <h2 id="judul-buku" className="font-display text-[17px] leading-6 font-medium tracking-[-0.01em]">
+                <span className="terukur">{daftar.length}</span> Tindak Lanjut
+              </h2>
+              <p className="mt-1 text-[13px] text-ink-3">{PILIHAN_STATUS.find((p) => p.nilai === status)?.label}</p>
+            </div>
+            {daftar.length === 0 ? (
+              <p className="px-5 pb-6 text-[15px] text-ink-2 sm:px-6">Tidak ada Tindak Lanjut dengan saringan ini.</p>
+            ) : (
+              <TabelTindakLanjut
+                daftar={daftar}
+                atas={(t) => (
+                  <>
+                    <span className="terukur">{t.indikator.kode}</span>, {labelLingkup(t.unit)}, Analisis {labelBulan(t.bulan, { pendek: true })}
+                  </>
+                )}
+                href={(t) => tautanAnalisis(t.indikator.id, t.unit?.id ?? null, t.bulan)}
+              />
+            )}
+          </section>
+        </div>
       )}
     </Halaman>
+  );
+}
+
+/**
+ * Satu hitungan di kepala buku Tindak Lanjut: label, angka dalam huruf ukur, keterangan; seluruh sel = tautan saringan.
+ * `penyimpangan` = angka di atas 0 ditulis amber (yang harus ditindaklanjuti seseorang, mis. lewat tenggat).
+ */
+function Hitungan(p: { href: string; label: string; nilai: number; keterangan: string; penyimpangan?: boolean }) {
+  return (
+    <Link href={p.href} className="grid min-w-0 content-between gap-3 bg-paper-2 p-5 transition-colors hover:bg-paper-3">
+      <span className="text-[14px] font-medium text-ink-2">{p.label}</span>
+      <span className={`terukur text-[32px] leading-none tracking-[-0.04em] ${p.penyimpangan && p.nilai > 0 ? "text-signal" : "text-ink"}`}>
+        {p.nilai}
+      </span>
+      <span className="text-[13px] text-ink-3">{p.keterangan}</span>
+    </Link>
   );
 }

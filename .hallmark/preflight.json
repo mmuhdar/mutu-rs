@@ -1,0 +1,14 @@
+{
+  "scanned": "2026-11-11",
+  "findings": {
+    "fonts": "IBM Plex Sans 100–700 + IBM Plex Mono 500, next/font/local (src/app/layout.tsx:22-23), file lokal di src/app/fonts (server RS bisa tanpa internet)",
+    "palette": "token shadcn + tambahan MutuRS di :root (src/app/globals.css:9-90): latar abu muda, kartu putih, primary ungu #5b3df5, sidebar navy #0f1533, gradasi aktif merah muda-oranye, enam warna bernama untuk kotak ikon",
+    "motion": "tw-animate-css (globals.css:2), tanpa pustaka motion",
+    "spacing": "skala Tailwind v4 bawaan, radius --radius 0.625rem",
+    "framework": "Next.js 16.4 app router, shadcn/ui radix-nova (components.json), Tailwind v4 tanpa config, ikon lucide-react",
+    "design_md": "tidak ada",
+    "brand": "wordmark MutuRS + tanda plus/centang (src/app/nav-samping.tsx TandaMutu); warna diambil dari gambar dashboard acuan user, bukan file merek"
+  },
+  "preserve": ["isi dan wiring setiap layar (link, form, field, action, rute)", "komponen shadcn sebagai dasar kontrol", "font lokal tanpa internet", "struktur shell sidebar (lebih dari 7 tujuan)"],
+  "introduce": ["tema Hallmark: palet, huruf, permukaan, radius", "susunan ulang setiap layar (app screens)", "gerbang Floor/Reflex", "stamp di stylesheet"]
+}

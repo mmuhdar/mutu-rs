@@ -44,7 +44,8 @@ export function FormRekomendasi(p: { triwulan: string; teks: string }) {
         className="text-[16px] leading-7 sm:text-[16px]"
       />
       <PesanError pesan={state.error} />
-      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+      {/* Tombol utama layar ini = Cetak; simpan berupa tombol sekunder. */}
+      <Button type="submit" variant="outline" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
         {pending ? "Menyimpan…" : "Simpan Rekomendasi"}
       </Button>
     </form>

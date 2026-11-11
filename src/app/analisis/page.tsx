@@ -15,7 +15,7 @@ import { LabelTahap } from "../pdsa/tahap";
 import { formatWaktu, LabelCapaian, Pesan, pesanAtau } from "../pengukuran/status";
 import { TabelTindakLanjut } from "../tindak-lanjut/tabel";
 import { Ikon } from "../ikon";
-import { BarKemajuan, Halaman, Kartu, KepalaHalaman, KotakIkon, Ubin } from "../ui";
+import { AngkaBesar, BarKemajuan, Halaman, KepalaHalaman } from "../ui";
 import { FormAnalisis } from "./form-analisis";
 import { FormTambahTindakLanjut, FormUbahTindakLanjut } from "./form-tindak-lanjut";
 import { tautanAnalisis } from "./tautan";
@@ -53,87 +53,118 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
         kembali={[{ href: `/monitoring?${new URLSearchParams({ indikator: ind.id, bulan: a.bulan })}`, label: "Monitoring" }]}
         meta={
           <>
-            <span className="font-mono text-[13px]">{ind.kode}</span> · {ind.kelompok}
-            {!ind.aktif && " · nonaktif"} · Analisis {lingkup} · {labelBulan(a.bulan)}
+            <span className="terukur text-ink-2">{ind.kode}</span>, {ind.kelompok}
+            {!ind.aktif && ", nonaktif"}, Analisis {lingkup}, {labelBulan(a.bulan)}
           </>
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <Ubin
-          nada={c?.status === "tercapai" ? "pos" : c?.status === "belumTercapai" ? "neg" : "netral"}
-          ikon={c?.status === "tercapai" ? "centang" : c?.status === "belumTercapai" ? "peringatan" : "monitoring"}
-          label={unit ? "Capaian Unit" : "Capaian RS"}
-          nilai={ada ? formatCapaian(c.capaian, ind.satuan) : "–"}
-          lencana={c?.status && <LabelCapaian status={c.status} />}
-          keterangan={
-            !c?.status
-              ? "belum ada Capaian"
-              : c.selisih === null
-                ? "selisih belum ada"
-                : `selisih ${formatSelisih(c.selisih)} ${ind.satuan} dari Target`
-          }
-        />
-        <Ubin
-          nada="pantau"
-          ikon="target"
-          label="Target"
-          nilai={c ? `${TANDA_ARAH[ind.arah]} ${formatCapaian(c.target, ind.satuan)}` : "–"}
-          keterangan="berlaku bulan ini"
-        />
-        <div className="col-span-2 min-w-0 md:col-span-1">
-          <Ubin
-            nada="ukur"
-            ikon="verifikasi"
-            label="Kelengkapan"
-            nilai={c ? `${c.kelengkapan.terverifikasi}/${c.kelengkapan.wajib}` : "–"}
-            keterangan={catatan ?? "Capaian dari Pengukuran Terverifikasi terkini"}
-          >
-            {c && <BarKemajuan nada="ukur" nilai={c.kelengkapan.terverifikasi} dari={c.kelengkapan.wajib} />}
-          </Ubin>
+      {/* Bacaan Capaian bulan ini: satu permukaan dibagi garis rambut; Capaian dalam huruf ukur ukuran tampilan. */}
+      <section
+        aria-label={`${unit ? "Capaian Unit" : "Capaian RS"} ${labelBulan(a.bulan)}`}
+        className="overflow-hidden rounded-card border border-rule bg-rule"
+      >
+        <div className="grid grid-cols-2 gap-px md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="col-span-2 grid content-between gap-4 bg-paper-2 p-5 sm:p-6 md:col-span-1">
+            <p className="text-[14px] font-medium text-ink-2">{unit ? "Capaian Unit" : "Capaian RS"}</p>
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {ada ? (
+                <AngkaBesar teks={formatCapaian(c.capaian, ind.satuan)} satuan={ind.satuan} className="text-[52px] tracking-[-0.04em] sm:text-[64px]" />
+              ) : (
+                <span className="text-[22px] leading-none text-ink-3">belum ada</span>
+              )}
+              {c?.status && <LabelCapaian status={c.status} />}
+            </p>
+            <p className="text-[13px] text-ink-3">
+              {!c?.status
+                ? "belum ada Capaian"
+                : c.selisih === null
+                  ? "selisih belum ada"
+                  : `selisih ${formatSelisih(c.selisih)} ${ind.satuan} dari Target`}
+            </p>
+          </div>
+          <div className="grid content-between gap-4 bg-paper-2 p-5">
+            <p className="text-[14px] font-medium text-ink-2">Target</p>
+            {c ? (
+              <p className="text-[28px] leading-none tracking-[-0.03em] text-ink">
+                {TANDA_ARAH[ind.arah]} {formatCapaian(c.target, ind.satuan)}
+              </p>
+            ) : (
+              <p className="text-[18px] leading-none text-ink-3">belum ada</p>
+            )}
+            <p className="text-[13px] text-ink-3">berlaku bulan ini</p>
+          </div>
+          <div className="grid content-between gap-4 bg-paper-2 p-5">
+            <p className="text-[14px] font-medium text-ink-2">Kelengkapan</p>
+            {c ? (
+              <p className="terukur text-[28px] leading-none tracking-[-0.04em] text-ink">
+                {c.kelengkapan.terverifikasi}/{c.kelengkapan.wajib}
+              </p>
+            ) : (
+              <p className="text-[18px] leading-none text-ink-3">belum ada</p>
+            )}
+            <div>
+              <p className={`text-[13px] ${catatan && c && c.kelengkapan.wajib > 0 ? "text-signal" : "text-ink-3"}`}>
+                {catatan ?? "Capaian dari Pengukuran Terverifikasi terkini"}
+              </p>
+              {c && <BarKemajuan nada="ukur" nilai={c.kelengkapan.terverifikasi} dari={c.kelengkapan.wajib} />}
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,3fr)] lg:items-start">
-        <div className="grid min-w-0 gap-5">
-          <Kartu
+        {/* Analisis dan Tindak Lanjut-nya: satu permukaan dibagi garis rambut. */}
+        <div className="grid min-w-0 gap-px overflow-hidden rounded-card border border-rule bg-rule">
+          <Bagian
             judul="Analisis"
-            sub={a.analisis ? `Terakhir diubah oleh ${a.analisis.diubahOleh}, ${formatWaktu(a.analisis.diubahPada)}` : "Belum ditulis."}
+            sub={
+              a.analisis ? (
+                <>
+                  Terakhir diubah oleh <span className="text-signal">{a.analisis.diubahOleh}</span>,{" "}
+                  <span className="terukur text-cool">{formatWaktu(a.analisis.diubahPada)}</span>
+                </>
+              ) : (
+                "Belum ditulis."
+              )
+            }
           >
-            <div className="px-5 pb-5">
+            <div className="px-5 pb-6 sm:px-6">
               {a.bolehTulisAnalisis ? (
                 <FormAnalisis key={versi} indikatorId={ind.id} unitId={unit?.id ?? null} bulan={a.bulan} teks={a.analisis?.teks ?? ""} />
               ) : (
-                <p className="text-[16px] leading-7 whitespace-pre-line">{a.analisis?.teks ?? "Belum ada Analisis untuk bulan ini."}</p>
+                <p className="max-w-[70ch] text-[16px] leading-7 whitespace-pre-line">{a.analisis?.teks ?? "Belum ada Analisis untuk bulan ini."}</p>
               )}
             </div>
-          </Kartu>
+          </Bagian>
 
-          <Kartu judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis ini, dengan PIC dan tenggat.">
+          <Bagian judul="Tindak Lanjut" sub="Tindakan perbaikan dari Analisis ini, dengan PIC dan tenggat.">
             {a.tindakLanjut.length === 0 ? (
-              <p className="px-5 pb-4 text-[14px] text-muted-foreground">Belum ada Tindak Lanjut.</p>
+              <p className="px-5 pb-5 text-[15px] text-ink-3 sm:px-6">Belum ada Tindak Lanjut.</p>
             ) : (
               <TabelTindakLanjut daftar={a.tindakLanjut} bawah={a.bolehTulis ? (t) => <FormUbahTindakLanjut key={versi} t={t} /> : undefined} />
             )}
-            {a.bolehTulis && (
-              <div className="mx-3 mt-2 mb-3 rounded-xl border border-border bg-head p-4 sm:p-5">
-                {a.analisis ? (
-                  <FormTambahTindakLanjut key={versi} analisisId={a.analisis.id} />
-                ) : (
-                  <p className="text-[14px] text-muted-foreground">Simpan Analisis dulu, lalu tambahkan Tindak Lanjut-nya di sini.</p>
-                )}
-              </div>
-            )}
-          </Kartu>
+          </Bagian>
+
+          {a.bolehTulis && (
+            <div className="bg-paper-2 px-5 py-5 sm:px-6">
+              {a.analisis ? (
+                <FormTambahTindakLanjut key={versi} analisisId={a.analisis.id} />
+              ) : (
+                <p className="text-[15px] text-ink-3">Simpan Analisis dulu, lalu tambahkan Tindak Lanjut-nya di sini.</p>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="grid min-w-0 gap-5">
-          <Kartu
+        {/* PDSA dan Tindak Lanjut yang masih terbuka: satu permukaan di samping. */}
+        <div className="grid min-w-0 gap-px overflow-hidden rounded-card border border-rule bg-rule">
+          <Bagian
             judul="PDSA berjalan"
             sub="Uji coba perbaikan untuk Indikator dan Lingkup ini."
             aksi={
               a.bolehTulis && (
-                <Button asChild variant="outline" size="sm" className="shadow-none">
+                <Button asChild variant="outline" size="sm">
                   <Link href={`/pdsa/baru?${new URLSearchParams({ indikator: ind.id, ...(unit ? { unit: unit.id } : {}) })}`}>
                     <Ikon nama="tambah" className="size-4" />
                     Mulai PDSA
@@ -143,42 +174,51 @@ export default async function HalamanAnalisis({ searchParams }: PageProps<"/anal
             }
           >
             {a.pdsa.length === 0 ? (
-              <p className="px-5 pb-4 text-[14px] text-muted-foreground">Tidak ada PDSA yang sedang berjalan.</p>
+              <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada PDSA yang sedang berjalan.</p>
             ) : (
-              <ul className="grid gap-1 px-3 pb-3">
+              <ul className="grid px-2 pb-2 sm:px-3">
                 {a.pdsa.map((p) => (
-                  <li key={p.id}>
-                    <Link href={`/pdsa/${p.id}`} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-muted">
-                      <KotakIkon nada="pdsa" ikon="pdsa" kecil />
-                      <span className="grid min-w-0 flex-1 gap-1">
-                        <span className="font-semibold">{p.judul}</span>
-                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-                          <LabelTahap tahap={p.tahap} />
-                          siklus ke-{p.siklus} · {labelPeriode(p.bulanMulai, p.bulanAkhir)}
-                        </span>
+                  <li key={p.id} className="border-t border-rule first:border-0">
+                    <Link href={`/pdsa/${p.id}`} className="grid gap-1.5 rounded-md px-3 py-3 transition-colors hover:bg-paper-3">
+                      <span className="font-medium">{p.judul}</span>
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-3">
+                        <LabelTahap tahap={p.tahap} />
+                        siklus ke-{p.siklus}, {labelPeriode(p.bulanMulai, p.bulanAkhir)}
                       </span>
-                      <Ikon nama="kanan" className="size-4 text-muted-foreground" />
                     </Link>
                   </li>
                 ))}
               </ul>
             )}
-          </Kartu>
+          </Bagian>
 
           {a.tindakLanjutSebelumnya.length > 0 && (
-            <Kartu
-              judul="Masih terbuka dari bulan sebelumnya"
-              sub={`Tindak Lanjut Analisis ${lingkup}; statusnya diubah di Analisis bulan itu.`}
-            >
+            <Bagian judul="Masih terbuka dari bulan sebelumnya" sub={`Tindak Lanjut Analisis ${lingkup}; statusnya diubah di Analisis bulan itu.`}>
               <TabelTindakLanjut
                 daftar={a.tindakLanjutSebelumnya}
                 atas={(t) => `Analisis ${labelBulan(t.bulan)}`}
                 href={(t) => tautanAnalisis(ind.id, unit?.id ?? null, t.bulan)}
               />
-            </Kartu>
+            </Bagian>
           )}
         </div>
       </div>
     </Halaman>
+  );
+}
+
+/** Satu bagian di dalam permukaan bergaris rambut: judul (h2), keterangan, dan aksi di kanan, lalu isinya. */
+function Bagian(p: { judul: string; sub: React.ReactNode; aksi?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="min-w-0 bg-paper-2">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-5 pt-5 pb-4 sm:px-6">
+        <div className="min-w-0">
+          <h2 className="font-display text-[17px] leading-6 font-medium tracking-[-0.01em]">{p.judul}</h2>
+          <p className="mt-1 text-[13px] text-ink-3">{p.sub}</p>
+        </div>
+        {p.aksi}
+      </div>
+      {p.children}
+    </section>
   );
 }

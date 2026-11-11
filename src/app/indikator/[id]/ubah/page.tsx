@@ -19,13 +19,13 @@ export default async function HalamanUbahIndikator({ params }: PageProps<"/indik
         kembali={[{ href: `/indikator/${indikator.id}`, label: indikator.kode }]}
         meta={
           <>
-            <span className="font-mono text-[13px]">{indikator.kode}</span> · {indikator.kelompok}
+            <span className="terukur text-ink-2">{indikator.kode}</span>, {indikator.kelompok}
           </>
         }
         sub="Kode dan kelompok tidak bisa diubah. Target ditetapkan lewat riwayat Target."
       />
-      <Kartu>
-        <div className="p-5">
+      <Kartu className="max-w-3xl">
+        <div className="p-5 sm:p-7">
           <FormIndikator indikator={indikator} terkunci={indikator.terkunci} />
         </div>
       </Kartu>

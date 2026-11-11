@@ -27,7 +27,7 @@ import { Ikon } from "../ikon";
 import { LabelTahap } from "../pdsa/tahap";
 import { PilihCari } from "../pilih-cari";
 import { formatWaktu, LabelCapaian, LabelTindakLanjut, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
-import { BarKemajuan, Halaman, Kartu, KepalaHalaman, Pil, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, Ubin } from "../ui";
+import { BarKemajuan, Halaman, Kartu, KepalaHalaman, Pil, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui";
 import { FormRekomendasi, TombolCetak } from "./klien";
 
 export const metadata: Metadata = { title: "Laporan Triwulan" };
@@ -84,8 +84,12 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
     <Halaman>
       <KepalaHalaman
         judul={`Laporan ${labelTriwulan(lap.triwulan)}`}
-        meta={`${config.namaRs} · Komite Mutu kepada Direktur`}
-        sub={`${labelPeriode(lap.bulan[0], lap.bulan[2])} · data per ${formatWaktu(new Date())}`}
+        meta={`${config.namaRs}, Komite Mutu kepada Direktur`}
+        sub={
+          <>
+            {labelPeriode(lap.bulan[0], lap.bulan[2])}, data per <span className="terukur text-[14px] text-cool">{formatWaktu(new Date())}</span>
+          </>
+        }
         aksi={
           <>
             {saringan}
@@ -107,60 +111,71 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
         <Pemberitahuan>{pemberitahuan}</Pemberitahuan>
       </div>
 
-      <section aria-labelledby="ringkasan" className="grid gap-4">
+      {/* Ringkasan: satu permukaan dibagi garis rambut, empat bacaan. */}
+      <section aria-labelledby="ringkasan" className="overflow-hidden rounded-card border border-rule bg-rule print:break-inside-avoid">
         <h2 id="ringkasan" className="sr-only">
           Ringkasan
         </h2>
-        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4 print:grid-cols-4">
-          <Ubin nada="brand" ikon="indikator" label="Indikator dinilai" nilai={r.dinilai}>
+        <dl className="grid grid-cols-2 gap-px xl:grid-cols-4 print:grid-cols-4">
+          <Bacaan label="Indikator dinilai" nilai={r.dinilai}>
             <Rincian
               isi={[
-                { nada: "brand", nilai: r.dinilai - r.kosong, label: "punya Capaian" },
-                { nada: "netral", nilai: r.kosong, label: "belum" },
+                { nilai: r.dinilai - r.kosong, label: "punya Capaian" },
+                { nilai: r.kosong, label: "belum" },
               ]}
             />
-          </Ubin>
-          <Ubin nada="pos" ikon="centang" label="Tercapai" nilai={r.tercapai} keterangan="Capaian Triwulan menurut Target dan Arah" />
-          <Ubin nada="neg" ikon="peringatan" label="Belum Tercapai" nilai={r.belumTercapai} keterangan="Capaian Triwulan menurut Target dan Arah" />
-          <Ubin
-            nada="ukur"
-            ikon="verifikasi"
+          </Bacaan>
+          <Bacaan label="Tercapai" nilai={r.tercapai} keterangan="Capaian Triwulan menurut Target dan Arah" />
+          <Bacaan label="Belum Tercapai" nilai={r.belumTercapai} keterangan="Capaian Triwulan menurut Target dan Arah" />
+          <Bacaan
             label="Kelengkapan"
             nilai={`${r.kelengkapan.terverifikasi}/${r.kelengkapan.wajib}`}
             keterangan="Pengukuran Terverifikasi dari yang wajib"
           >
             <BarKemajuan nada="ukur" nilai={r.kelengkapan.terverifikasi} dari={r.kelengkapan.wajib} />
-          </Ubin>
-        </div>
+          </Bacaan>
+        </dl>
       </section>
 
       {lap.capaian.length === 0 ? (
         <Pesan>Belum ada Indikator yang dinilai pada {labelTriwulan(lap.triwulan)}.</Pesan>
       ) : (
-        KELOMPOK.map((k) => <TabelCapaian key={k} kelompok={k} lap={lap} />)
+        // Capaian Triwulan sebagai rekaman: satu panel, satu bagian bergaris per kelompok Indikator.
+        <div className="min-w-0 rounded-card border border-rule bg-card">
+          <p className="px-5 pt-5 pb-1 text-[14px] text-ink-3">
+            Capaian RS (ΣN/ΣD Pengukuran Terverifikasi); Status Capaian dari Capaian Triwulan dengan Target bulan terakhir.
+          </p>
+          {KELOMPOK.map((k) => (
+            <TabelCapaian key={k} kelompok={k} lap={lap} />
+          ))}
+        </div>
       )}
 
       <AnalisisDanTindakLanjut lap={lap} />
 
       <Kartu judul="PDSA" sub="Uji coba perbaikan yang periodenya bersinggungan dengan Triwulan ini, semua Lingkup.">
         {lap.pdsa.length === 0 ? (
-          <p className="px-5 pb-5 text-[14px] text-muted-foreground">Tidak ada PDSA pada {labelTriwulan(lap.triwulan)}.</p>
+          <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada PDSA pada {labelTriwulan(lap.triwulan)}.</p>
         ) : (
-          <ul className="grid px-5 pb-3">
+          <ul className="grid">
             {lap.pdsa.map((p) => (
-              <li key={p.id} className="grid gap-1.5 border-t border-rule py-4 first:border-0 first:pt-0 print:break-inside-avoid">
+              <li key={p.id} className="grid gap-2 border-t border-rule px-5 py-4 print:break-inside-avoid">
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <Link href={`/pdsa/${p.id}`} className="font-semibold hover:underline">
+                  <Link href={`/pdsa/${p.id}`} className="text-primary-ink text-[16px] font-medium">
                     {p.judul}
                   </Link>
                   <LabelTahap tahap={p.tahap} />
                 </span>
-                <span className="text-[13px] text-muted-foreground">
-                  <span className="font-mono">{p.indikator.kode}</span> · {labelLingkup(p.unit)} · siklus ke-{p.siklus} ·{" "}
+                <span className="text-[14px] text-ink-3">
+                  <span className="terukur text-[13px] text-ink-2">{p.indikator.kode}</span>, {labelLingkup(p.unit)}, siklus ke-{p.siklus},{" "}
                   {labelPeriode(p.bulanMulai, p.bulanAkhir)}
                 </span>
-                {p.hasil && <Teks label="Hasil (Study)">{p.hasil}</Teks>}
-                {p.keputusan && <Teks label={`Keputusan (Act): ${LABEL_KEPUTUSAN_PDSA[p.keputusan]}`}>{p.penjelasan}</Teks>}
+                {(p.hasil || p.keputusan) && (
+                  <dl className="grid gap-2 pt-1">
+                    {p.hasil && <Teks label="Hasil (Study)">{p.hasil}</Teks>}
+                    {p.keputusan && <Teks label={`Keputusan (Act): ${LABEL_KEPUTUSAN_PDSA[p.keputusan]}`}>{p.penjelasan}</Teks>}
+                  </dl>
+                )}
               </li>
             ))}
           </ul>
@@ -176,14 +191,15 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
           )}
           <div className={lap.bolehTulis ? "hidden print:block" : undefined}>
             {lap.rekomendasi ? (
-              <p className="whitespace-pre-line">{lap.rekomendasi.teks}</p>
+              <p className="max-w-[72ch] whitespace-pre-line">{lap.rekomendasi.teks}</p>
             ) : (
-              <p className="text-muted-foreground">Rekomendasi belum ditulis.</p>
+              <p className="text-ink-3">Rekomendasi belum ditulis.</p>
             )}
           </div>
           {lap.rekomendasi && (
-            <p className="text-[13px] text-muted-foreground">
-              Terakhir diubah oleh {lap.rekomendasi.diubahOleh}, {formatWaktu(lap.rekomendasi.diubahPada)}
+            <p className="text-[13px] text-ink-3">
+              Terakhir diubah oleh <span className="text-signal">{lap.rekomendasi.diubahOleh}</span>,{" "}
+              <span className="terukur text-cool">{formatWaktu(lap.rekomendasi.diubahPada)}</span>
             </p>
           )}
         </div>
@@ -206,22 +222,42 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
   );
 }
 
-/** Teks panjang berlabel (isian PDSA). */
-function Teks({ label, children }: { label: string; children: React.ReactNode }) {
+/** Satu bacaan ringkasan: label, angka dalam huruf ukur, lalu keterangan atau rincian (`children`). */
+function Bacaan(p: { label: string; nilai: React.ReactNode; keterangan?: string; children?: React.ReactNode }) {
   return (
-    <p className="text-[14px] whitespace-pre-line">
-      <span className="font-semibold">{label}:</span> {children}
-    </p>
+    <div className="grid min-w-0 content-start gap-2 bg-paper-2 p-5">
+      <dt className="text-[14px] text-ink-2">{p.label}</dt>
+      <dd className="terukur text-[32px] leading-none tracking-[-0.04em] text-ink">{p.nilai}</dd>
+      <dd>
+        {p.keterangan && <span className="block text-[13px] text-ink-3">{p.keterangan}</span>}
+        {p.children}
+      </dd>
+    </div>
   );
 }
 
-/** Tabel Capaian Triwulan satu kelompok Indikator; kosong = tidak tampil. */
+/** Teks panjang berlabel (isian PDSA). */
+function Teks({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-0.5 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-6">
+      <dt className="text-[14px] text-ink-3">{label}</dt>
+      <dd className="max-w-[72ch] text-[15px] whitespace-pre-line">{children}</dd>
+    </div>
+  );
+}
+
+/** Tabel Capaian Triwulan satu kelompok Indikator, satu bagian di panel Capaian; kosong = tidak tampil. */
 function TabelCapaian({ kelompok, lap }: { kelompok: (typeof KELOMPOK)[number]; lap: LaporanTriwulan }) {
   const baris = lap.capaian.filter((c) => c.indikator.kelompok === kelompok);
   if (baris.length === 0) return null;
   const perUnit = kelompok === "IMP-Unit";
+  // Kolom Triwulan dipisah garis dari kolom bulan: itu hasil yang dinilai.
+  const garisTriwulan = "border-l border-rule";
   return (
-    <Kartu judul={`Capaian ${kelompok}`} sub="Capaian RS (ΣN/ΣD Pengukuran Terverifikasi); Status Capaian dari Capaian Triwulan dengan Target bulan terakhir.">
+    <section aria-labelledby={`capaian-${kelompok}`} className="mt-4 border-t border-rule pt-4">
+      <h2 id={`capaian-${kelompok}`} className="px-5 pb-2 font-display text-[17px] font-medium tracking-[-0.01em] print:break-after-avoid">
+        Capaian {kelompok}
+      </h2>
       <Tabel label={`Capaian ${kelompok}`} lebarMin="min-w-[56rem]">
         <TableHeader>
           <TableRow>
@@ -233,7 +269,7 @@ function TabelCapaian({ kelompok, lap }: { kelompok: (typeof KELOMPOK)[number]; 
                 {labelBulan(b, { pendek: true, tahun: false })}
               </TableHead>
             ))}
-            <TableHead className="text-right">Triwulan</TableHead>
+            <TableHead className={`text-right ${garisTriwulan}`}>Triwulan</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Kelengkapan</TableHead>
           </TableRow>
@@ -241,53 +277,57 @@ function TabelCapaian({ kelompok, lap }: { kelompok: (typeof KELOMPOK)[number]; 
         <TableBody>
           {baris.map(({ indikator: i, unit, bulan, triwulan: t }) => (
             <TableRow key={i.id} className="print:break-inside-avoid">
-              <TableCell>
-                <span className="block font-semibold">
+              <TableCell className="min-w-48 whitespace-normal sm:min-w-[16rem] print:min-w-24">
+                <span className="block font-medium">
                   {i.nama}
-                  {!i.aktif && <span className="font-normal text-muted-foreground"> (nonaktif)</span>}
+                  {!i.aktif && <span className="font-normal text-ink-3"> (nonaktif)</span>}
                 </span>
-                <span className="font-mono text-[12px] text-muted-foreground">{i.kode}</span>
+                <span className="terukur text-[12px] text-ink-3">{i.kode}</span>
               </TableCell>
-              {perUnit && <TableCell>{unit.map((u) => u.nama).join(", ")}</TableCell>}
-              <TableCell className="text-right whitespace-nowrap">
+              {perUnit && <TableCell className="whitespace-normal">{unit.map((u) => u.nama).join(", ")}</TableCell>}
+              <TableCell className="text-right whitespace-nowrap text-ink-3">
                 {TANDA_ARAH[i.arah]} {formatCapaian(t.target, i.satuan)}
               </TableCell>
               {lap.bulan.map((b) => {
                 const m = bulan.find((x) => x.bulan === b);
                 return (
                   <TableCell key={b} className="text-right whitespace-nowrap">
-                    {!m || m.kelengkapan.terverifikasi === 0 ? <Kosong /> : formatCapaian(m.capaian, i.satuan)}
+                    {!m || m.kelengkapan.terverifikasi === 0 ? (
+                      <Kosong />
+                    ) : (
+                      <span className="terukur text-ink-2">{formatCapaian(m.capaian, i.satuan)}</span>
+                    )}
                   </TableCell>
                 );
               })}
-              <TableCell className="text-right font-bold whitespace-nowrap">
-                {t.kelengkapan.terverifikasi === 0 ? <Kosong /> : formatCapaian(t.capaian, i.satuan)}
+              <TableCell className={`text-right whitespace-nowrap ${garisTriwulan}`}>
+                {t.kelengkapan.terverifikasi === 0 ? <Kosong /> : <span className="terukur text-[15px] text-ink">{formatCapaian(t.capaian, i.satuan)}</span>}
               </TableCell>
               <TableCell>
                 <LabelCapaian status={t.status} />
               </TableCell>
-              <TableCell className={`text-right whitespace-nowrap ${t.kelengkapan.terverifikasi < t.kelengkapan.wajib ? "text-warning" : ""}`}>
+              <TableCell
+                className={`terukur text-right whitespace-nowrap ${t.kelengkapan.terverifikasi < t.kelengkapan.wajib ? "text-signal" : "text-ink-2"}`}
+              >
                 {t.kelengkapan.terverifikasi}/{t.kelengkapan.wajib}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Tabel>
-    </Kartu>
+    </section>
   );
 }
 
 /** Sel tanpa Capaian (tidak diukur, bukan Unit Pelapor, atau belum ada Pengukuran Terverifikasi). */
 function Kosong() {
-  return (
-    <span className="text-muted-foreground">
-      <span aria-hidden>–</span>
-      <span className="sr-only">tanpa Capaian</span>
-    </span>
-  );
+  return <span className="text-[13px] text-ink-3">tidak ada</span>;
 }
 
-/** Analisis setiap bulan per Indikator + Lingkup, dengan Tindak Lanjut-nya di bawah setiap Analisis. */
+/**
+ * Analisis setiap bulan per Indikator + Lingkup, dengan Tindak Lanjut-nya sebagai jejak di bawah setiap Analisis. Bulan
+ * yang belum dianalisis dikumpulkan di satu baris (tautan per bulan tetap ada).
+ */
 function AnalisisDanTindakLanjut({ lap }: { lap: LaporanTriwulan }) {
   const kelompok = [...Map.groupBy(lap.analisis, (x) => `${x.indikator.id}|${x.unit?.id ?? ""}`).values()];
   return (
@@ -296,59 +336,74 @@ function AnalisisDanTindakLanjut({ lap }: { lap: LaporanTriwulan }) {
       sub="Analisis Lingkup RS untuk INM dan IMP-RS, Lingkup Unit untuk IMP-Unit, setiap bulan yang dinilai."
     >
       {kelompok.length === 0 ? (
-        <p className="px-5 pb-5 text-[14px] text-muted-foreground">Tidak ada Indikator yang dinilai.</p>
+        <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada Indikator yang dinilai.</p>
       ) : (
-        <div className="grid px-5 pb-3">
+        <div className="grid">
           {kelompok.map((g) => {
             const { indikator: i, unit } = g[0];
+            const belum = g.filter((x) => !x.analisis);
+            const tautan = (bulan: string) => (
+              <Link href={tautanAnalisis(i.id, unit?.id ?? null, bulan)} className="text-primary-ink whitespace-nowrap">
+                {labelBulan(bulan)}
+              </Link>
+            );
             return (
-              <section key={`${i.id}-${unit?.id}`} className="border-t border-rule py-4 first:border-0 first:pt-0">
-                <h3 className="font-semibold print:break-after-avoid">
-                  {i.nama} <span className="font-mono text-[12px] font-medium text-muted-foreground">{i.kode}</span>
-                  <span className="text-[13px] font-normal text-muted-foreground"> · {labelLingkup(unit)}</span>
+              <section key={`${i.id}-${unit?.id}`} className="grid gap-3 border-t border-rule px-5 py-4 md:grid-cols-[18rem_minmax(0,1fr)] md:gap-8 print:grid-cols-1 print:gap-2">
+                <h3 className="print:break-after-avoid">
+                  <span className="block font-medium">{i.nama}</span>
+                  <span className="text-[13px] text-ink-3">
+                    <span className="terukur text-[12px] text-ink-2">{i.kode}</span> {labelLingkup(unit)}
+                  </span>
                 </h3>
-                <dl className="mt-2 grid gap-3">
-                  {g.map((x) => (
-                    <div key={x.bulan} className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] print:grid-cols-[7rem_minmax(0,1fr)] print:break-inside-avoid">
-                      <dt className="text-[13px] font-semibold text-muted-foreground">
-                        <Link href={tautanAnalisis(i.id, unit?.id ?? null, x.bulan)} className="hover:underline">
-                          {labelBulan(x.bulan)}
-                        </Link>
+                <dl className="grid min-w-0 gap-3 print:block print:space-y-3">
+                  {g.map(
+                    (x) =>
+                      x.analisis && (
+                        <div key={x.bulan} className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] print:block print:space-y-1">
+                          <dt className="text-[14px]">{tautan(x.bulan)}</dt>
+                          <dd className="grid min-w-0 gap-2.5 print:block print:space-y-2">
+                            <p className="max-w-[72ch] text-[15px] whitespace-pre-line">{x.analisis.teks}</p>
+                            {x.analisis.tindakLanjut.length > 0 && (
+                              <ul className="grid gap-2.5 border-l border-rule-2 pl-4 print:block print:space-y-2">
+                                {x.analisis.tindakLanjut.map((t) => (
+                                  <li key={t.id} className="grid gap-1 text-[14px] print:block print:break-inside-avoid">
+                                    <span className="font-medium">{t.tindakan}</span>
+                                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ink-3">
+                                      <span>
+                                        PIC <span className="text-signal">{t.pic}</span>, tenggat {labelTanggal(t.tenggat)}
+                                      </span>
+                                      <LabelTindakLanjut status={t.status} />
+                                      {t.lewatTenggat && <Pil nada="neg">Lewat tenggat</Pil>}
+                                      {t.mendekatiTenggat && <Pil nada="warn">Mendekati tenggat</Pil>}
+                                    </span>
+                                    {t.catatan && (
+                                      <span className="text-[13px] text-ink-3">
+                                        {t.status === "dibatalkan" ? "Alasan" : "Catatan"}: {t.catatan}
+                                      </span>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </dd>
+                        </div>
+                      ),
+                  )}
+                  {belum.length > 0 && (
+                    <div className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)] print:flex print:flex-wrap print:items-center print:gap-3 print:break-inside-avoid">
+                      <dt>
+                        <Pil nada="warn">Belum dianalisis</Pil>
                       </dt>
-                      <dd className="grid min-w-0 gap-2">
-                        {x.analisis ? (
-                          <p className="text-[14px] whitespace-pre-line">{x.analisis.teks}</p>
-                        ) : (
-                          <span>
-                            <Pil nada="warn">Belum dianalisis</Pil>
+                      <dd className="text-[14px]">
+                        {belum.map((x, n) => (
+                          <span key={x.bulan}>
+                            {n > 0 && ", "}
+                            {tautan(x.bulan)}
                           </span>
-                        )}
-                        {x.analisis && x.analisis.tindakLanjut.length > 0 && (
-                          <ul className="grid gap-1.5 border-l-2 border-tindak/30 pl-3">
-                            {x.analisis.tindakLanjut.map((t) => (
-                              <li key={t.id} className="text-[14px]">
-                                <span className="font-medium">{t.tindakan}</span>
-                                <span className="text-muted-foreground">
-                                  {" "}
-                                  · PIC {t.pic} · tenggat {labelTanggal(t.tenggat)}{" "}
-                                </span>
-                                <span className="inline-flex flex-wrap gap-1 align-middle">
-                                  <LabelTindakLanjut status={t.status} />
-                                  {t.lewatTenggat && <Pil nada="neg">Lewat tenggat</Pil>}
-                                  {t.mendekatiTenggat && <Pil nada="warn">Mendekati tenggat</Pil>}
-                                </span>
-                                {t.catatan && (
-                                  <span className="block text-[13px] text-muted-foreground">
-                                    {t.status === "dibatalkan" ? "Alasan" : "Catatan"}: {t.catatan}
-                                  </span>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                        ))}
                       </dd>
                     </div>
-                  ))}
+                  )}
                 </dl>
               </section>
             );

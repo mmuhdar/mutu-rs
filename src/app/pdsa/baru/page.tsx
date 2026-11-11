@@ -9,7 +9,7 @@ import { pilihanUnit } from "@/modules/unit/service";
 import { requireUser } from "@/server/sesi";
 
 import { Pesan, pesanAtau } from "../../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman } from "../../ui";
+import { Halaman, KepalaHalaman } from "../../ui";
 import { FormPdsaBaru } from "../form-pdsa";
 
 export const metadata: Metadata = { title: "Mulai PDSA" };
@@ -41,27 +41,30 @@ export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa
         judul={sebelumnya ? `Siklus ke-${sebelumnya.siklus + 1}: ${sebelumnya.judul}` : "Mulai PDSA"}
         kembali={[{ href: sebelumnya ? `/pdsa/${sebelumnya.id}` : "/pdsa", label: sebelumnya ? "PDSA sebelumnya" : "Daftar PDSA" }]}
         sub={
-          sebelumnya
-            ? `${sebelumnya.indikator.kode} · ${labelLingkup(sebelumnya.unit)}. Isi Plan siklus ini berdasarkan Act siklus sebelumnya.`
-            : "Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do."
+          sebelumnya ? (
+            <>
+              <span className="terukur text-[14px] text-ink-2">{sebelumnya.indikator.kode}</span>, {labelLingkup(sebelumnya.unit)}. Isi Plan
+              siklus ini berdasarkan Act siklus sebelumnya.
+            </>
+          ) : (
+            "Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do."
+          )
         }
       />
-      <Kartu>
-        <div className="p-5">
-          <FormPdsaBaru
-            sebelumnyaId={sebelumnya?.id}
-            indikator={indikator.filter((i) => i.aktif).map((i) => ({ id: i.id, label: `${i.kode} — ${i.nama}` }))}
-            lingkup={lingkup}
-            awal={{
-              indikatorId: teksAlamat(sp, "indikator") || undefined,
-              unitId: teksAlamat(sp, "unit") || lingkup[0]?.id,
-              judul: sebelumnya?.judul,
-              bulanMulai,
-              bulanAkhir: geserBulan(bulanMulai, 2),
-            }}
-          />
-        </div>
-      </Kartu>
+      <section aria-label="Plan" className="rounded-card border border-rule bg-card p-5 sm:p-6">
+        <FormPdsaBaru
+          sebelumnyaId={sebelumnya?.id}
+          indikator={indikator.filter((i) => i.aktif).map((i) => ({ id: i.id, label: `${i.kode} ${i.nama}` }))}
+          lingkup={lingkup}
+          awal={{
+            indikatorId: teksAlamat(sp, "indikator") || undefined,
+            unitId: teksAlamat(sp, "unit") || lingkup[0]?.id,
+            judul: sebelumnya?.judul,
+            bulanMulai,
+            bulanAkhir: geserBulan(bulanMulai, 2),
+          }}
+        />
+      </section>
     </Halaman>
   );
 }

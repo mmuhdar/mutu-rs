@@ -9,7 +9,7 @@ import { requireUser } from "@/server/sesi";
 import { Button } from "@/components/ui/button";
 
 import { Ikon } from "../../ikon";
-import { Halaman, Kartu, KepalaHalaman, Ubin } from "../../ui";
+import { Halaman, KepalaHalaman } from "../../ui";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 import { FormVerifikasi } from "./form-verifikasi";
 
@@ -37,35 +37,41 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
         kembali={kembali}
         meta={
           <>
-            <span className="font-mono text-[13px]">{indikator.kode}</span> · {unit.nama} · {labelBulan(p.bulan)}
+            <span className="terukur">{indikator.kode}</span>, {unit.nama}, {labelBulan(p.bulan)}
           </>
         }
-        sub={`Terakhir disimpan oleh ${p.pengisi}, ${formatWaktu(p.disimpan)}.`}
+        sub={
+          <>
+            Terakhir disimpan oleh <span className="text-signal">{p.pengisi}</span>,{" "}
+            <span className="terukur text-cool">{formatWaktu(p.disimpan)}</span>.
+          </>
+        }
         aksi={<LabelStatus status={p.status} />}
       />
 
       <AlasanPengembalian status={p.status} riwayat={p.riwayat} />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Ubin nada="ukur" ikon="dokumen" label="Numerator (N)" nilai={p.n} keterangan={indikator.definisiNumerator} />
-        <Ubin nada="atur" ikon="indikator" label="Denominator (D)" nilai={p.d} keterangan={indikator.definisiDenominator} />
-        {/* Di HP N dan D berdampingan, Capaian selebar penuh di bawahnya. */}
-        <div className="col-span-2 grid sm:col-span-1">
-          <Ubin
-            nada="brand"
-            ikon="target"
-            label="Capaian"
-            nilai={formatCapaian(p.capaian, indikator.satuan)}
-            keterangan={`N ÷ D × ${indikator.faktor}`}
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:items-start">
         <div className="grid min-w-0 gap-5">
-          <Kartu judul="Catatan">
-            <p className="px-5 pb-5 whitespace-pre-line">{p.catatan || <span className="text-muted-foreground">Tidak ada catatan.</span>}</p>
-          </Kartu>
+          {/* Bacaan Pengukuran: N, D, dan Capaian dalam satu permukaan dibagi garis rambut, Catatan di baris bawahnya. */}
+          <section aria-label="Bacaan Pengukuran" className="grid gap-px overflow-hidden rounded-card border border-rule bg-rule">
+            {/* Di HP N dan D berdampingan, Capaian selebar penuh di bawahnya. */}
+            <div className="grid grid-cols-2 gap-px sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.25fr)]">
+              <Bacaan label="Numerator (N)" nilai={p.n} keterangan={indikator.definisiNumerator} />
+              <Bacaan label="Denominator (D)" nilai={p.d} keterangan={indikator.definisiDenominator} />
+              <div className="col-span-2 flex min-w-0 flex-col gap-3 bg-paper-2 p-5 sm:col-span-1">
+                <p className="text-[14px] font-medium text-ink-2">Capaian</p>
+                <p className="terukur text-[44px] leading-none tracking-[-0.04em] break-words text-ink">
+                  {formatCapaian(p.capaian, indikator.satuan)}
+                </p>
+                <p className="mt-auto terukur text-[13px] text-ink-3">N ÷ D × {indikator.faktor}</p>
+              </div>
+            </div>
+            <div className="bg-paper-2 p-5">
+              <h2 className="text-[14px] font-medium tracking-normal text-ink-2">Catatan</h2>
+              <p className="mt-2 max-w-[70ch] whitespace-pre-line">{p.catatan || <span className="text-ink-3">Tidak ada catatan.</span>}</p>
+            </div>
+          </section>
 
           {p.status === "draf"
             ? bolehIsiPengukuran(pengguna) && (
@@ -82,5 +88,16 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
         <RiwayatStatus riwayat={p.riwayat} />
       </div>
     </Halaman>
+  );
+}
+
+/** Satu bacaan N atau D: label, angka dalam huruf ukur, definisinya. */
+function Bacaan({ label, nilai, keterangan }: { label: string; nilai: number; keterangan: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-3 bg-paper-2 p-5">
+      <p className="text-[14px] font-medium text-ink-2">{label}</p>
+      <p className="terukur text-[32px] leading-none tracking-[-0.04em] text-ink">{nilai}</p>
+      <p className="text-[13px] leading-5 whitespace-pre-line text-ink-3">{keterangan}</p>
+    </div>
   );
 }

@@ -62,7 +62,7 @@ export function PilihCari(p: {
             variant="outline"
             role="combobox"
             aria-expanded={buka}
-            className="h-11 w-full justify-between rounded-xl border-input px-3.5 text-base font-normal shadow-none sm:text-[15px]"
+            className="h-10 w-full justify-between rounded-md border-input bg-paper-3 px-3 text-base font-normal hover:bg-paper-2"
           >
             <span className={`truncate ${terpilih ? "" : "text-muted-foreground"}`}>{terpilih?.label ?? p.placeholder ?? "Pilih…"}</span>
             <Ikon nama="pilih" className="size-4 text-muted-foreground" />

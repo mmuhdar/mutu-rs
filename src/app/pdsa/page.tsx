@@ -8,28 +8,32 @@ import { LABEL_TAHAP_PDSA, labelLingkup, type TahapPdsa } from "@/lib/perbaikan"
 import { bolehMulaiPdsa, daftarPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
-import { Ikon, type NamaIkon } from "../ikon";
+import { Ikon } from "../ikon";
 import { Pesan } from "../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman, KotakIkon, type Nada, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon, Ubin } from "../ui";
+import { Halaman, Kartu, KepalaHalaman, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon } from "../ui";
 import { JejakTahap, LabelTahap } from "./tahap";
 
 export const metadata: Metadata = { title: "PDSA" };
 
-/** Kartu angka per tahap aktif. Plan tidak pernah menjadi tahap aktif (PDSA dibuat dengan Plan tersimpan, langsung Do). */
-const UBIN_TAHAP: { tahap: TahapPdsa; ikon: NamaIkon; nada: Nada; keterangan: string }[] = [
-  { tahap: "do", ikon: "isi", nada: "ukur", keterangan: "uji coba skala kecil" },
-  { tahap: "study", ikon: "monitoring", nada: "pantau", keterangan: "hasil dibanding prediksi" },
-  { tahap: "act", ikon: "target", nada: "tindak", keterangan: "menunggu keputusan" },
+/** Bacaan per tahap aktif. Plan tidak pernah menjadi tahap aktif (PDSA dibuat dengan Plan tersimpan, langsung Do). */
+const BACAAN_TAHAP: { tahap: TahapPdsa; keterangan: string }[] = [
+  { tahap: "do", keterangan: "uji coba skala kecil" },
+  { tahap: "study", keterangan: "hasil dibanding prediksi" },
+  { tahap: "act", keterangan: "menunggu keputusan" },
 ];
 
-/** Daftar PDSA yang boleh dilihat: bawaan yang belum Selesai, `?status=semua` termasuk yang Selesai. */
+/**
+ * Daftar PDSA yang boleh dilihat sebagai buku catatan: satu panel, jumlah per tahap di pita atasnya (dipisah garis
+ * rambut), lalu satu baris per PDSA. Bawaan yang belum Selesai, `?status=semua` termasuk yang Selesai.
+ */
 export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) {
   const pengguna = await requireUser();
   const semua = teksAlamat(await searchParams, "status") === "semua";
   const daftar = await daftarPdsa(pengguna, { semua });
   const jumlah = (tahap: TahapPdsa) => daftar.filter((p) => p.tahap === tahap).length;
+  // Segmen saringan: jalur paper-3, pilihan yang dibuka di paper-2 dengan garis amber di bawahnya.
   const kelasPilihan =
-    "h-[34px] px-3.5 text-[14px] text-muted-foreground hover:bg-transparent aria-[current=page]:bg-primary-tint aria-[current=page]:text-primary-ink";
+    "h-9 px-3.5 text-[14px] text-ink-3 hover:bg-transparent hover:text-ink aria-[current=page]:bg-card aria-[current=page]:text-ink aria-[current=page]:shadow-[inset_0_-2px_0_var(--color-signal)]";
 
   return (
     <Halaman>
@@ -38,11 +42,8 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
         sub="Siklus uji coba perbaikan Plan, Do, Study, Act per Indikator dan Lingkup."
         aksi={
           <>
-            {/* Saringan di atas kartu angka: angkanya ikut saringan ini. */}
-            <nav
-              aria-label="Saringan status"
-              className="grid w-full grid-cols-2 gap-1 rounded-xl border border-border/70 bg-card p-1 shadow-kartu sm:flex sm:w-auto"
-            >
+            {/* Saringan di atas daftar: jumlah per tahap ikut saringan ini. */}
+            <nav aria-label="Saringan status" className="grid w-full grid-cols-2 gap-0.5 rounded-md border border-rule bg-paper-3 p-0.5 sm:flex sm:w-auto">
               <Button asChild variant="ghost" size="sm" className={kelasPilihan}>
                 <Link href="/pdsa" aria-current={!semua ? "page" : undefined}>
                   Sedang berjalan
@@ -66,77 +67,88 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        {semua ? (
-          <Ubin nada="pdsa" ikon="pdsa" label="Semua PDSA" nilai={daftar.length}>
-            <Rincian
-              isi={[
-                { nada: "pdsa", nilai: daftar.length - jumlah("selesai"), label: "sedang berjalan" },
-                { nada: "pos", nilai: jumlah("selesai"), label: "Selesai" },
-              ]}
-            />
-          </Ubin>
-        ) : (
-          <Ubin nada="pdsa" ikon="pdsa" label="Sedang berjalan" nilai={daftar.length} keterangan="PDSA yang belum Selesai" />
-        )}
-        {UBIN_TAHAP.map((u) => (
-          <Ubin key={u.tahap} nada={u.nada} ikon={u.ikon} label={`Tahap ${LABEL_TAHAP_PDSA[u.tahap]}`} nilai={jumlah(u.tahap)} keterangan={u.keterangan} />
-        ))}
-      </div>
-
       <Kartu judul="Daftar PDSA" sub={semua ? "Semua PDSA, termasuk yang Selesai." : "PDSA yang belum Selesai."}>
+        <dl className="grid grid-cols-2 gap-px border-y border-rule bg-rule lg:grid-cols-4">
+          {semua ? (
+            <Bacaan label="Semua PDSA" nilai={daftar.length}>
+              <Rincian
+                isi={[
+                  { nilai: daftar.length - jumlah("selesai"), label: "sedang berjalan" },
+                  { nilai: jumlah("selesai"), label: "Selesai" },
+                ]}
+              />
+            </Bacaan>
+          ) : (
+            <Bacaan label="Sedang berjalan" nilai={daftar.length}>
+              <span className="mt-1 block text-[13px] text-ink-3">PDSA yang belum Selesai</span>
+            </Bacaan>
+          )}
+          {BACAAN_TAHAP.map((u) => (
+            <Bacaan key={u.tahap} label={`Tahap ${LABEL_TAHAP_PDSA[u.tahap]}`} nilai={jumlah(u.tahap)}>
+              <span className="mt-1 block text-[13px] text-ink-3">{u.keterangan}</span>
+            </Bacaan>
+          ))}
+        </dl>
         {daftar.length === 0 ? (
-          <div className="px-5 pb-5">
+          <div className="p-5">
             <Pesan>{semua ? "Belum ada PDSA." : "Tidak ada PDSA yang sedang berjalan."}</Pesan>
           </div>
         ) : (
-          <Tabel label="Daftar PDSA" lebarMin="min-w-[60rem]">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-60">PDSA</TableHead>
-                <TableHead>Indikator</TableHead>
-                <TableHead>Lingkup</TableHead>
-                <TableHead>Uji coba</TableHead>
-                <TableHead>Kemajuan</TableHead>
-                <TableHead>Tahap</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {daftar.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <span className="flex items-center gap-3">
-                      <KotakIkon nada={p.tahap === "selesai" ? "pos" : "pdsa"} ikon="pdsa" kecil />
-                      <span className="min-w-0">
-                        <Link href={`/pdsa/${p.id}`} className="block font-semibold hover:text-primary-ink hover:underline">
-                          {p.judul}
-                        </Link>
-                        <span className="text-[13px] text-muted-foreground">siklus ke-{p.siklus}</span>
-                      </span>
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="block text-[14px]">{p.indikator.nama}</span>
-                    <span className="font-mono text-[12px] text-muted-foreground">{p.indikator.kode}</span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">{labelLingkup(p.unit)}</TableCell>
-                  <TableCell className="text-muted-foreground">{labelPeriode(p.bulanMulai, p.bulanAkhir)}</TableCell>
-                  <TableCell>
-                    <JejakTahap aktif={p.tahap} />
-                  </TableCell>
-                  <TableCell>
-                    <LabelTahap tahap={p.tahap} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <TautanIkon href={`/pdsa/${p.id}`} ikon="lihat" label={`Buka PDSA ${p.judul}`} />
-                  </TableCell>
+          <div className="pt-2">
+            <Tabel label="Daftar PDSA" lebarMin="min-w-[54rem]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-64">PDSA</TableHead>
+                  <TableHead>Indikator</TableHead>
+                  <TableHead>Lingkup</TableHead>
+                  <TableHead>Kemajuan</TableHead>
+                  <TableHead>Tahap</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Tabel>
+              </TableHeader>
+              <TableBody>
+                {daftar.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="py-3.5 whitespace-normal">
+                      <Link href={`/pdsa/${p.id}`} className="text-primary-ink text-[15px] font-medium">
+                        {p.judul}
+                      </Link>
+                      <span className="mt-0.5 block text-[13px] text-ink-3">
+                        siklus ke-{p.siklus}, uji coba {labelPeriode(p.bulanMulai, p.bulanAkhir)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="min-w-44 whitespace-normal">
+                      <span className="block text-[14px]">{p.indikator.nama}</span>
+                      <span className="terukur text-[12px] text-ink-3">{p.indikator.kode}</span>
+                    </TableCell>
+                    <TableCell className="min-w-28 text-[14px] whitespace-normal">{labelLingkup(p.unit)}</TableCell>
+                    <TableCell>
+                      <JejakTahap aktif={p.tahap} />
+                    </TableCell>
+                    <TableCell>
+                      <LabelTahap tahap={p.tahap} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <TautanIkon href={`/pdsa/${p.id}`} ikon="lihat" label={`Buka PDSA ${p.judul}`} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Tabel>
+          </div>
         )}
       </Kartu>
     </Halaman>
+  );
+}
+
+/** Satu bacaan di pita jumlah: label, angka dalam huruf ukur, keterangan (`children`). */
+function Bacaan({ label, nilai, children }: { label: string; nilai: number; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 bg-card px-5 py-4">
+      <dt className="text-[14px] text-ink-2">{label}</dt>
+      <dd className="terukur mt-1.5 text-[28px] leading-8 tracking-[-0.04em] text-ink">{nilai}</dd>
+      <dd>{children}</dd>
+    </div>
   );
 }

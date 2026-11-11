@@ -150,9 +150,9 @@ export function triwulanDariAlamat(
 export const keTanggal = (bulan: string) => `${bulan}-01`;
 export const dariTanggal = (tanggal: string) => tanggal.slice(0, 7);
 
-/** Periode bulan (keduanya termasuk): "Maret 2026 – Juni 2026", atau "mulai Maret 2026" bila belum berhenti. */
+/** Periode bulan (keduanya termasuk): "Maret 2026 s.d. Juni 2026", atau "mulai Maret 2026" bila belum berhenti. */
 export const labelPeriode = (mulai: string, berhenti: string | null) =>
-  berhenti ? `${labelBulan(mulai)} – ${labelBulan(berhenti)}` : `mulai ${labelBulan(mulai)}`;
+  berhenti ? `${labelBulan(mulai)} s.d. ${labelBulan(berhenti)}` : `mulai ${labelBulan(mulai)}`;
 
 /**
  * Nama bulan "YYYY-MM" untuk tampilan: "2026-10" → "Oktober 2026"; `pendek` → "Okt 2026" (tabel dan grafik yang

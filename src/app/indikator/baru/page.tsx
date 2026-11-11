@@ -16,8 +16,8 @@ export default async function HalamanTambahIndikator() {
   return (
     <Halaman>
       <KepalaHalaman judul="Tambah IMP" kembali={[{ href: "/indikator", label: "Indikator" }]} sub="IMP-RS atau IMP-Unit beserta Target awalnya." />
-      <Kartu>
-        <div className="p-5">
+      <Kartu className="max-w-3xl">
+        <div className="p-5 sm:p-7">
           <FormIndikator bulanIni={bulanBerjalan()} />
         </div>
       </Kartu>

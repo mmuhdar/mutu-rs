@@ -38,11 +38,11 @@ export function TombolSalin({ teks, label }: { teks: string; label: string }) {
   }
   return (
     <span className="inline-flex items-center gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={salin} aria-label={`Salin ${label}`} className="shadow-none">
+      <Button type="button" variant="outline" size="sm" onClick={salin} aria-label={`Salin ${label}`}>
         <Ikon nama={hasil === "tersalin" ? "cek" : "salin"} className="size-4" />
         {hasil === "tersalin" ? "Tersalin" : "Salin"}
       </Button>
-      <span role="status" className="text-[12px] text-danger-ink">
+      <span role="status" className="text-[13px] text-bad">
         {hasil === "gagal" ? "Gagal menyalin; pilih teksnya lalu salin manual." : ""}
       </span>
     </span>

@@ -14,8 +14,8 @@ export const kelasPetunjuk = "text-[13px] leading-5 text-muted-foreground";
 /** Pesan penolakan service di bawah form (shadcn `Alert`); kosong = tidak tampil. */
 export function PesanError({ pesan }: { pesan?: string }) {
   return pesan ? (
-    <Alert variant="destructive" role="alert" className="border-danger-border bg-danger-soft">
-      <AlertDescription className="text-[14px] text-danger-ink">{pesan}</AlertDescription>
+    <Alert variant="destructive" role="alert" className="rounded-card border-danger-border bg-danger-soft">
+      <AlertDescription className="text-[14px] text-ink">{pesan}</AlertDescription>
     </Alert>
   ) : null;
 }
@@ -24,7 +24,7 @@ export function PesanError({ pesan }: { pesan?: string }) {
 export function Kolom(p: { label: React.ReactNode; htmlFor: string; petunjuk?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="grid min-w-0 content-start gap-1.5">
-      <Label htmlFor={p.htmlFor} className="font-semibold">
+      <Label htmlFor={p.htmlFor} className="font-medium">
         {p.label}
       </Label>
       {p.petunjuk && <p className={kelasPetunjuk}>{p.petunjuk}</p>}
@@ -49,7 +49,7 @@ export function Segmen(p: {
   const id = `segmen-${p.nama}`;
   return (
     <div className="grid min-w-0 gap-2">
-      <Label id={id} className="font-semibold">
+      <Label id={id} className="font-medium">
         {p.label}
       </Label>
       <RadioGroup
@@ -58,12 +58,12 @@ export function Segmen(p: {
         defaultValue={p.nilai ?? undefined}
         required={p.wajib}
         disabled={p.disabled}
-        className="flex flex-wrap gap-1 rounded-xl bg-muted p-1"
+        className="flex flex-wrap gap-0.5 rounded-md border border-rule bg-paper-3 p-0.5"
       >
         {p.pilihan.map((o) => (
           <label
             key={o.nilai}
-            className="flex min-h-10 flex-1 cursor-pointer items-center justify-center rounded-lg px-3 text-center text-sm font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground has-focus-visible:ring-2 has-focus-visible:ring-ring has-disabled:cursor-not-allowed has-data-[state=checked]:bg-card has-data-[state=checked]:text-primary-ink has-data-[state=checked]:shadow-kartu"
+            className="flex min-h-9 flex-1 cursor-pointer items-center justify-center rounded-[4px] px-3 text-center text-sm font-medium whitespace-nowrap text-ink-3 transition-colors hover:text-ink has-focus-visible:ring-2 has-focus-visible:ring-ring has-disabled:cursor-not-allowed has-disabled:opacity-55 has-data-[state=checked]:bg-card has-data-[state=checked]:text-ink has-data-[state=checked]:shadow-[inset_0_-2px_0_var(--color-signal)]"
           >
             <RadioGroupItem value={o.nilai} className="sr-only" />
             {o.label}

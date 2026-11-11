@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 
-import { LABEL_PERAN, PERAN, PERAN_BER_UNIT, type Peran } from "@/lib/peran";
+import { LABEL_PERAN, PERAN, PERAN_BER_UNIT } from "@/lib/peran";
 import type { daftarPengguna } from "@/modules/pengguna/service";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { Ikon } from "../ikon";
 import { inisial } from "../nav-samping";
-import { isiNada, type Nada, Pil, TableCell, TableRow } from "../ui";
+import { Pil, TableCell, TableRow } from "../ui";
 import {
   aturAktifPenggunaAction,
   resetSandiAction,
@@ -32,7 +32,7 @@ const PILIHAN_PERAN = PERAN.map((p) => ({ nilai: p, label: LABEL_PERAN[p] }));
 function Pesan({ state }: { state: StatePengguna }) {
   if (state.error) return <PesanError pesan={state.error} />;
   return state.berhasil ? (
-    <p role="status" className="rounded-xl bg-success-soft px-3.5 py-2.5 text-[14px] text-success-ink">
+    <p role="status" className="rounded-md bg-success-soft px-3.5 py-2.5 text-[14px] text-success-ink">
       {state.berhasil}
     </p>
   ) : null;
@@ -58,10 +58,10 @@ function IsianPengguna({
         <Segmen key={awal.peran} nama="peran" label="Peran" pilihan={PILIHAN_PERAN} nilai={awal.peran} wajib />
       </div>
       <fieldset className="col-span-full grid min-w-0 gap-1.5">
-        <legend className="text-sm font-semibold">Unit</legend>
+        <legend className="text-sm font-medium">Unit</legend>
         <p className={kelasPetunjuk}>Wajib untuk {PERAN_BER_UNIT_TEKS} (boleh lebih dari satu). Peran lain tidak punya Unit.</p>
         {unit.length === 0 ? (
-          <p className="text-[14px] text-muted-foreground">Belum ada Unit aktif.</p>
+          <p className="text-[14px] text-ink-3">Belum ada Unit aktif.</p>
         ) : (
           <div className="mt-1 flex max-h-56 flex-wrap gap-2 overflow-y-auto">
             {unit.map((u) => {
@@ -71,7 +71,7 @@ function IsianPengguna({
                 // pilihan Unit yang ditolak tetap tercentang setelah form di-reset (seperti `key` pada select).
                 <label
                   key={`${u.id}:${dipilih}`}
-                  className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-border bg-card px-3.5 text-[14px] font-medium hover:border-primary/50 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary-tint has-data-[state=checked]:text-primary-ink has-focus-visible:ring-2 has-focus-visible:ring-primary"
+                  className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-pill border border-rule-2 bg-paper-3 px-3 text-[14px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink has-data-[state=checked]:border-signal-rule has-data-[state=checked]:bg-signal-soft has-data-[state=checked]:text-ink has-focus-visible:ring-2 has-focus-visible:ring-ring"
                 >
                   <Checkbox name="unitIds" value={u.id} defaultChecked={dipilih} />
                   {u.nama}
@@ -89,8 +89,8 @@ export function FormTambahPengguna({ unit }: { unit: PilihanUnit }) {
   const [state, action, pending] = useActionState(tambahPenggunaAction, {});
   const isian = state.isian;
   return (
-    <form action={action} className="grid gap-4 px-5 pb-5">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <form action={action} className="grid gap-6 px-5 pt-1 pb-6">
+      <div className="grid gap-5">
         <Kolom label="Username" htmlFor="baru-username">
           <Input
             id="baru-username"
@@ -103,11 +103,14 @@ export function FormTambahPengguna({ unit }: { unit: PilihanUnit }) {
             autoCapitalize="none"
             spellCheck={false}
             defaultValue={isian?.username}
+            className="sm:max-w-sm"
           />
         </Kolom>
         <Kolom label="Sandi awal" htmlFor="baru-sandi" petunjuk="Minimal 8 karakter. Pengguna bisa menggantinya sendiri.">
-          <Input id="baru-sandi" name="sandi" type="password" required minLength={8} autoComplete="new-password" />
+          <Input id="baru-sandi" name="sandi" type="password" required minLength={8} autoComplete="new-password" className="sm:max-w-sm" />
         </Kolom>
+      </div>
+      <div className="grid gap-5 border-t border-rule pt-6">
         <IsianPengguna idAwalan="baru" awal={{ ...isian, unitIds: isian?.unitIds ?? [] }} unit={unit} />
       </div>
       <Pesan state={state} />
@@ -118,14 +121,6 @@ export function FormTambahPengguna({ unit }: { unit: PilihanUnit }) {
     </form>
   );
 }
-
-const NADA_PERAN: Record<Peran, Nada> = {
-  petugasInputData: "ukur",
-  kepalaUnit: "pantau",
-  komiteMutu: "brand",
-  direktur: "tindak",
-  adminSistem: "atur",
-};
 
 /*
  * Di HP tabel menjadi daftar bertumpuk (setiap baris = grid, kepala tabel disembunyikan halaman), supaya panel isian
@@ -155,7 +150,7 @@ export function BarisPengguna({ pengguna: p, unit }: { pengguna: BarisDaftar; un
       aria-expanded={buka === nama}
       onClick={() => setBuka(buka === nama ? null : nama)}
       title={label}
-      className="text-muted-foreground shadow-none hover:text-primary-ink"
+      className="text-ink-3 shadow-none hover:text-ink"
     >
       <Ikon nama={ikon} className="size-4" />
       <span className="sr-only">
@@ -169,37 +164,29 @@ export function BarisPengguna({ pengguna: p, unit }: { pengguna: BarisDaftar; un
         <TableCell className={`${tanpaGaris} ${tdHp} max-sm:col-span-2`}>
           <span className="flex items-center gap-3">
             <Avatar aria-hidden className="size-9 after:hidden">
-              <AvatarFallback className={`text-[13px] font-bold text-white ${isiNada(p.aktif ? NADA_PERAN[p.peran] : "netral")}`}>
+              <AvatarFallback className="border border-rule bg-paper-3 text-[13px] font-medium text-ink-2">
                 {inisial(p.nama)}
               </AvatarFallback>
             </Avatar>
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="font-semibold">{p.nama}</span>
+                <span className={`font-medium ${p.aktif ? "" : "text-ink-2"}`}>{p.nama}</span>
                 {/* Hanya yang nonaktif yang diberi tanda; aktif adalah keadaan biasa. */}
                 {!p.aktif && <Pil nada="netral">Nonaktif</Pil>}
               </span>
-              <span className="block text-[13px] text-muted-foreground">{p.username}</span>
+              <span className="block text-[13px] text-ink-3">{p.username}</span>
             </span>
           </span>
         </TableCell>
-        <TableCell className={`${tanpaGaris} ${tdHp}`}>
-          <Pil nada={NADA_PERAN[p.peran]}>{LABEL_PERAN[p.peran]}</Pil>
+        {/* Di HP peran dan Unit bertumpuk di baris sendiri supaya tidak terbaca sebagai satu teks. */}
+        <TableCell className={`${tanpaGaris} ${tdHp} max-sm:col-span-2`}>
+          <span className="text-ink">{LABEL_PERAN[p.peran]}</span>
         </TableCell>
-        <TableCell className={`${tanpaGaris} ${tdHp}`}>
+        <TableCell className={`${tanpaGaris} ${tdHp} max-sm:col-span-2 max-sm:-mt-2`}>
           {p.unit.length === 0 ? (
-            <span className="text-muted-foreground">
-              <span aria-hidden>–</span>
-              <span className="sr-only">Tanpa Unit</span>
-            </span>
+            <span className="text-[14px] text-ink-3">Tanpa Unit</span>
           ) : (
-            <span className="flex flex-wrap gap-1.5">
-              {p.unit.map((u) => (
-                <span key={u.id} className="rounded-full bg-muted px-2.5 py-0.5 text-[13px] whitespace-nowrap">
-                  {u.aktif ? u.nama : `${u.nama} (Unit nonaktif)`}
-                </span>
-              ))}
-            </span>
+            <span className="text-ink-2">{p.unit.map((u) => (u.aktif ? u.nama : `${u.nama} (Unit nonaktif)`)).join(", ")}</span>
           )}
         </TableCell>
         <TableCell className={`text-right ${tanpaGaris} ${tdHp} max-sm:col-span-2 max-sm:text-left`}>
@@ -222,27 +209,27 @@ export function BarisPengguna({ pengguna: p, unit }: { pengguna: BarisDaftar; un
             <div className="grid gap-3">
               <Pesan state={status} />
               {buka === "ubah" && (
-                <form action={ubahAction} className="grid gap-4 rounded-xl border border-border bg-head p-4 sm:grid-cols-2">
-                  <p className="text-[15px] font-bold sm:col-span-2">Ubah nama, peran, dan Unit</p>
+                <form action={ubahAction} className="grid gap-4 rounded-md bg-paper-3 p-4 sm:grid-cols-2 sm:p-5">
+                  <p className="text-[15px] font-medium sm:col-span-2">Ubah nama, peran, dan Unit</p>
                   <input type="hidden" name="id" value={p.id} />
                   <IsianPengguna idAwalan={p.id} awal={awal} unit={unit} />
                   <div className="grid gap-2 sm:col-span-2">
                     <Pesan state={ubah} />
-                    <Button type="submit" size="lg" disabled={ubahPending} className="w-full sm:w-auto sm:justify-self-start">
+                    <Button type="submit" variant="outline" size="lg" disabled={ubahPending} className="w-full sm:w-auto sm:justify-self-start">
                       Simpan
                     </Button>
                   </div>
                 </form>
               )}
               {buka === "sandi" && (
-                <form action={sandiAction} className="grid max-w-xl gap-1.5 rounded-xl border border-border bg-head p-4">
+                <form action={sandiAction} className="grid max-w-xl gap-1.5 rounded-md bg-paper-3 p-4 sm:p-5">
                   <input type="hidden" name="id" value={p.id} />
-                  <Label htmlFor={`${p.id}-sandi`} className="font-semibold">
+                  <Label htmlFor={`${p.id}-sandi`} className="font-medium">
                     Sandi baru untuk {p.nama}
                   </Label>
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
                     <Input id={`${p.id}-sandi`} name="sandi" type="password" required minLength={8} autoComplete="new-password" />
-                    <Button type="submit" size="lg" disabled={sandiPending} className="w-full sm:w-auto">
+                    <Button type="submit" variant="outline" size="lg" disabled={sandiPending} className="w-full sm:w-auto">
                       Simpan
                     </Button>
                   </div>

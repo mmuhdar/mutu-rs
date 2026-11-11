@@ -8,18 +8,17 @@ import { Label } from "@/components/ui/label";
 
 import { PesanError } from "../form";
 import { Ikon } from "../ikon";
-import { KotakIkon, Pil, TableCell, TableRow } from "../ui";
+import { Pil, TableCell, TableRow } from "../ui";
 import { aturAktifUnitAction, gantiNamaUnitAction, tambahUnitAction } from "./actions";
 
-/** Tombol ikon pembuka panel baris: tepi dan ikon ungu saat panelnya terbuka. */
-const kelasTombolPanel =
-  "text-muted-foreground shadow-none hover:text-primary-ink";
+/** Tombol ikon pembuka panel baris: tepi amber saat panelnya terbuka (gaya `aria-expanded` tombol outline). */
+const kelasTombolPanel = "text-ink-3 shadow-none hover:text-ink";
 
 export function FormTambahUnit() {
   const [state, action, pending] = useActionState(tambahUnitAction, {});
   return (
     <form action={action} className="grid max-w-xl gap-1.5">
-      <Label htmlFor="nama-unit-baru" className="font-semibold">
+      <Label htmlFor="nama-unit-baru" className="font-medium">
         Tambah Unit
       </Label>
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -55,13 +54,10 @@ export function BarisUnit({ unit }: { unit: { id: string; nama: string; aktif: b
     <>
       <TableRow>
         <TableCell className={`${panel ? "border-b-0!" : ""}`}>
-          <span className="flex items-center gap-3">
-            <KotakIkon nada={unit.aktif ? "atur" : "netral"} ikon="unit" kecil />
-            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="font-semibold">{unit.nama}</span>
-              {/* Hanya yang nonaktif yang diberi tanda; aktif adalah keadaan biasa. */}
-              {!unit.aktif && <Pil nada="netral">Nonaktif</Pil>}
-            </span>
+          <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={`font-medium ${unit.aktif ? "" : "text-ink-2"}`}>{unit.nama}</span>
+            {/* Hanya yang nonaktif yang diberi tanda; aktif adalah keadaan biasa. */}
+            {!unit.aktif && <Pil nada="netral">Nonaktif</Pil>}
           </span>
         </TableCell>
         <TableCell className={`text-right ${panel ? "border-b-0!" : ""}`}>
@@ -94,9 +90,9 @@ export function BarisUnit({ unit }: { unit: { id: string; nama: string; aktif: b
             <div className="grid gap-3">
               <PesanError pesan={status.error} />
               {buka && (
-                <form action={gantiAction} className="grid max-w-xl gap-1.5 rounded-xl border border-border bg-head p-4">
+                <form action={gantiAction} className="grid max-w-xl gap-1.5 rounded-md bg-paper-3 p-4">
                   <input type="hidden" name="id" value={unit.id} />
-                  <Label htmlFor={`nama-${unit.id}`} className="font-semibold">
+                  <Label htmlFor={`nama-${unit.id}`} className="font-medium">
                     Nama baru untuk {unit.nama}
                   </Label>
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -108,7 +104,7 @@ export function BarisUnit({ unit }: { unit: { id: string; nama: string; aktif: b
                       defaultValue={ganti.nama ?? unit.nama}
                       aria-invalid={!!ganti.error}
                     />
-                    <Button type="submit" size="lg" disabled={gantiPending} className="w-full sm:w-auto">
+                    <Button type="submit" variant="outline" size="lg" disabled={gantiPending} className="w-full sm:w-auto">
                       Simpan
                     </Button>
                   </div>

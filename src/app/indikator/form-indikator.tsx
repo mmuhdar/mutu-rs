@@ -11,8 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { PilihCari } from "../pilih-cari";
-import type { NamaIkon } from "../ikon";
-import { KotakIkon, type Nada } from "../ui";
 
 import { INPUT_BULAN } from "@/lib/bulan";
 import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
@@ -28,15 +26,16 @@ import {
   ubahIndikatorAction,
 } from "./actions";
 
-/** Bagian form bertepi: mengelompokkan isian yang berhubungan, judulnya diberi kotak ikon kecil. */
-const kelasBagian = "grid min-w-0 gap-4 rounded-2xl border border-border p-4 sm:p-5";
-
-function JudulBagian({ nada, ikon, children }: { nada: Nada; ikon: NamaIkon; children: React.ReactNode }) {
+/**
+ * Bagian form: satu kolom isian di bawah garis rambut, judulnya `legend` (bukan kotak bertepi di dalam panel). Legend
+ * di-float supaya menjadi isi grid biasa dan garis atas fieldset tidak terputus olehnya.
+ */
+function Bagian({ judul, children }: { judul: string; children: React.ReactNode }) {
   return (
-    <span className="flex items-center gap-3 text-[16px] font-bold">
-      <KotakIkon nada={nada} ikon={ikon} kecil />
+    <fieldset className="grid min-w-0 gap-5 border-t border-rule pt-6">
+      <legend className="float-left w-full font-display text-[17px] font-medium tracking-[-0.01em]">{judul}</legend>
       {children}
-    </span>
+    </fieldset>
   );
 }
 
@@ -52,7 +51,8 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
   const [state, action, pending] = useActionState(indikator ? ubahIndikatorAction : tambahIndikatorAction, {});
   const awal = (nama: keyof Indikator, bawaan = "") => state.nilai?.[nama] ?? String(indikator?.[nama] ?? bawaan);
   const kunci = (nama: keyof Indikator) => terkunci && nama in FIELD_CARA_HITUNG;
-  const kelasKunci = (nama: keyof Indikator) => (kunci(nama) ? "bg-muted! text-muted-foreground" : "");
+  // Terkunci: rata dengan panel (bukan cekung seperti isian yang bisa diketik), teks redup.
+  const kelasKunci = (nama: keyof Indikator) => (kunci(nama) ? "cursor-not-allowed bg-paper-2! text-ink-3" : "");
 
   const teks = (nama: keyof Indikator, label: string, petunjuk?: string) => (
     <Kolom label={label} htmlFor={nama} petunjuk={petunjuk}>
@@ -88,60 +88,53 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
   );
 
   return (
-    <form action={action} className="grid gap-5">
+    <form action={action} className="grid gap-6">
       <PesanError pesan={state.error} />
       {terkunci && (
-        <p className="rounded-2xl border border-warning-border bg-warning-soft px-4 py-3 text-[14px]">
-          <strong className="font-semibold">Cara hitung terkunci.</strong> Indikator ini sudah punya Pengukuran, jadi faktor, satuan, Arah,
+        <p className="rounded-md bg-paper-3 px-4 py-3.5 text-[14px] leading-6 text-ink-2">
+          <strong className="font-medium text-ink">Cara hitung terkunci.</strong> Indikator ini sudah punya Pengukuran, jadi faktor, satuan, Arah,
           definisi N dan D, serta Frekuensi tidak bisa diubah supaya tren tidak mencampur dua cara hitung. Untuk mengubahnya,{" "}
-          <Link href="/indikator/baru" className="font-semibold text-primary-ink hover:underline">
+          <Link href="/indikator/baru" className="text-primary-ink">
             buat Indikator baru
           </Link>{" "}
           lalu nonaktifkan Indikator ini. Nama, definisi operasional, Sumber Data, dan PIC tetap bisa diubah.
         </p>
       )}
-      {indikator ? (
-        <input type="hidden" name="id" value={indikator.id} />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Kolom label="Kode" htmlFor="kode" petunjuk="Unik, mis. IMP-RS-01. Tidak bisa diubah setelah disimpan.">
-            <Input id="kode" name="kode" required maxLength={32} defaultValue={state.nilai?.kode} className="font-mono" />
-          </Kolom>
-          <Segmen
-            key={state.nilai?.kelompok}
-            nama="kelompok"
-            label="Kelompok (INM sudah tersedia sesuai PMK 30/2022)"
-            pilihan={[
-              { nilai: "IMP-RS", label: "IMP-RS" },
-              { nilai: "IMP-Unit", label: "IMP-Unit" },
-            ]}
-            nilai={state.nilai?.kelompok ?? "IMP-RS"}
-            wajib
-          />
-        </div>
-      )}
-      <Kolom label="Nama" htmlFor="nama">
-        <Input id="nama" name="nama" required maxLength={200} defaultValue={awal("nama")} />
-      </Kolom>
-      <div className={kelasBagian}>
-        <p>
-          <JudulBagian nada="brand" ikon="dokumen">
-            Definisi
-          </JudulBagian>
-        </p>
-        {teks("definisiOperasional", "Definisi operasional", "Termasuk kriteria eksklusi.")}
-        <div className="grid gap-4 md:grid-cols-2">
-          {teks("definisiNumerator", "Definisi Numerator (N)")}
-          {teks("definisiDenominator", "Definisi Denominator (D)")}
-        </div>
-        {teks("sumberData", "Sumber Data", "Asal data N dan D, mis. rekam medis atau lembar observasi.")}
+      <div className="grid min-w-0 gap-5">
+        {indikator ? (
+          <input type="hidden" name="id" value={indikator.id} />
+        ) : (
+          <>
+            <Kolom label="Kode" htmlFor="kode" petunjuk="Unik, mis. IMP-RS-01. Tidak bisa diubah setelah disimpan.">
+              <Input id="kode" name="kode" required maxLength={32} defaultValue={state.nilai?.kode} className="terukur sm:max-w-[16rem]" />
+            </Kolom>
+            <Segmen
+              key={state.nilai?.kelompok}
+              nama="kelompok"
+              label="Kelompok (INM sudah tersedia sesuai PMK 30/2022)"
+              pilihan={[
+                { nilai: "IMP-RS", label: "IMP-RS" },
+                { nilai: "IMP-Unit", label: "IMP-Unit" },
+              ]}
+              nilai={state.nilai?.kelompok ?? "IMP-RS"}
+              wajib
+            />
+          </>
+        )}
+        <Kolom label="Nama" htmlFor="nama">
+          <Input id="nama" name="nama" required maxLength={200} defaultValue={awal("nama")} />
+        </Kolom>
+        <Kolom label="PIC (opsional)" htmlFor="pic" petunjuk="Nama atau jabatan penanggung jawab Indikator.">
+          <Input id="pic" name="pic" maxLength={120} defaultValue={awal("pic")} />
+        </Kolom>
       </div>
-      <div className={`${kelasBagian} sm:grid-cols-2`}>
-        <p className="sm:col-span-2">
-          <JudulBagian nada="ukur" ikon="monitoring">
-            Cara hitung
-          </JudulBagian>
-        </p>
+      <Bagian judul="Definisi">
+        {teks("definisiOperasional", "Definisi operasional", "Termasuk kriteria eksklusi.")}
+        {teks("definisiNumerator", "Definisi Numerator (N)")}
+        {teks("definisiDenominator", "Definisi Denominator (D)")}
+        {teks("sumberData", "Sumber Data", "Asal data N dan D, mis. rekam medis atau lembar observasi.")}
+      </Bagian>
+      <Bagian judul="Cara hitung">
         <Kolom label="Faktor" htmlFor="faktor" petunjuk="Capaian = N/D × faktor: 100 persen, 1 rata-rata, 1000 per seribu.">
           <Input
             id="faktor"
@@ -150,7 +143,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
             inputMode="numeric"
             readOnly={kunci("faktor")}
             defaultValue={awal("faktor", "100")}
-            className={kelasKunci("faktor")}
+            className={`sm:max-w-[12rem] ${kelasKunci("faktor")}`}
           />
         </Kolom>
         <Kolom label="Satuan" htmlFor="satuan">
@@ -161,24 +154,23 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
             maxLength={32}
             readOnly={kunci("satuan")}
             defaultValue={awal("satuan", "%")}
-            className={kelasKunci("satuan")}
+            className={`sm:max-w-[12rem] ${kelasKunci("satuan")}`}
           />
         </Kolom>
         {pilihan("arah", "Arah", "makinTinggi", ARAH, LABEL_ARAH)}
         {pilihan("frekuensi", "Frekuensi (Semesteran: Juni dan Desember)", "bulanan", FREKUENSI, LABEL_FREKUENSI)}
-      </div>
-      <Kolom label="PIC (opsional)" htmlFor="pic" petunjuk="Nama atau jabatan penanggung jawab Indikator.">
-        <Input id="pic" name="pic" maxLength={120} defaultValue={awal("pic")} />
-      </Kolom>
+      </Bagian>
       {!indikator && (
-        <fieldset className={`${kelasBagian} sm:grid-cols-2`}>
-          <legend className="float-left w-full sm:col-span-2">
-            <JudulBagian nada="pantau" ikon="target">
-              Target awal
-            </JudulBagian>
-          </legend>
+        <Bagian judul="Target awal">
           <Kolom label="Nilai Target" htmlFor="targetNilai" petunjuk="Angka desimal memakai koma, mis. 76,61.">
-            <Input id="targetNilai" name="targetNilai" required inputMode="decimal" defaultValue={state.nilai?.targetNilai} />
+            <Input
+              id="targetNilai"
+              name="targetNilai"
+              required
+              inputMode="decimal"
+              defaultValue={state.nilai?.targetNilai}
+              className="sm:max-w-[12rem]"
+            />
           </Kolom>
           <Kolom label="Berlaku mulai" htmlFor="targetBerlakuMulai" petunjuk="Target pertama juga berlaku untuk bulan-bulan sebelumnya.">
             <Input
@@ -187,11 +179,12 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
               {...INPUT_BULAN}
               required
               defaultValue={state.nilai?.targetBerlakuMulai ?? bulanIni}
+              className="sm:max-w-[12rem]"
             />
           </Kolom>
-        </fieldset>
+        </Bagian>
       )}
-      <div className="grid gap-2 sm:flex">
+      <div className="grid gap-2 border-t border-rule pt-6 sm:flex">
         <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto">
           {pending ? "Menyimpan…" : "Simpan"}
         </Button>
@@ -222,11 +215,18 @@ export function TombolAktif({ id, aktif }: { id: string; aktif: boolean }) {
 export function FormTarget({ indikatorId, bulanIni }: { indikatorId: string; bulanIni: string }) {
   const [state, action, pending] = useActionState(tetapkanTargetAction, {});
   return (
-    <form action={action} className="grid gap-3">
+    <form action={action} className="grid gap-4">
       <input type="hidden" name="indikatorId" value={indikatorId} />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4">
         <Kolom label="Nilai Target" htmlFor="targetNilai" petunjuk="Angka desimal memakai koma, mis. 76,61.">
-          <Input id="targetNilai" name="targetNilai" required inputMode="decimal" defaultValue={state.nilai?.targetNilai} />
+          <Input
+            id="targetNilai"
+            name="targetNilai"
+            required
+            inputMode="decimal"
+            defaultValue={state.nilai?.targetNilai}
+            className="sm:max-w-[12rem]"
+          />
         </Kolom>
         <Kolom
           label="Berlaku mulai"
@@ -239,11 +239,12 @@ export function FormTarget({ indikatorId, bulanIni }: { indikatorId: string; bul
             {...INPUT_BULAN}
             required
             defaultValue={state.nilai?.targetBerlakuMulai ?? bulanIni}
+            className="sm:max-w-[12rem]"
           />
         </Kolom>
       </div>
       <PesanError pesan={state.error} />
-      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+      <Button type="submit" variant="outline" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
         {pending ? "Menyimpan…" : "Tetapkan Target"}
       </Button>
     </form>
@@ -262,10 +263,10 @@ export function FormUnitPelapor({
 }) {
   const [state, action, pending] = useActionState(tambahUnitPelaporAction, {});
   return (
-    <form action={action} className="grid gap-3">
+    <form action={action} className="grid gap-4">
       <input type="hidden" name="indikatorId" value={indikatorId} />
-      <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
-        <div className="sm:col-span-2">
+      <div className="grid gap-4">
+        <div>
           <Kolom label="Unit" htmlFor="unitId">
             {/* key: pilihan Unit yang ditolak tetap terpilih setelah form di-reset (lihat `pilihan` di FormIndikator). */}
             <PilihCari
@@ -281,14 +282,27 @@ export function FormUnitPelapor({
           </Kolom>
         </div>
         <Kolom label="Bulan mulai" htmlFor="bulanMulai">
-          <Input id="bulanMulai" name="bulanMulai" {...INPUT_BULAN} required defaultValue={state.nilai?.bulanMulai ?? bulanIni} />
+          <Input
+            id="bulanMulai"
+            name="bulanMulai"
+            {...INPUT_BULAN}
+            required
+            defaultValue={state.nilai?.bulanMulai ?? bulanIni}
+            className="sm:max-w-[12rem]"
+          />
         </Kolom>
         <Kolom label="Bulan berhenti (opsional)" htmlFor="bulanBerhenti" petunjuk="Kosongkan bila masih berlangsung.">
-          <Input id="bulanBerhenti" name="bulanBerhenti" {...INPUT_BULAN} defaultValue={state.nilai?.bulanBerhenti} />
+          <Input
+            id="bulanBerhenti"
+            name="bulanBerhenti"
+            {...INPUT_BULAN}
+            defaultValue={state.nilai?.bulanBerhenti}
+            className="sm:max-w-[12rem]"
+          />
         </Kolom>
       </div>
       <PesanError pesan={state.error} />
-      <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+      <Button type="submit" variant="outline" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
         {pending ? "Menyimpan…" : "Tambah Unit Pelapor"}
       </Button>
     </form>
@@ -309,7 +323,7 @@ export function AksiUnitPelapor({ id, namaUnit, bulanBerhenti }: { id: string; n
             <Button
               variant="outline"
               size="sm"
-              className={`${kelasTombolBaris} aria-expanded:border-primary aria-expanded:bg-card aria-expanded:text-primary-ink`}
+              className={`${kelasTombolBaris} aria-expanded:border-signal-rule aria-expanded:bg-card aria-expanded:text-ink`}
             >
               {bulanBerhenti ? "Ubah bulan berhenti" : "Akhiri"}
             </Button>
@@ -317,7 +331,7 @@ export function AksiUnitPelapor({ id, namaUnit, bulanBerhenti }: { id: string; n
           <CollapsibleContent asChild>
             <form action={akhiriAction} className="mt-3 grid max-w-md gap-1.5">
               <input type="hidden" name="id" value={id} />
-              <Label htmlFor={idBerhenti} className="font-semibold">
+              <Label htmlFor={idBerhenti} className="font-medium">
                 Bulan berhenti
               </Label>
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -328,7 +342,7 @@ export function AksiUnitPelapor({ id, namaUnit, bulanBerhenti }: { id: string; n
                   required
                   defaultValue={akhiri.nilai?.bulanBerhenti ?? bulanBerhenti ?? ""}
                 />
-                <Button type="submit" size="lg" disabled={akhiriPending} className="w-full sm:w-auto">
+                <Button type="submit" variant="outline" size="lg" disabled={akhiriPending} className="w-full sm:w-auto">
                   Simpan
                 </Button>
               </div>

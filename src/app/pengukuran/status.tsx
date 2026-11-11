@@ -23,8 +23,8 @@ export const pesanAtau = <T,>(janji: Promise<T>) =>
 /** Pesan pengganti isi bagian (penolakan service, daftar kosong): satu kalimat dalam `Alert` bertepi putus-putus. */
 export function Pesan({ children }: { children: React.ReactNode }) {
   return (
-    <Alert role="alert" className="border-dashed border-input/60 px-5 py-4">
-      <AlertDescription className="text-[15px]">{children}</AlertDescription>
+    <Alert role="alert" className="rounded-card border-rule-2 bg-paper-3 px-5 py-4">
+      <AlertDescription className="text-[15px] text-ink-2">{children}</AlertDescription>
     </Alert>
   );
 }
@@ -33,8 +33,8 @@ export function Pesan({ children }: { children: React.ReactNode }) {
 export function Pemberitahuan({ children }: { children?: React.ReactNode }) {
   if (!children) return null;
   return (
-    <Alert role="status" className="border-warning-border bg-warning-soft">
-      <AlertDescription className="text-[14px] text-warning">{children}</AlertDescription>
+    <Alert role="status" className="rounded-card border-warning-border bg-warning-soft">
+      <AlertDescription className="text-[14px] text-ink">{children}</AlertDescription>
     </Alert>
   );
 }
@@ -56,7 +56,7 @@ export function LabelStatus({ status, dikembalikan = false }: { status: StatusPe
   return (
     <Pil nada={NADA_PENGUKURAN[kembali ? "dikembalikan" : (status ?? "belum")]}>
       {status ? LABEL_STATUS_PENGUKURAN[status] : "Belum diisi"}
-      {kembali && " · dikembalikan"}
+      {kembali && ", dikembalikan"}
     </Pil>
   );
 }
@@ -74,39 +74,38 @@ export function AlasanPengembalian({ status, riwayat }: { status: StatusPengukur
   const akhir = riwayat.at(-1);
   if (status !== "draf" || akhir?.statusAsal !== "diajukan") return null;
   return (
-    <Alert role="status" className="border-warning-border bg-warning-soft px-5 py-4">
-      <AlertTitle className="font-bold text-warning">Dikembalikan untuk diperbaiki</AlertTitle>
+    <Alert role="status" className="rounded-card border-warning-border bg-warning-soft px-5 py-4">
+      <AlertTitle className="font-medium text-warning">Dikembalikan untuk diperbaiki</AlertTitle>
       <AlertDescription className="text-foreground">
         <p className="whitespace-pre-line">{akhir.alasan}</p>
-        <p className="text-[13px] text-muted-foreground">
-          {akhir.oleh}, {formatWaktu(akhir.waktu)}
+        <p className="text-[13px] text-ink-3">
+          <span className="text-signal">{akhir.oleh}</span>, <span className="terukur text-cool">{formatWaktu(akhir.waktu)}</span>
         </p>
       </AlertDescription>
     </Alert>
   );
 }
 
-/** Riwayat Status Pengukuran: siapa, kapan, dari status apa ke status apa, dan alasannya. */
+/**
+ * Riwayat Status Pengukuran sebagai jejak audit (tema Console): satu garis tulang rule-2, setiap entri perpindahan
+ * status; orang dalam amber, waktu dalam cool (huruf ukur), alasan dalam tinta.
+ */
 export function RiwayatStatus({ riwayat }: { riwayat: Riwayat }) {
   if (riwayat.length === 0) return null;
   return (
     <Kartu judul="Riwayat Status">
-      <ol className="grid gap-0 px-5 pb-5">
+      <ol className="mx-5 mb-5 grid border-l border-rule-2">
         {riwayat.map((r, i) => (
-          <li key={i} className="relative border-l-2 border-ukur/25 pb-4 pl-5 last:pb-0">
-            <span aria-hidden className="absolute top-1.5 -left-[7px] size-3 rounded-full border-2 border-card bg-ukur" />
-            <span className="flex flex-wrap items-center gap-1.5">
+          <li key={i} className="grid gap-1 py-3 pl-4 first:pt-0 last:pb-0">
+            <span className="flex flex-wrap items-center gap-1.5 text-[13px] text-ink-3">
               <LabelStatus status={r.statusAsal} />
-              <span aria-hidden className="text-muted-foreground">
-                →
-              </span>
-              <span className="sr-only">menjadi</span>
+              menjadi
               <LabelStatus status={r.statusTujuan} />
             </span>
-            <span className="mt-1 block text-[13px] text-muted-foreground">
-              {r.oleh}, {formatWaktu(r.waktu)}
+            <span className="text-[13px]">
+              <span className="text-signal">{r.oleh}</span> <span className="terukur text-cool">{formatWaktu(r.waktu)}</span>
             </span>
-            {r.alasan && <span className="mt-1 block whitespace-pre-line">Alasan: {r.alasan}</span>}
+            {r.alasan && <span className="block whitespace-pre-line">Alasan: {r.alasan}</span>}
           </li>
         ))}
       </ol>
@@ -120,10 +119,7 @@ const NADA_CAPAIAN: Record<StatusCapaian, Nada> = { tercapai: "pos", belumTercap
 export function LabelCapaian({ status }: { status: StatusCapaian | null }) {
   if (!status) {
     return (
-      <span className="text-muted-foreground">
-        <span aria-hidden>–</span>
-        <span className="sr-only">Tanpa Status Capaian</span>
-      </span>
+      <span className="text-[13px] text-ink-3">tanpa status</span>
     );
   }
   return (

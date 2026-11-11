@@ -129,7 +129,7 @@ describe("Unit Pelapor", () => {
 
     const tumpangTindih = {
       status: 409,
-      message: `Unit ${ranap.nama} sudah menjadi Unit Pelapor Indikator ini pada periode yang tumpang tindih (Maret 2026 – Juni 2026).`,
+      message: `Unit ${ranap.nama} sudah menjadi Unit Pelapor Indikator ini pada periode yang tumpang tindih (Maret 2026 s.d. Juni 2026).`,
     };
     const periodeBentrok: [string, string | null][] = [
       ["2026-01", "2026-03"],
@@ -171,7 +171,7 @@ describe("Unit Pelapor", () => {
     await akhiriUnitPelapor(komite, lamaId, "2026-06");
     await assert.rejects(tambahUnitPelapor(komite, indikatorId, { unitId: baru.id, bulanMulai: "2026-06" }), {
       status: 409,
-      message: satuUnit.message.replace("mulai Januari 2026", "Januari 2026 – Juni 2026"),
+      message: satuUnit.message.replace("mulai Januari 2026", "Januari 2026 s.d. Juni 2026"),
     });
     await tambahUnitPelapor(komite, indikatorId, { unitId: baru.id, bulanMulai: "2026-07" });
 

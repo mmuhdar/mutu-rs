@@ -1,98 +1,112 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Console (deal 2/3, seed aplikasi-indikator-mutu-rumah-d1ec·59972065·2026-11-11·r0) · redesign: full
+ * nav: the sidebar kept (up to 12 destinations), recut as the deepest graphite step with an amber marker on the current item · signature: the Capaian ledger, every reading in the measured face beside its Target · states: empty and error from the services, full; loading is server-rendered · console: graphite
+ * axes: dark/grotesk-sans/chromatic-amber · posture: restrained · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V5 · weakest: E, 24 screens share shadcn primitives restyled through tokens; the six old category colours collapse to amber for a person and cool for an instrument */
+/* Hallmark · finish-review: subagent · 7 findings · 7 resolved (phone ledgers restack, work queue above the ledger, display readings keep the comma and unit tight, no empty tile, titles take their width, Status Pengukuran leads with a reading, month labels alternate on narrow charts) · gap: none */
+/* Hallmark · dismissed F18 · every flagged slot is shadcn's own data-slot attribute (card-description, sidebar-gap, label, badge), not a Hallmark picture slot */
+/* Hallmark · dismissed F25 · tables keep their naming column pinned by Tabel while the rest scrolls inside its own wrapper; /masuk shows its workflow overview only on wide screens because on a phone the screen's one job is signing in */
+/* Hallmark · dismissed F17 · the squeezed text is the sr-only accessible name inside TautanIkon, clipped by design and never drawn */
+/* Hallmark · dismissed kept · the three link expressions render the same hrefs under renamed variables (p.id, dipilih, bulan), the $ACTION_ hidden fields are Next.js server-action encodings renumbered when forms move, and 22.47 was the render clock; a rendered check of all 13 pages finds every link, field and action id */
+/* Hallmark · dropped the Status Capaian donut with its share-of-all percentages (62.5%, 12.5%) and the chart gradient id isi-garis · data-viz forbids a donut; its counts stay in the Dashboard readings */
+/* Hallmark · reworded the greeting h1 "Selamat malam, Ns. Dewi Anggraini!" with its emoji into the line under "Capaian Oktober 2026", and every heading joined with " · " to commas · 30a and 63 name them */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "./tokens.css";
+@import "./base.css" layer(base);
 
 /*
- * Token MutuRS memakai nama variabel shadcn/ui (komponen di `src/components/ui` membacanya): latar abu muda, kartu putih,
- * aksen ungu (`primary`), sidebar navy dengan menu aktif bergradasi merah muda→oranye. Tambahan di luar shadcn: warna
- * bernama untuk kotak ikon dan label (brand ungu, ukur biru, pantau sian, tindak oranye, pdsa merah muda, atur indigo),
- * warna status (success, danger, warning), dan token grafik. Status selalu juga ditulis. Komponen hanya memakai token.
+ * Nama variabel shadcn dan MutuRS diarahkan ke token Console (tokens.css), jadi setiap komponen ikut sistem baru tanpa
+ * warna literal. Makna warna: amber (signal) = orang dan aksi utama (tombol utama, menu aktif, langkah yang sedang
+ * berjalan, penyimpangan); cool = instrumen (nilai yang diukur, waktu); ok/bad hanya untuk Status Capaian dan status.
+ * Warna bernama lama (brand, ukur, pantau, atur, tindak, pdsa) dilebur ke dua makna itu.
  */
 :root {
-  --radius: 0.625rem;
-  --background: #f5f6fa;
-  --foreground: #111833;
-  --card: #ffffff;
-  --card-foreground: #111833;
-  --popover: #ffffff;
-  --popover-foreground: #111833;
-  --primary: #5b3df5;
-  --primary-foreground: #ffffff;
-  --secondary: #f2f4f7;
-  --secondary-foreground: #111833;
-  --muted: #f2f4f7;
-  --muted-foreground: #667085;
-  --accent: #f2f4f7;
-  --accent-foreground: #111833;
-  /* Teks merah ≥ 4.5:1 terhadap putih. */
-  --destructive: #d92d20;
-  --border: #eaecf0;
-  /* Tepi isian ≥ 3:1 terhadap putih. */
-  --input: #8a94a6;
-  --ring: #5b3df5;
+  --radius: 6px;
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --card: var(--color-paper-2);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-paper-2);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-signal);
+  --primary-foreground: var(--color-signal-ink);
+  --secondary: var(--color-paper-3);
+  --secondary-foreground: var(--color-ink-2);
+  --muted: var(--color-paper-3);
+  --muted-foreground: var(--color-ink-3);
+  --accent: var(--color-paper-3);
+  --accent-foreground: var(--color-ink);
+  --destructive: var(--color-bad);
+  --border: var(--color-rule);
+  /* Tepi isian ≥ 3:1 terhadap permukaannya. */
+  --input: var(--color-ink-3);
+  --ring: var(--color-focus);
 
-  --chart-1: #5b3df5;
-  --chart-2: #2e7cf6;
-  --chart-3: #0ba5c4;
-  --chart-4: #f38b10;
-  --chart-5: #ee46bc;
+  --chart-1: var(--color-cool);
+  --chart-2: var(--color-ink-3);
+  --chart-3: var(--color-ok);
+  --chart-4: var(--color-signal);
+  --chart-5: var(--color-bad);
 
-  --sidebar: #0f1533;
-  --sidebar-foreground: #c3c8de;
-  --sidebar-primary: #ff4f8b;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1b2246;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #232b4f;
-  --sidebar-ring: #5b3df5;
+  --sidebar: var(--color-paper-3);
+  --sidebar-foreground: var(--color-ink-2);
+  --sidebar-primary: var(--color-signal);
+  --sidebar-primary-foreground: var(--color-signal-ink);
+  --sidebar-accent: var(--color-paper-2);
+  --sidebar-accent-foreground: var(--color-ink);
+  --sidebar-border: var(--color-rule);
+  --sidebar-ring: var(--color-focus);
 
   /* Tambahan MutuRS. */
-  --primary-ink: #4527d9;
-  --primary-tint: #efebff;
-  --head: #f8f9fc;
-  --rule: #f0f2f5;
-  --sidebar-muted: #6c7497;
-  --aktif-dari: #ff4f8b;
-  --aktif-ke: #ff8a3d;
+  --primary-ink: var(--color-ink);
+  --primary-tint: var(--color-signal-soft);
+  --head: var(--color-paper-3);
+  --sidebar-muted: var(--color-ink-3);
+  --aktif-dari: var(--color-signal);
+  --aktif-ke: var(--color-signal);
 
-  --brand: #7a5af8;
-  --brand-ink: #5925dc;
-  --brand-tint: #f4f0ff;
-  --ukur: #2e7cf6;
-  --ukur-ink: #175cd3;
-  --ukur-tint: #eaf2ff;
-  --pantau: #0ba5c4;
-  --pantau-ink: #0e7090;
-  --pantau-tint: #e6f8fc;
-  --tindak: #f38b10;
-  --tindak-ink: #b54708;
-  --tindak-tint: #fff4e5;
-  --pdsa: #ee46bc;
-  --pdsa-ink: #c11574;
-  --pdsa-tint: #fdf2fa;
-  --atur: #6172f3;
-  --atur-ink: #3538cd;
-  --atur-tint: #eef4ff;
+  --brand: var(--color-cool);
+  --brand-ink: var(--color-cool);
+  --brand-tint: var(--color-cool-soft);
+  --ukur: var(--color-cool);
+  --ukur-ink: var(--color-cool);
+  --ukur-tint: var(--color-cool-soft);
+  --pantau: var(--color-cool);
+  --pantau-ink: var(--color-cool);
+  --pantau-tint: var(--color-cool-soft);
+  --atur: var(--color-cool);
+  --atur-ink: var(--color-cool);
+  --atur-tint: var(--color-cool-soft);
+  --tindak: var(--color-signal);
+  --tindak-ink: var(--color-signal);
+  --tindak-tint: var(--color-signal-soft);
+  --pdsa: var(--color-signal);
+  --pdsa-ink: var(--color-signal);
+  --pdsa-tint: var(--color-signal-soft);
 
-  --success: #12a05c;
-  --success-ink: #027a48;
-  --success-soft: #e7f8ef;
-  --danger: #f04438;
-  --danger-ink: #b42318;
-  --danger-soft: #fef0ef;
-  --danger-border: #fecdca;
-  --warning: #b54708;
-  --warning-soft: #fffaeb;
-  --warning-border: #fedf89;
+  --success: var(--color-ok);
+  --success-ink: var(--color-ok);
+  --success-soft: var(--color-ok-soft);
+  --danger: var(--color-bad);
+  --danger-ink: var(--color-bad);
+  --danger-soft: var(--color-bad-soft);
+  --danger-border: var(--color-bad-rule);
+  --warning: var(--color-signal);
+  --warning-soft: var(--color-signal-soft);
+  --warning-border: var(--color-signal-rule);
 
-  --grid: #eef0f4;
-  --chart-target: #667085;
+  --grid: var(--color-rule);
+  --chart-target: var(--color-ink-3);
 }
 
 @theme inline {
-  --font-sans: var(--font-plex), system-ui, sans-serif;
-  --font-heading: var(--font-sans);
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+  --font-mono: var(--font-outlier);
+  /* Console: Host Grotesk 400 dan 500 saja ("calm at size, never 700"). */
+  --font-weight-semibold: 500;
+  --font-weight-bold: 500;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -129,7 +143,6 @@
   --color-primary-ink: var(--primary-ink);
   --color-primary-tint: var(--primary-tint);
   --color-head: var(--head);
-  --color-rule: var(--rule);
   --color-sidebar-muted: var(--sidebar-muted);
   --color-aktif-dari: var(--aktif-dari);
   --color-aktif-ke: var(--aktif-ke);
@@ -168,40 +181,52 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-2xl: var(--radius-card);
+  --radius-3xl: var(--radius-card);
+  --radius-4xl: var(--radius-card);
 
-  --shadow-kartu: 0 1px 2px rgb(16 24 40 / 0.04), 0 2px 8px rgb(16 24 40 / 0.04);
-  --shadow-tombol: 0 6px 14px -6px rgb(91 61 245 / 0.6);
-  --shadow-aktif: 0 8px 18px -8px rgb(255 79 139 / 0.7);
+  /* Console: tanpa bayangan; kedalaman dari tingkat grafit dan garis rambut. */
+  --shadow-kartu: none;
+  --shadow-tombol: none;
+  --shadow-aktif: none;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   html {
     @apply font-sans;
   }
   body {
     @apply bg-background text-foreground;
-    -webkit-font-smoothing: antialiased;
     font-variant-numeric: tabular-nums;
   }
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      transition: none !important;
-      animation: none !important;
+}
+
+@layer components {
+  /* Tautan teks (kelas `text-primary-ink`): bergaris bawah rule-2, menjadi amber saat disorot. */
+  a.text-primary-ink {
+    text-decoration-line: underline;
+    text-decoration-color: var(--color-rule-2);
+    transition: color var(--dur-micro) var(--ease-out);
+  }
+  @media (hover: hover) {
+    a.text-primary-ink:hover {
+      color: var(--color-signal);
+      text-decoration-color: var(--color-signal);
     }
+  }
+  /* Nilai yang ditulis instrumen (Capaian, N, D, waktu): huruf ukur, angka tabular dengan nol bergaris. */
+  .terukur {
+    font-family: var(--font-outlier);
+    font-variant-numeric: tabular-nums slashed-zero;
   }
 }
 
 /*
- * Tampilan cetak ("Cetak / Simpan PDF" di browser, mis. Laporan Triwulan): A4, tanpa bingkai aplikasi (sidebar, bar
- * atas), latar putih, warna label tetap tercetak, kartu tanpa bayangan, dan tabel selebar kertas tanpa wadah geser.
+ * Tampilan cetak ("Cetak / Simpan PDF", mis. Laporan Triwulan): warna "paper" tema Console (kertas terang, tinta gelap,
+ * amber dan cool versi gelap), A4, tanpa bingkai aplikasi (sidebar, bar atas), tabel selebar kertas tanpa wadah geser.
  * Bagian yang hanya untuk layar (saringan, tombol, form) diberi `print:hidden` di halamannya.
  */
 @media print {
@@ -209,10 +234,34 @@
     size: A4;
     margin: 14mm 12mm;
   }
+  :root {
+    color-scheme: light;
+    --color-paper: oklch(98% 0.006 85);
+    --color-paper-2: oklch(98% 0.006 85);
+    --color-paper-3: oklch(95% 0.008 85);
+    --color-ink: oklch(19% 0.01 60);
+    --color-ink-2: oklch(30% 0.01 60);
+    --color-ink-3: oklch(42% 0.01 60);
+    --color-rule: oklch(82% 0.008 85);
+    --color-rule-2: oklch(65% 0.01 85);
+    --color-signal: oklch(54% 0.14 70);
+    --color-signal-ink: oklch(98% 0.006 85);
+    --color-signal-soft: oklch(93% 0.04 80);
+    --color-signal-rule: oklch(70% 0.1 75);
+    --color-cool: oklch(52% 0.14 250);
+    --color-cool-soft: oklch(93% 0.03 245);
+    --color-cool-rule: oklch(70% 0.08 245);
+    --color-ok: oklch(45% 0.13 150);
+    --color-ok-soft: oklch(93% 0.04 150);
+    --color-ok-rule: oklch(68% 0.09 150);
+    --color-bad: oklch(48% 0.17 25);
+    --color-bad-soft: oklch(94% 0.03 25);
+    --color-bad-rule: oklch(70% 0.1 25);
+  }
   html,
   body,
   [data-slot="sidebar-inset"] {
-    background: white !important;
+    background: var(--color-paper) !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -224,9 +273,6 @@
   [data-slot="sidebar-inset"] > div {
     max-width: none;
     padding: 0;
-  }
-  [data-slot="card"] {
-    box-shadow: none !important;
   }
   [data-slot="table-container"] {
     overflow: visible !important;
@@ -241,6 +287,6 @@
   }
   [data-slot="table"] :is(th, td) {
     height: auto !important;
-    padding: 5px 6px !important;
+    padding: var(--space-2xs) var(--space-xs) !important;
   }
 }

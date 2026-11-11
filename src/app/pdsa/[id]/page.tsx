@@ -19,13 +19,16 @@ import { requireUser } from "@/server/sesi";
 import { Ikon } from "../../ikon";
 import { keteranganRs, keteranganUnit, Tren } from "../../monitoring/grafik";
 import { formatWaktu, Pesan, pesanAtau } from "../../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman } from "../../ui";
+import { Halaman, KepalaHalaman } from "../../ui";
 import { FormTahap } from "../form-pdsa";
-import { LabelTahap, TabTahap } from "../tahap";
+import { keadaan, LabelTahap, WARNA_KEADAAN } from "../tahap";
 
 export const metadata: Metadata = { title: "Detail PDSA" };
 
-/** Isi satu tahap: teks tersimpan, atau form bila boleh menulis (tahap aktif terbuka, tahap lewat di "Perbaiki"). */
+/**
+ * Isi satu tahap di jejak: belum dicapai, isian tersimpan (baris label dan teks), atau form bila tahap ini dibuka dan
+ * boleh ditulis (tahap aktif langsung berupa form, tahap lewat lewat "Perbaiki").
+ */
 function IsiTahap(p: {
   tahap: TahapIsianPdsa;
   aktif: boolean;
@@ -34,44 +37,49 @@ function IsiTahap(p: {
   isi: [string, string][];
   form: React.ReactNode;
 }) {
-  if (!p.dicapai) return <Pesan>Belum dicapai; diisi setelah tahap sebelumnya selesai.</Pesan>;
-  if (p.aktif && p.bolehTulis) return <div>{p.form}</div>;
+  if (!p.dicapai) return <p className="text-[15px] text-ink-3">Belum dicapai; diisi setelah tahap sebelumnya selesai.</p>;
+  if (p.aktif && p.bolehTulis && p.form) return <div className="rounded-card border border-rule bg-card p-5 sm:p-6">{p.form}</div>;
   return (
     <div className="grid gap-4">
-      <dl className="grid gap-4 md:grid-cols-2">
+      <dl className="grid border-t border-rule">
         {p.isi.map(([label, nilai]) => (
-          <div key={label} className="min-w-0 rounded-xl border border-border bg-head px-4 py-3.5">
-            <dt className="text-[13px] font-semibold text-muted-foreground">{label}</dt>
-            <dd className="mt-1 text-[15px] leading-6 break-words whitespace-pre-line">{nilai || <span className="text-muted-foreground">–</span>}</dd>
+          <div key={label} className="grid min-w-0 gap-1 border-b border-rule py-3 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6">
+            <dt className="text-[14px] text-ink-3">{label}</dt>
+            <dd className="max-w-[72ch] text-[15px] leading-6 break-words whitespace-pre-line">
+              {nilai || <span className="text-ink-3">belum diisi</span>}
+            </dd>
           </div>
         ))}
       </dl>
-      {p.bolehTulis && (
-        <Collapsible className="group/perbaiki rounded-xl border border-border">
+      {p.bolehTulis && p.form && (
+        <Collapsible className="group/perbaiki grid gap-4">
           <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="h-12 w-full justify-start px-4 text-[15px] text-primary-ink hover:text-primary-ink aria-expanded:bg-transparent aria-expanded:text-primary-ink aria-expanded:hover:bg-muted"
-            >
-              <Ikon nama="isi" className="size-[18px]" />
+            <Button variant="outline" className="w-full justify-self-start sm:w-auto">
+              <Ikon nama="isi" className="size-4" />
               Perbaiki {LABEL_TAHAP_PDSA[p.tahap]}
-              <Ikon nama="bawah" className="ml-auto size-4 text-muted-foreground group-data-[state=open]/perbaiki:rotate-180" />
+              <Ikon nama="bawah" className="size-4 text-ink-3 group-data-[state=open]/perbaiki:rotate-180" />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="border-t border-border p-4">{p.form}</CollapsibleContent>
+          <CollapsibleContent className="rounded-card border border-rule bg-card p-5 sm:p-6">{p.form}</CollapsibleContent>
         </Collapsible>
       )}
     </div>
   );
 }
 
+/** Keterangan tiap tahap di samping namanya. */
 const JUDUL: Record<TahapIsianPdsa, string> = {
-  plan: "Plan: rencana perubahan",
-  do: "Do: uji coba skala kecil",
-  study: "Study: hasil dibanding prediksi",
-  act: "Act: keputusan",
+  plan: "rencana perubahan",
+  do: "uji coba skala kecil",
+  study: "hasil dibanding prediksi",
+  act: "keputusan",
 };
 
+/**
+ * Detail PDSA: empat tahap sebagai jejak di satu garis tulang (tahap yang sedang diisi beramber), isian setiap tahap
+ * yang sudah dicapai terbaca berurutan. Tahap yang dibuka (`?tahap=`, bawaannya tahap aktif) membawa form-nya, dan
+ * Study membawa grafik Capaian dengan periode uji coba disorot.
+ */
 export default async function HalamanDetailPdsa({ params, searchParams }: PageProps<"/pdsa/[id]">) {
   const pengguna = await requireUser();
   // Hak baca Lingkup diperiksa service.
@@ -79,7 +87,7 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
   if (typeof p === "string") return <Pesan>{p}</Pesan>;
 
   const lingkup = labelLingkup(p.unit);
-  // Tab yang dibuka: `?tahap=`, bawaannya tahap aktif (Act bila PDSA sudah Selesai).
+  // Tahap yang dibuka: `?tahap=`, bawaannya tahap aktif (Act bila PDSA sudah Selesai).
   const diminta = teksAlamat(await searchParams, "tahap");
   const dipilih = TAHAP_ISIAN_PDSA.find((t) => t === diminta) ?? (p.tahap === "selesai" ? "act" : p.tahap);
   const { judul, masalah, tujuan, prediksi, rencana, bulanMulai, bulanAkhir, pelaksanaan, hasil, keputusan, penjelasan } = p;
@@ -111,22 +119,24 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
           ...(p.sebelumnya ? [{ href: `/pdsa/${p.sebelumnya.id}`, label: `Siklus ke-${p.sebelumnya.siklus}` }] : []),
         ]}
         meta={
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
             <LabelTahap tahap={p.tahap} />
             <span>
-              <span className="font-mono text-[13px]">{p.indikator.kode}</span> {p.indikator.nama} · {lingkup} · siklus ke-{p.siklus} · uji
-              coba {labelPeriode(p.bulanMulai, p.bulanAkhir)}
+              <span className="terukur text-[13px] text-ink-2">{p.indikator.kode}</span> {p.indikator.nama}, {lingkup}, siklus ke-{p.siklus},
+              uji coba {labelPeriode(p.bulanMulai, p.bulanAkhir)}
             </span>
           </span>
         }
-        sub={`Terakhir diubah oleh ${p.diubahOleh}, ${formatWaktu(p.diubahPada)}.`}
+        sub={
+          <>
+            Terakhir diubah oleh <span className="text-signal">{p.diubahOleh}</span>,{" "}
+            <span className="terukur text-[14px] text-cool">{formatWaktu(p.diubahPada)}</span>.
+          </>
+        }
         aksi={
           p.berikutnya ? (
             <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-              <Link href={`/pdsa/${p.berikutnya.id}`}>
-                Siklus ke-{p.berikutnya.siklus}
-                <Ikon nama="kanan" className="size-4" />
-              </Link>
+              <Link href={`/pdsa/${p.berikutnya.id}`}>Siklus ke-{p.berikutnya.siklus}</Link>
             </Button>
           ) : (
             p.tahap === "selesai" &&
@@ -142,34 +152,60 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
         }
       />
 
-      <TabTahap id={p.id} aktif={p.tahap} dipilih={dipilih} />
+      <section aria-label="Tahap PDSA">
+        <ol className="grid border-l border-rule-2">
+          {TAHAP_ISIAN_PDSA.map((t) => {
+            const k = keadaan(t, p.tahap);
+            const dibuka = t === dipilih;
+            return (
+              <li
+                key={t}
+                className={`relative grid min-w-0 gap-4 pb-10 pl-5 last:pb-1 sm:pl-7 ${
+                  k === "sedang diisi" ? "before:absolute before:inset-y-0 before:-left-px before:w-0.5 before:bg-signal" : ""
+                }`}
+              >
+                <h2 className="flex max-w-none flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <Link
+                    href={`/pdsa/${p.id}?tahap=${t}`}
+                    aria-current={dibuka ? "page" : undefined}
+                    className={`font-display text-[22px] leading-7 font-medium tracking-[-0.02em] aria-[current=page]:no-underline ${
+                      k === "sedang diisi" ? "text-signal underline decoration-signal-rule" : "text-primary-ink"
+                    }`}
+                  >
+                    {LABEL_TAHAP_PDSA[t]}
+                  </Link>
+                  <span className="text-[15px] text-ink-3">{JUDUL[t]}</span>
+                  <span className={`ml-auto text-[14px] ${WARNA_KEADAAN[k]}`}>{k}</span>
+                </h2>
 
-      {dipilih === "study" &&
-        (p.study.length === 0 ? (
-          <Pesan>Belum ada data Capaian {lingkup} dalam 12 bulan ini.</Pesan>
-        ) : (
-          <Tren
-            judul={p.unit ? `Capaian ${lingkup}` : "Capaian RS"}
-            keterangan={`12 bulan sampai ${labelBulan(p.study.at(-1)!.bulan)}; periode uji coba disorot.`}
-            titik={p.study}
-            satuan={p.indikator.satuan}
-            catatan={p.unit ? keteranganUnit : keteranganRs}
-            sorot={{ mulai: p.bulanMulai, akhir: p.bulanAkhir }}
-          />
-        ))}
+                {dibuka &&
+                  t === "study" &&
+                  (p.study.length === 0 ? (
+                    <p className="text-[15px] text-ink-3">Belum ada data Capaian {lingkup} dalam 12 bulan ini.</p>
+                  ) : (
+                    <Tren
+                      judul={p.unit ? `Capaian ${lingkup}` : "Capaian RS"}
+                      keterangan={`12 bulan sampai ${labelBulan(p.study.at(-1)!.bulan)}; periode uji coba disorot.`}
+                      titik={p.study}
+                      satuan={p.indikator.satuan}
+                      catatan={p.unit ? keteranganUnit : keteranganRs}
+                      sorot={{ mulai: p.bulanMulai, akhir: p.bulanAkhir }}
+                    />
+                  ))}
 
-      <Kartu judul={JUDUL[dipilih]} sub={p.tahap === dipilih ? "Tahap yang sedang diisi." : undefined}>
-        <div className="px-5 pb-5">
-          <IsiTahap
-            tahap={dipilih}
-            aktif={p.tahap === dipilih}
-            dicapai={sudahDicapai(dipilih, p.tahap)}
-            bolehTulis={p.bolehTulis}
-            isi={isi[dipilih]}
-            form={<FormTahap key={versi} id={p.id} tahap={dipilih} aktif={p.tahap === dipilih} awal={awal} />}
-          />
-        </div>
-      </Kartu>
+                <IsiTahap
+                  tahap={t}
+                  aktif={p.tahap === t}
+                  dicapai={sudahDicapai(t, p.tahap)}
+                  bolehTulis={p.bolehTulis}
+                  isi={isi[t]}
+                  form={dibuka && <FormTahap key={versi} id={p.id} tahap={t} aktif={p.tahap === t} awal={awal} />}
+                />
+              </li>
+            );
+          })}
+        </ol>
+      </section>
     </Halaman>
   );
 }
