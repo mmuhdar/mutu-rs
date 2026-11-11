@@ -4,11 +4,11 @@
 
 **Blocked by:** 01 (modul laporan)
 
-**Status:** ready-for-agent
+**Status:** selesai (branch `rilis-3-laporan`)
 
-- [ ] `src/lib/laporan.ts`: `teksRencanaTindakLanjut`, `tandaSimar` + label, `BATAS_TEKS_SIMAR`, `MIN_D_SIMAR`, `jadwalSimar`.
-- [ ] `rekapSimar(aktor, bulan?, sekarang)` di modul laporan; hak baca `melihatCapaianRs`.
-- [ ] Halaman `/simar?bulan=` + menu; `TombolSalin` dengan cadangan untuk `http://`.
-- [ ] Glosarium: Rekap SIMAR.
-- [ ] Tes service sesuai spec (tahun 2015, Unit Pelapor INM berhenti 2015).
-- [ ] Dicek manual di browser, termasuk 390 px dan tombol Salin lewat `http://`.
+- [x] `src/lib/laporan.ts`: `teksRencanaTindakLanjut`, `tandaSimar` (kode + pesan), `BATAS_TEKS_SIMAR`, `MIN_D_SIMAR`, `tenggatSimar`.
+- [x] `rekapSimar(aktor, bulan?, sekarang)` di modul laporan; hak baca `melihatCapaianRs`.
+- [x] Halaman `/simar?bulan=` + menu; `TombolSalin` dengan cadangan untuk `http://`.
+- [x] Glosarium: Rekap SIMAR.
+- [x] Tes service sesuai spec (tahun 2015, Unit Pelapor INM berhenti 2015).
+- [x] Dicek manual di browser, termasuk 390 px dan tombol Salin lewat `http://`.

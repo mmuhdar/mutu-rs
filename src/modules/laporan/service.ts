@@ -2,18 +2,21 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { pengguna, rekomendasi } from "@/db/schema";
-import { bulanTriwulan, triwulanLalu, wajibTriwulanSelesai } from "@/lib/bulan";
+import { bulanLalu, bulanTriwulan, hariIni, triwulanLalu, wajibBulanBerjalan, wajibTriwulanSelesai } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
-import { KELOMPOK } from "@/lib/indikator";
+import { diukurPadaBulan, KELOMPOK } from "@/lib/indikator";
+import { tandaSimar, teksRencanaTindakLanjut, tenggatSimar } from "@/lib/laporan";
 import { punyaLingkupRs } from "@/lib/perbaikan";
 import type { Peran } from "@/lib/peran";
 import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
-import { capaianTriwulan, melihatCapaianRs } from "@/modules/capaian/service";
+import { capaianTriwulan, melihatCapaianRs, ringkasanCapaian } from "@/modules/capaian/service";
+import { daftarIndikator } from "@/modules/indikator/service";
 import { analisisPada, daftarPdsa } from "@/modules/perbaikan/service";
 
 /*
- * Modul Laporan: Laporan Triwulan (Komite Mutu ke Direktur). Angka hanya dari modul Capaian; Analisis, Tindak Lanjut,
- * dan PDSA hanya dari modul Perbaikan. Di sini penyusunannya dan Rekomendasi.
+ * Modul Laporan: Laporan Triwulan (Komite Mutu ke Direktur) dan Rekap SIMAR (isian INM bulanan ke Kemenkes). Angka
+ * hanya dari modul Capaian; Analisis, Tindak Lanjut, dan PDSA hanya dari modul Perbaikan. Di sini penyusunannya dan
+ * Rekomendasi. Keduanya hanya untuk yang melihat Capaian RS (Komite Mutu, Direktur, Admin Sistem).
  */
 
 const PENULIS: readonly Peran[] = ["komiteMutu", "adminSistem"];
@@ -113,4 +116,52 @@ export async function simpanRekomendasi(aktor: Pengguna | null, isian: { triwula
     .insert(rekomendasi)
     .values({ ...pecah(isian.triwulan), ...data })
     .onConflictDoUpdate({ target: [rekomendasi.tahun, rekomendasi.triwulan], set: data });
+}
+
+/**
+ * Rekap SIMAR satu bulan "YYYY-MM" (tanpa = bulan lalu; bulan setelah bulan berjalan ditolak): satu baris per INM aktif
+ * yang diukur bulan itu, urut kode, termasuk INM tanpa Unit Pelapor. N, D, dan Capaian = Capaian RS bulan itu (hanya
+ * Pengukuran Terverifikasi); `analisa` = teks Analisis Lingkup RS (null = belum); `rencana` = Tindak Lanjut-nya
+ * (`teksRencanaTindakLanjut`); `tanda` = `tandaSimar` (kosong = siap). `tenggat` = tanggal 10 bulan berikutnya.
+ */
+export async function rekapSimar(aktor: Pengguna | null, bulan?: string, sekarang = new Date()) {
+  wajibPengguna(aktor);
+  if (!melihatCapaianRs(aktor)) throw new ServiceError(403, "Rekap SIMAR hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
+  bulan ||= bulanLalu(sekarang);
+  wajibBulanBerjalan(bulan, sekarang);
+  const inm = (await daftarIndikator(aktor)).filter((i) => i.kelompok === "INM" && i.aktif && diukurPadaBulan(i.frekuensi, bulan));
+  const [ringkasan, analisis] = await Promise.all([
+    ringkasanCapaian(aktor, bulan, sekarang),
+    analisisPada(
+      aktor,
+      inm.map((i) => i.id),
+      [bulan],
+      sekarang,
+    ),
+  ]);
+  const baris = inm.map((i) => {
+    const c = ringkasan.baris.find((r) => r.indikator.id === i.id);
+    const a = analisis.find((x) => x.indikatorId === i.id && x.unitId === null);
+    const isi = {
+      n: c?.n ?? 0,
+      d: c?.d ?? 0,
+      capaian: c?.capaian ?? null,
+      kelengkapan: c?.kelengkapan ?? { terverifikasi: 0, wajib: 0 },
+      analisa: a?.teks ?? null,
+      rencana: a ? teksRencanaTindakLanjut(a.tindakLanjut) : "",
+    };
+    return {
+      indikator: { id: i.id, kode: i.kode, nama: i.nama, satuan: i.satuan },
+      ...isi,
+      tanda: tandaSimar({ kode: i.kode, ...isi }),
+    };
+  });
+  const tenggat = tenggatSimar(bulan);
+  return {
+    bulan,
+    tenggat,
+    lewatTenggat: hariIni(sekarang) > tenggat,
+    baris,
+    jumlahSiap: baris.filter((b) => b.tanda.length === 0).length,
+  };
 }

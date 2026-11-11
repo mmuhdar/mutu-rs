@@ -47,7 +47,10 @@ const MENU: { judul: string; item: (ItemMenu & { peran: readonly Peran[] })[] }[
   },
   {
     judul: "Laporan",
-    item: [{ href: "/laporan", label: "Laporan Triwulan", ikon: "laporan", peran: ["komiteMutu", "direktur", "adminSistem"] }],
+    item: [
+      { href: "/laporan", label: "Laporan Triwulan", ikon: "laporan", peran: ["komiteMutu", "direktur", "adminSistem"] },
+      { href: "/simar", label: "Rekap SIMAR", ikon: "simar", peran: ["komiteMutu", "direktur", "adminSistem"] },
+    ],
   },
   {
     judul: "Pengaturan",
@@ -83,7 +86,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 ? {
                     judul: "Lapor SIMAR",
                     isi: `INM ${labelBulan(bulanLalu())} paling lambat 10 ${labelBulan(bulanBerjalan())}.`,
-                    tautan: { href: "/pengukuran/pantau", label: "Status Pengukuran" },
+                    tautan: { href: "/simar", label: "Rekap SIMAR" },
                   }
                 : undefined
             }
