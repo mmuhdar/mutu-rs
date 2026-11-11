@@ -92,6 +92,23 @@ _Avoid_: RTL, rencana tindak lanjut
 Siklus uji coba perbaikan untuk satu Indikator dalam satu Lingkup selama periode uji coba (bulan mulai s.d. bulan akhir), diisi berurutan: Plan (rencana perubahan dan prediksinya), Do (uji coba skala kecil), Study (hasil dibandingkan dengan prediksi, berdampingan dengan Capaian sebelum dan selama uji coba), Act (adopsi, adaptasi, atau tinggalkan); siklus berikutnya bisa dimulai dari Act.
 _Avoid_: PDCA
 
+## Pelaporan
+
+**Triwulan**:
+Tiga bulan kalender: Triwulan I (Januari–Maret), II (April–Juni), III (Juli–September), IV (Oktober–Desember).
+_Avoid_: kuartal
+
+**Capaian Triwulan**:
+Capaian RS satu Indikator selama satu Triwulan: ΣN/ΣD Pengukuran Terverifikasi ketiga bulannya (Semesteran: bulan Juni atau Desember saja), dinilai dengan Target yang berlaku pada bulan terakhir Triwulan.
+_Avoid_: rata-rata triwulan
+
+**Laporan Triwulan**:
+Laporan Komite Mutu kepada Direktur (lalu diteruskan ke Dewan Pengawas) untuk satu Triwulan yang sudah selesai: Capaian Triwulan semua Indikator, Analisis dan Tindak Lanjut, PDSA, dan Rekomendasi. Selalu disusun dari data terkini; yang dikirim adalah hasil cetaknya.
+_Avoid_: laporan PMKP, evaluasi triwulan
+
+**Rekomendasi**:
+Kesimpulan dan saran perbaikan Komite Mutu untuk satu Triwulan, bagian akhir Laporan Triwulan.
+
 ## Peran
 
 **Petugas Input Data**:

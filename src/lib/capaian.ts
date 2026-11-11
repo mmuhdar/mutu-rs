@@ -37,7 +37,8 @@ export type Kelengkapan = { terverifikasi: number; wajib: number };
  * Capaian satu Indikator pada satu bulan. `pengukuran` = satu baris per Unit Pelapor yang aktif bulan itu beserta
  * Pengukuran Terverifikasi-nya (n dan d null = belum Terverifikasi). Capaian RS = semua Unit Pelapor itu (ΣN/ΣD,
  * bukan rata-rata Capaian Unit); Capaian Unit = baris Unit itu saja (kosong bila bukan Unit Pelapor bulan itu).
- * Status Capaian menurut Arah dan Target yang berlaku bulan itu; Capaian kosong tidak punya status.
+ * Status Capaian menurut Arah dan Target yang berlaku bulan itu; Capaian kosong tidak punya status. Capaian Triwulan =
+ * baris ketiga bulan Triwulan sekaligus (ΣN/ΣD, Kelengkapan selama Triwulan) dengan Target bulan terakhirnya.
  */
 export function capaianDari(
   pengukuran: readonly { n: number | null; d: number | null }[],

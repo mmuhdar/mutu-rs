@@ -198,3 +198,49 @@
     }
   }
 }
+
+/*
+ * Tampilan cetak ("Cetak / Simpan PDF" di browser, mis. Laporan Triwulan): A4, tanpa bingkai aplikasi (sidebar, bar
+ * atas), latar putih, warna label tetap tercetak, kartu tanpa bayangan, dan tabel selebar kertas tanpa wadah geser.
+ * Bagian yang hanya untuk layar (saringan, tombol, form) diberi `print:hidden` di halamannya.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  html,
+  body,
+  [data-slot="sidebar-inset"] {
+    background: white !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-inset"] > header {
+    display: none !important;
+  }
+  [data-slot="sidebar-inset"] > div {
+    max-width: none;
+    padding: 0;
+  }
+  [data-slot="card"] {
+    box-shadow: none !important;
+  }
+  [data-slot="table-container"] {
+    overflow: visible !important;
+  }
+  /* Tabel padat supaya semua kolom muat selebar A4. */
+  [data-slot="table"] {
+    min-width: 0 !important;
+  }
+  [data-slot="table"] :is(th, td, td *) {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+  [data-slot="table"] :is(th, td) {
+    height: auto !important;
+    padding: 5px 6px !important;
+  }
+}

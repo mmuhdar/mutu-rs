@@ -332,3 +332,27 @@ export const pdsa = pgTable(
     check("pdsa_periode_check", sql`${t.bulanAkhir} >= ${t.bulanMulai}`),
   ],
 );
+
+/**
+ * Rekomendasi Komite Mutu untuk satu Triwulan (bagian akhir Laporan Triwulan). Unik per tahun + Triwulan, jadi menulis
+ * ulang mengubah baris yang sama; tidak pernah dihapus.
+ */
+export const rekomendasi = pgTable(
+  "rekomendasi",
+  {
+    id: id(),
+    tahun: integer("tahun").notNull(),
+    triwulan: integer("triwulan").notNull(),
+    teks: text("teks").notNull(),
+    /** Pengguna yang terakhir menyimpan; diambil dari sesi. */
+    diubahOlehId: uuid("diubah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("rekomendasi_tahun_triwulan_unique").on(t.tahun, t.triwulan),
+    check("rekomendasi_triwulan_check", sql`${t.triwulan} between 1 and 4`),
+  ],
+);

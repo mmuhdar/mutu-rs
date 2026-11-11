@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, lt, ne, type AnyColumn } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, lte, ne, type AnyColumn } from "drizzle-orm";
 
 import { db } from "@/db";
 import { analisis, indikator, pdsa, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
@@ -165,6 +165,7 @@ const pilihTindakLanjut = () =>
   db
     .select({
       id: tindakLanjut.id,
+      analisisId: tindakLanjut.analisisId,
       tindakan: tindakLanjut.tindakan,
       pic: tindakLanjut.pic,
       tenggat: tindakLanjut.tenggat,
@@ -284,6 +285,40 @@ export async function analisisTersedia(aktor: Pengguna | null, indikatorId: stri
       ),
     );
   return baris.map((b) => ({ unitId: b.unitId, bulan: dariTanggal(b.bulan) }));
+}
+
+/**
+ * Analisis beberapa Indikator pada bulan-bulan "YYYY-MM" ini beserta Tindak Lanjut-nya (urut dibuat), hanya Lingkup
+ * yang boleh dibaca aktor; untuk Laporan Triwulan dan Rekap SIMAR. Indikator atau bulan yang belum dianalisis tidak
+ * punya baris.
+ */
+export async function analisisPada(aktor: Pengguna | null, indikatorIds: string[], bulan: string[], sekarang = new Date()) {
+  wajibPengguna(aktor);
+  bulan.forEach((b) => wajibBulan(b));
+  const ids = indikatorIds.filter(apakahUuid);
+  if (ids.length === 0 || bulan.length === 0) return [];
+  const daftar = await db
+    .select({
+      id: analisis.id,
+      indikatorId: analisis.indikatorId,
+      unitId: analisis.unitId,
+      bulan: analisis.bulan,
+      teks: analisis.teks,
+      diubahOleh: pengguna.nama,
+      diubahPada: analisis.diubahPada,
+    })
+    .from(analisis)
+    .innerJoin(pengguna, eq(pengguna.id, analisis.diubahOlehId))
+    .where(and(inArray(analisis.indikatorId, ids), inArray(analisis.bulan, bulan.map(keTanggal)), saringLingkup(aktor, analisis.unitId)));
+  const tindak =
+    daftar.length === 0
+      ? []
+      : (
+          await pilihTindakLanjut()
+            .where(inArray(tindakLanjut.analisisId, daftar.map((a) => a.id)))
+            .orderBy(asc(tindakLanjut.createdAt))
+        ).map(denganLewat(hariIni(sekarang)));
+  return daftar.map((a) => ({ ...a, bulan: dariTanggal(a.bulan), tindakLanjut: tindak.filter((t) => t.analisisId === a.id) }));
 }
 
 /** Tindakan, PIC, dan tenggat Tindak Lanjut dari form. */
@@ -599,14 +634,16 @@ export async function ambilPdsa(aktor: Pengguna | null, id: string, sekarang = n
 
 /**
  * Daftar PDSA yang boleh dilihat aktor, urut kode Indikator lalu waktu dibuat. Bawaan hanya yang belum Selesai
- * (`semua` = termasuk yang Selesai). Saringan Indikator dan Lingkup (tanpa = semua Lingkup yang boleh dilihat).
+ * (`semua` = termasuk yang Selesai). Saringan Indikator, Lingkup (tanpa = semua Lingkup yang boleh dilihat), dan
+ * `periode` (bulan "YYYY-MM", keduanya termasuk) = periode uji coba bersinggungan dengan periode itu.
  */
 export async function daftarPdsa(
   aktor: Pengguna | null,
-  saringan: { semua?: boolean; indikatorId?: string; lingkup?: Lingkup } = {},
+  saringan: { semua?: boolean; indikatorId?: string; lingkup?: Lingkup; periode?: { mulai: string; akhir: string } } = {},
 ) {
   wajibPengguna(aktor);
-  const { lingkup, indikatorId } = saringan;
+  const { lingkup, indikatorId, periode } = saringan;
+  if (periode) [periode.mulai, periode.akhir].forEach((b) => wajibBulan(b));
   if (lingkup !== undefined) wajibBaca(aktor, lingkup);
   if ((lingkup && !apakahUuid(lingkup)) || (indikatorId !== undefined && !apakahUuid(indikatorId))) return [];
   const baris = await db
@@ -617,6 +654,9 @@ export async function daftarPdsa(
       tahap: pdsa.tahap,
       bulanMulai: pdsa.bulanMulai,
       bulanAkhir: pdsa.bulanAkhir,
+      hasil: pdsa.hasil,
+      keputusan: pdsa.keputusan,
+      penjelasan: pdsa.penjelasan,
       indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama },
       unit: { id: unit.id, nama: unit.nama },
     })
@@ -628,6 +668,7 @@ export async function daftarPdsa(
         saringan.semua ? undefined : ne(pdsa.tahap, "selesai"),
         indikatorId === undefined ? undefined : eq(pdsa.indikatorId, indikatorId),
         lingkup === undefined ? saringLingkup(aktor, pdsa.unitId) : lingkupSama(pdsa.unitId, lingkup),
+        periode ? and(lte(pdsa.bulanMulai, keTanggal(periode.akhir)), gte(pdsa.bulanAkhir, keTanggal(periode.mulai))) : undefined,
       ),
     )
     .orderBy(asc(indikator.kode), asc(pdsa.createdAt));

@@ -1,13 +1,14 @@
 // Data dummy untuk database dev, semuanya lewat service: Unit, Pengguna per peran, IMP, Unit Pelapor, Pengukuran
-// 12 bulan sampai bulan lalu (berbagai status), Analisis, Tindak Lanjut, dan PDSA. Jalankan sekali:
+// 12 bulan sampai bulan lalu (berbagai status), Analisis, Tindak Lanjut, PDSA, dan Rekomendasi. Jalankan sekali:
 //   npx tsx --env-file=.env scripts/data-dummy.ts
 // Semua Pengguna dummy bersandi SANDI. Tanpa top-level await: tsx menjalankan .ts sebagai CJS.
-import { bulanBerjalan, bulanLalu, geserBulan } from "@/lib/bulan";
+import { bulanBerjalan, bulanLalu, geserBulan, triwulanLalu } from "@/lib/bulan";
 import { config } from "@/lib/config";
 import { diukurPadaBulan } from "@/lib/indikator";
 import { getPool } from "@/db";
 import { masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
 import { daftarIndikator, tambahIndikator, tambahUnitPelapor, type IndikatorBaru } from "@/modules/indikator/service";
+import { simpanRekomendasi } from "@/modules/laporan/service";
 import { daftarPengguna, tambahPengguna } from "@/modules/pengguna/service";
 import { ajukanPengukuran, kembalikanPengukuran, simpanPengukuran, verifikasiPengukuran } from "@/modules/pengukuran/service";
 import { buatPdsa, simpanAnalisis, simpanTahapPdsa, tambahTindakLanjut, ubahTindakLanjut } from "@/modules/perbaikan/service";
@@ -358,6 +359,14 @@ async function main() {
   await simpanTahapPdsa(kepala.igd, p5.id, "do", { pelaksanaan: "Dokter triase sore berjalan penuh 3 bulan." }, true);
   await simpanTahapPdsa(kepala.igd, p5.id, "study", { hasil: "Waktu tanggap ≤ 5 menit naik dari sekitar 90% menjadi 94%." }, true);
   await simpanTahapPdsa(kepala.igd, p5.id, "act", { keputusan: "adopsi", penjelasan: "Dokter triase sore menjadi jadwal tetap IGD." }, true);
+
+  await simpanRekomendasi(komite, {
+    triwulan: triwulanLalu(),
+    teks:
+      "Kepatuhan kebersihan tangan mulai stabil di atas Target setelah handrub di titik pelayanan; perluas ke semua ruang rawat inap.\n" +
+      "Prioritaskan Kepatuhan APD dan Identifikasi Pasien yang belum mencapai 100%: audit mingguan oleh kepala ruang.\n" +
+      "Phlebitis Rawat Inap Mawar turun tetapi belum mencapai Target; lanjutkan PDSA label kateter IV.",
+  });
 
   console.log(
     `Selesai: ${Object.keys(UNIT).length} Unit, ${2 + 2 * Object.keys(UNIT).length} Pengguna, ${IMP.length} IMP, ` +

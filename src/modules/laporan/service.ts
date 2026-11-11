@@ -1,0 +1,116 @@
+import { and, eq } from "drizzle-orm";
+
+import { db } from "@/db";
+import { pengguna, rekomendasi } from "@/db/schema";
+import { bulanTriwulan, triwulanLalu, wajibTriwulanSelesai } from "@/lib/bulan";
+import { ServiceError } from "@/lib/errors";
+import { KELOMPOK } from "@/lib/indikator";
+import { punyaLingkupRs } from "@/lib/perbaikan";
+import type { Peran } from "@/lib/peran";
+import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
+import { capaianTriwulan, melihatCapaianRs } from "@/modules/capaian/service";
+import { analisisPada, daftarPdsa } from "@/modules/perbaikan/service";
+
+/*
+ * Modul Laporan: Laporan Triwulan (Komite Mutu ke Direktur). Angka hanya dari modul Capaian; Analisis, Tindak Lanjut,
+ * dan PDSA hanya dari modul Perbaikan. Di sini penyusunannya dan Rekomendasi.
+ */
+
+const PENULIS: readonly Peran[] = ["komiteMutu", "adminSistem"];
+/** Menulis Rekomendasi: Komite Mutu dan Admin Sistem. Juga untuk tampilan. */
+export const bolehTulisRekomendasi = (aktor: Pengguna) => PENULIS.includes(aktor.peran);
+
+const MAKS_REKOMENDASI = 8000;
+
+/** Tahun dan nomor Triwulan dari "YYYY-T". */
+const pecah = (triwulan: string) => {
+  const [tahun, nomor] = triwulan.split("-").map(Number);
+  return { tahun, triwulan: nomor };
+};
+
+/**
+ * Laporan Triwulan ("YYYY-T"; tanpa = Triwulan lalu), hanya Triwulan yang sudah selesai dan hanya untuk yang melihat
+ * Capaian RS. Selalu dari data terkini:
+ * - `capaian`: Capaian Triwulan per Indikator (`capaianTriwulan`), urut kelompok lalu kode, dan `ringkasan`-nya;
+ * - `analisis`: satu baris per Indikator + bulan yang dinilai + Lingkup yang diharapkan (INM/IMP-RS: Lingkup RS bila
+ *   ada Unit Pelapor bulan itu; IMP-Unit: setiap Unit Pelapor-nya bulan itu), dengan Analisis beserta Tindak
+ *   Lanjut-nya, atau null = Belum dianalisis;
+ * - `pdsa`: PDSA semua Lingkup yang periode uji cobanya bersinggungan dengan Triwulan itu;
+ * - `rekomendasi` (null = belum ditulis) dan `bolehTulis` (Rekomendasi).
+ */
+export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string, sekarang = new Date()) {
+  wajibPengguna(aktor);
+  if (!melihatCapaianRs(aktor)) throw new ServiceError(403, "Laporan Triwulan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
+  triwulan ||= triwulanLalu(sekarang);
+  // Triwulan diperiksa modul Capaian. Urutan laporan: per kelompok (INM, IMP-RS, IMP-Unit), lalu kode.
+  const capaian = (await capaianTriwulan(aktor, triwulan, sekarang)).sort(
+    (a, b) => KELOMPOK.indexOf(a.indikator.kelompok) - KELOMPOK.indexOf(b.indikator.kelompok) || a.indikator.kode.localeCompare(b.indikator.kode),
+  );
+  const bulan = bulanTriwulan(triwulan);
+  const { tahun, triwulan: nomor } = pecah(triwulan);
+  const [ada, pdsa, [rek]] = await Promise.all([
+    analisisPada(
+      aktor,
+      capaian.map((c) => c.indikator.id),
+      bulan,
+      sekarang,
+    ),
+    daftarPdsa(aktor, { semua: true, periode: { mulai: bulan[0], akhir: bulan[2] } }),
+    db
+      .select({ teks: rekomendasi.teks, diubahOleh: pengguna.nama, diubahPada: rekomendasi.diubahPada })
+      .from(rekomendasi)
+      .innerJoin(pengguna, eq(pengguna.id, rekomendasi.diubahOlehId))
+      .where(and(eq(rekomendasi.tahun, tahun), eq(rekomendasi.triwulan, nomor))),
+  ]);
+
+  const analisis = capaian.flatMap((c) =>
+    c.bulan.flatMap((m) =>
+      (punyaLingkupRs(c.indikator.kelompok) ? (m.kelengkapan.wajib > 0 ? [null] : []) : m.unit).map((u) => ({
+        indikator: c.indikator,
+        unit: u,
+        bulan: m.bulan,
+        analisis: ada.find((a) => a.indikatorId === c.indikator.id && a.bulan === m.bulan && a.unitId === (u?.id ?? null)) ?? null,
+      })),
+    ),
+  );
+  const jumlah = (status: (typeof capaian)[number]["triwulan"]["status"]) => capaian.filter((c) => c.triwulan.status === status).length;
+  return {
+    triwulan,
+    bulan,
+    ringkasan: {
+      dinilai: capaian.length,
+      tercapai: jumlah("tercapai"),
+      belumTercapai: jumlah("belumTercapai"),
+      kosong: jumlah(null),
+      kelengkapan: {
+        terverifikasi: capaian.reduce((t, c) => t + c.triwulan.kelengkapan.terverifikasi, 0),
+        wajib: capaian.reduce((t, c) => t + c.triwulan.kelengkapan.wajib, 0),
+      },
+    },
+    capaian,
+    analisis,
+    pdsa,
+    rekomendasi: rek ?? null,
+    bolehTulis: bolehTulisRekomendasi(aktor),
+  };
+}
+
+export type LaporanTriwulan = Awaited<ReturnType<typeof laporanTriwulan>>;
+
+/**
+ * Menulis Rekomendasi satu Triwulan yang sudah selesai; menulis ulang mengubah yang sama. Komite Mutu dan Admin
+ * Sistem; teks wajib, paling banyak 8000 karakter.
+ */
+export async function simpanRekomendasi(aktor: Pengguna | null, isian: { triwulan: string; teks: string }, sekarang = new Date()) {
+  wajibPengguna(aktor);
+  if (!bolehTulisRekomendasi(aktor)) throw new ServiceError(403, "Rekomendasi hanya ditulis Komite Mutu dan Admin Sistem.");
+  wajibTriwulanSelesai(isian.triwulan, sekarang);
+  const teks = typeof isian.teks === "string" ? isian.teks.trim() : "";
+  if (!teks) throw new ServiceError(400, "Rekomendasi wajib diisi.");
+  if (teks.length > MAKS_REKOMENDASI) throw new ServiceError(400, `Rekomendasi maksimal ${MAKS_REKOMENDASI} karakter.`);
+  const data = { teks, diubahOlehId: aktor.id, diubahPada: new Date() };
+  await db
+    .insert(rekomendasi)
+    .values({ ...pecah(isian.triwulan), ...data })
+    .onConflictDoUpdate({ target: [rekomendasi.tahun, rekomendasi.triwulan], set: data });
+}

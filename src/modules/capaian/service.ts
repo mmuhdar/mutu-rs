@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { indikator, pengukuran, unit, unitPelapor } from "@/db/schema";
-import { bulanLalu, geserBulan, keTanggal, wajibBulanBerjalan } from "@/lib/bulan";
+import { bulanLalu, bulanTriwulan, geserBulan, keTanggal, wajibBulanBerjalan, wajibTriwulanSelesai } from "@/lib/bulan";
 import { capaianDari } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan, targetPadaBulan } from "@/lib/indikator";
@@ -166,6 +166,48 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
     belumTercapai: baris.filter((b) => b.status === "belumTercapai"),
   };
 }
+
+/**
+ * Capaian Triwulan ("YYYY-T", hanya yang sudah selesai) untuk Laporan Triwulan; hanya yang melihat Capaian RS. Satu
+ * baris per Indikator yang dinilai pada setidaknya satu bulan Triwulan itu (punya Unit Pelapor aktif dan diukur bulan
+ * itu; Semesteran hanya Juni/Desember), yang aktif atau punya Pengukuran Terverifikasi dalam Triwulan itu, urut kode:
+ * - `bulan`: Capaian RS setiap bulan yang diukur beserta Unit Pelapor bulan itu (`wajib` 0 = tanpa Unit Pelapor);
+ * - `triwulan`: ΣN/ΣD seluruh Unit Pelapor ketiga bulan (Kelengkapan = selama Triwulan), dinilai dengan Target bulan
+ *   terakhir Triwulan;
+ * - `unit`: Unit Pelapor selama Triwulan itu, urut nama.
+ */
+export async function capaianTriwulan(aktor: Pengguna | null, triwulan: string, sekarang = new Date()) {
+  wajibPengguna(aktor);
+  if (!melihatCapaianRs(aktor)) throw new ServiceError(403, "Capaian Triwulan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
+  wajibTriwulanSelesai(triwulan, sekarang);
+  const bulan = bulanTriwulan(triwulan);
+  const pelapor = (await Promise.all(bulan.map((b) => unitPelaporBulan(b, undefined)))).flatMap((baris, i) =>
+    baris.filter((p) => diukurPadaBulan(p.indikator.frekuensi, bulan[i])).map((p) => ({ ...p, bulan: bulan[i] })),
+  );
+  const daftar = [...new Map(pelapor.map((p) => [p.indikator.id, p.indikator])).values()].sort((a, b) => a.kode.localeCompare(b.kode));
+  const targetPada = await targetUntuk(daftar.map((i) => i.id));
+  const urutNama = (unit: (typeof pelapor)[number]["unit"][]) =>
+    [...new Map(unit.map((u) => [u.id, u])).values()].sort((a, b) => a.nama.localeCompare(b.nama, "id"));
+
+  return daftar
+    .map((ind) => {
+      const milik = pelapor.filter((p) => p.indikator.id === ind.id);
+      return {
+        indikator: ind,
+        unit: urutNama(milik.map((p) => p.unit)),
+        bulan: bulan
+          .filter((b) => diukurPadaBulan(ind.frekuensi, b))
+          .map((b) => {
+            const bulanIni = milik.filter((p) => p.bulan === b);
+            return { bulan: b, unit: urutNama(bulanIni.map((p) => p.unit)), ...capaianDari(bulanIni, ind, targetPada(ind.id, b)) };
+          }),
+        triwulan: capaianDari(milik, ind, targetPada(ind.id, bulan[2])),
+      };
+    })
+    .filter((b) => b.indikator.aktif || b.triwulan.kelengkapan.terverifikasi > 0);
+}
+
+export type BarisCapaianTriwulan = Awaited<ReturnType<typeof capaianTriwulan>>[number];
 
 /**
  * Jumlah Indikator yang dinilai, Tercapai, dan Belum Tercapai setiap bulan selama 12 bulan sampai `bulanAkhir` (grafik

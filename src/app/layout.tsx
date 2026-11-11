@@ -46,6 +46,10 @@ const MENU: { judul: string; item: (ItemMenu & { peran: readonly Peran[] })[] }[
     ],
   },
   {
+    judul: "Laporan",
+    item: [{ href: "/laporan", label: "Laporan Triwulan", ikon: "laporan", peran: ["komiteMutu", "direktur", "adminSistem"] }],
+  },
+  {
     judul: "Pengaturan",
     item: [
       { href: "/indikator", label: "Indikator", ikon: "indikator", peran: PERAN },

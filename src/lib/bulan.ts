@@ -88,6 +88,34 @@ export const INPUT_BULAN = {
   title: "Bulan dengan format YYYY-MM, mis. 2026-10",
 } as const;
 
+/** Benar bila teks berbentuk Triwulan "YYYY-T" (T = 1–4): "2026-3" = Juli–September 2026. */
+export const triwulanValid = (triwulan: string) => /^\d{4}-[1-4]$/.test(triwulan);
+
+/** Tiga bulan "YYYY-MM" sebuah Triwulan: "2026-3" → ["2026-07", "2026-08", "2026-09"]. */
+export function bulanTriwulan(triwulan: string) {
+  const [tahun, t] = triwulan.split("-");
+  return [0, 1, 2].map((i) => geserBulan(`${tahun}-01`, (Number(t) - 1) * 3 + i));
+}
+
+/** Triwulan sebuah bulan "YYYY-MM": "2026-08" → "2026-3". */
+export const triwulanDari = (bulan: string) => `${bulan.slice(0, 4)}-${Math.ceil(Number(bulan.slice(5, 7)) / 3)}`;
+
+/** Triwulan terakhir yang sudah selesai menurut zona waktu konfigurasi: bawaan Laporan Triwulan. */
+export const triwulanLalu = (sekarang = new Date()) =>
+  triwulanDari(geserBulan(bulanTriwulan(triwulanDari(bulanBerjalan(sekarang)))[0], -1));
+
+/** Nama Triwulan untuk tampilan: "2026-3" → "Triwulan III 2026". */
+export const labelTriwulan = (triwulan: string) =>
+  `Triwulan ${["I", "II", "III", "IV"][Number(triwulan.slice(5)) - 1]} ${triwulan.slice(0, 4)}`;
+
+/** Penjaga di service: Triwulan "YYYY-T" yang valid dan sudah selesai (bulan terakhirnya sebelum bulan berjalan). */
+export function wajibTriwulanSelesai(triwulan: unknown, sekarang: Date): asserts triwulan is string {
+  if (typeof triwulan !== "string" || !triwulanValid(triwulan)) throw new ServiceError(400, "Triwulan tidak valid.");
+  if (bulanTriwulan(triwulan)[2] >= bulanBerjalan(sekarang)) {
+    throw new ServiceError(400, `${labelTriwulan(triwulan)} belum selesai.`);
+  }
+}
+
 /** Kolom bulan di database = tanggal 1 bulan itu: "2026-10" ↔ "2026-10-01". */
 export const keTanggal = (bulan: string) => `${bulan}-01`;
 export const dariTanggal = (tanggal: string) => tanggal.slice(0, 7);

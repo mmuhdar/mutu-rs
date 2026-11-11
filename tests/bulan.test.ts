@@ -1,7 +1,20 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { bulanBerjalan, bulanDariAlamat, bulanLalu, hariIni, salam, tanggalValid } from "@/lib/bulan";
+import {
+  bulanBerjalan,
+  bulanDariAlamat,
+  bulanLalu,
+  bulanTriwulan,
+  hariIni,
+  labelTriwulan,
+  salam,
+  tanggalValid,
+  triwulanDari,
+  triwulanLalu,
+  triwulanValid,
+  wajibTriwulanSelesai,
+} from "@/lib/bulan";
 
 // Tes dijalankan dengan zona waktu Asia/Makassar (WITA, UTC+8), lihat scripts/test.sh.
 describe("bulan berjalan", () => {
@@ -72,5 +85,38 @@ describe("bulan dari alamat halaman (?bulan=)", () => {
         pemberitahuan: "Bulan pada alamat tidak valid, jadi yang ditampilkan bulan bawaan.",
       });
     }
+  });
+});
+
+describe("Triwulan", () => {
+  it("ditulis \"YYYY-T\" dengan T 1–4 dan berisi tiga bulan kalender", () => {
+    assert.deepEqual(bulanTriwulan("2026-1"), ["2026-01", "2026-02", "2026-03"]);
+    assert.deepEqual(bulanTriwulan("2026-4"), ["2026-10", "2026-11", "2026-12"]);
+    assert.equal(triwulanValid("2026-3"), true);
+    for (const t of ["2026-0", "2026-5", "2026-03", "26-1", "2026", ""]) assert.equal(triwulanValid(t), false, t);
+  });
+
+  it("bulan masuk Triwulan-nya, dan labelnya memakai angka Romawi", () => {
+    assert.deepEqual(["2026-01", "2026-06", "2026-07", "2026-12"].map(triwulanDari), ["2026-1", "2026-2", "2026-3", "2026-4"]);
+    assert.equal(labelTriwulan("2026-3"), "Triwulan III 2026");
+    assert.equal(labelTriwulan("2027-4"), "Triwulan IV 2027");
+  });
+
+  it("Triwulan lalu = Triwulan terakhir yang sudah selesai menurut zona waktu konfigurasi", () => {
+    assert.equal(triwulanLalu(new Date("2026-11-11T04:00:00Z")), "2026-3");
+    // 1 Oktober 00.30 WITA: TW III baru saja selesai.
+    assert.equal(triwulanLalu(new Date("2026-09-30T16:30:00Z")), "2026-3");
+    // 30 September 23.59 WITA: TW III belum selesai.
+    assert.equal(triwulanLalu(new Date("2026-09-30T15:59:00Z")), "2026-2");
+    assert.equal(triwulanLalu(new Date("2027-02-01T04:00:00Z")), "2026-4");
+  });
+
+  it("hanya Triwulan yang sudah selesai yang diterima service; yang lain ditolak 400", () => {
+    const sekarang = new Date("2026-11-11T04:00:00Z");
+    wajibTriwulanSelesai("2026-3", sekarang);
+    wajibTriwulanSelesai("2015-1", sekarang);
+    assert.throws(() => wajibTriwulanSelesai("2026-4", sekarang), { status: 400, message: "Triwulan IV 2026 belum selesai." });
+    assert.throws(() => wajibTriwulanSelesai("2027-1", sekarang), { status: 400 });
+    assert.throws(() => wajibTriwulanSelesai("2026-03", sekarang), { status: 400, message: "Triwulan tidak valid." });
   });
 });
