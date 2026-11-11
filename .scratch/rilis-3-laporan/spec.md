@@ -90,14 +90,13 @@ Istilah baru:
 
 - `laporanTriwulan(aktor, triwulan?, sekarang)`: tanpa triwulan = `triwulanLalu`. Hasilnya:
   - ringkasan (dinilai, tercapai, belumTercapai, kosong, kelengkapan);
-  - baris Capaian Triwulan;
-  - Analisis per Indikator per bulan yang dinilai: INM/IMP-RS Lingkup RS, IMP-Unit Lingkup Unit Pelapor-nya; null = Belum dianalisis;
-  - Tindak Lanjut milik Analisis itu (dengan `lewatTenggat`);
+  - baris Capaian Triwulan, urut kelompok (INM, IMP-RS, IMP-Unit) lalu kode;
+  - Analisis per Indikator per bulan yang dinilai: INM/IMP-RS Lingkup RS, IMP-Unit Lingkup Unit Pelapor-nya; null = Belum dianalisis. Setiap Analisis membawa Tindak Lanjut miliknya (dengan `lewatTenggat`), tanpa daftar Tindak Lanjut terpisah;
   - PDSA yang periode uji cobanya bersinggungan dengan Triwulan, semua Lingkup;
   - Rekomendasi (teks, pengubah, waktu, atau null);
   - `bolehTulis`.
 - `simpanRekomendasi(aktor, { triwulan, teks }, sekarang)`: Komite Mutu dan Admin Sistem; upsert per Triwulan; teks wajib, maks 8000 karakter. Panjangnya dua kali Analisis karena merangkum satu Triwulan.
-- Hak baca: `melihatCapaianRs` (Komite Mutu, Direktur, Admin Sistem). Peran lain 403.
+- Hak baca: `melihatCapaianRs` (Komite Mutu, Direktur, Admin Sistem). Peran lain ditolak 403 dengan pesan "Laporan Triwulan hanya untuk …".
 - Tabel `rekomendasi` (tahun, triwulan 1–4, teks, diubah_oleh, diubah_pada), unik per tahun + triwulan. Tidak ada hapus.
 - Laporan selalu dihitung dari data terkini, tanpa snapshot. Arsipnya adalah PDF hasil cetak, yang memuat "Dicetak pada …".
 
@@ -107,15 +106,14 @@ Istilah baru:
 - Urutan bagian:
   1. Ringkasan
   2. Capaian per kelompok (IMP-Unit dengan nama Unit-nya)
-  3. Analisis
-  4. Tindak Lanjut
-  5. PDSA
-  6. Rekomendasi (form untuk penulis; teks untuk pembaca dan saat dicetak)
-  7. Kolom tanda tangan (Ketua Komite Mutu, Direktur)
+  3. Analisis dan Tindak Lanjut, digabung per Indikator: Tindak Lanjut ditulis di bawah Analisis-nya supaya Direktur membaca satu Indikator di satu tempat
+  4. PDSA
+  5. Rekomendasi (form untuk penulis; teks untuk pembaca dan saat dicetak)
+  6. Kolom tanda tangan, hanya saat dicetak (Direktur "Mengetahui", Ketua Komite Mutu dengan tanggal)
 - Tampilan cetak (`print:`): sidebar, bar atas, saringan, tombol, dan form disembunyikan; kartu tanpa bayangan; tabel tidak terpotong lebar (huruf lebih kecil). `@page` A4 berada di `globals.css`.
 - CSV: route handler `src/app/laporan/unduh/route.ts` (`GET ?triwulan=`) memakai service yang sama. Ini unduhan berkas, bukan API untuk UI.
   - Format: UTF-8 dengan BOM, pemisah `;`, koma desimal tanpa pemisah ribuan, CRLF. Pembentuknya `keCsv` di `src/lib/csv.ts`.
-  - Kolom: Kelompok, Kode, Indikator, Unit Pelapor, Target, Capaian bulan 1–3, N Triwulan, D Triwulan, Capaian Triwulan, Status Capaian, Kelengkapan.
+  - Kolom: Kelompok, Kode, Indikator, Unit Pelapor, Satuan, Arah, Target, Capaian bulan 1–3, N Triwulan, D Triwulan, Capaian Triwulan, Status Capaian, Pengukuran Terverifikasi, Pengukuran wajib. Kelengkapan dipecah dua kolom angka karena teks "3/3" dibaca Excel sebagai tanggal. Teks berawalan `= + - @` diberi petik supaya tidak dibaca sebagai rumus.
 
 ### Rekap SIMAR
 
@@ -131,13 +129,14 @@ Istilah baru:
     |---|---|
     | `tanpaUnitPelapor` | belum ada Unit Pelapor |
     | `belumLengkap` | Kelengkapan belum penuh |
-    | `dNol` | D = 0 padahal ada Pengukuran Terverifikasi |
+    | `dNol` | D = 0 dengan Kelengkapan penuh dan belum ada Analisis (menggantikan `belumDianalisis`; SIMAR meminta keterangan di Analisa Capaian) |
     | `dKurang` | D di bawah minimum SIMAR (`MIN_D_SIMAR`, INM-01 = 200) |
     | `belumDianalisis` | belum ada Analisis |
     | `tanpaTindakLanjut` | belum ada Tindak Lanjut |
     | `terlaluPanjang` | teks melebihi 1000 karakter (`BATAS_TEKS_SIMAR`) |
 
-  - INM tanpa tanda = siap.
+  - INM tanpa Unit Pelapor hanya diberi `tanpaUnitPelapor`. `dKurang` hanya bila Kelengkapan penuh. Setiap tanda membawa pesan untuk tampilan.
+  - INM tanpa tanda = siap. Hasil juga membawa `tenggat` (`tenggatSimar(bulan)` = tanggal 10 bulan berikutnya), `lewatTenggat`, dan `jumlahSiap`.
 - Tidak ada isian SIMAR tersendiri. Teks diubah lewat Analisis dan Tindak Lanjut.
 - Halaman `/simar?bulan=` (`bulanDariAlamat`) menampilkan baris per INM: kode dan nama, N, D, Capaian, tanda, dan isian teks.
   - Setiap isian punya tombol **Salin** (`TombolSalin`, client). Tombol ini memakai `navigator.clipboard` bila tersedia, dan cadangan `textarea` + `execCommand("copy")` untuk `http://` di LAN, karena Clipboard API hanya ada di secure context.
@@ -148,8 +147,8 @@ Istilah baru:
 - `mendekatiTenggat(tl, hariIni)` di `src/lib/perbaikan.ts`: status terbuka dan `hariIni ≤ tenggat ≤ hariIni + 7 hari` (`tambahHari` di `src/lib/bulan.ts`).
 - Baris `daftarTindakLanjut` dan Tindak Lanjut di halaman Analisis membawa `mendekatiTenggat`. Tabel Tindak Lanjut menulis "· mendekati" berwarna peringatan.
 - Ubin "Lewat tenggat" di halaman Tindak Lanjut menyebut jumlah yang mendekati tenggat.
-- Dashboard "Perlu tindakan": tambah "Tindak Lanjut mendekati tenggat". Untuk `bolehKelolaIndikator` juga tambah "SIMAR <bulan lalu>" dengan nilai `siap/jumlah` INM dan keterangan "paling lambat 10 <bulan berjalan>" (ditambah "· sudah lewat" setelah tanggal 10); tautannya ke `/simar`. Jadwalnya dari `jadwalSimar(sekarang)` di `src/lib/laporan.ts`.
-- Kartu "Lapor SIMAR" di sidebar menaut ke `/simar`.
+- Dashboard "Perlu tindakan": tambah "Tindak Lanjut mendekati tenggat". Untuk `bolehKelolaIndikator` juga tambah "SIMAR <bulan lalu>" dengan nilai `siap/jumlah` INM dan keterangan "paling lambat <tenggat>" (ditambah "· sudah lewat" setelah tenggat); tautannya ke `/simar`. Angkanya dari `rekapSimar(aktor)`.
+- Kartu "Lapor SIMAR" di sidebar menaut ke `/simar` dan menyebut "sudah lewat" setelah tenggat (`tenggatSimar`).
 
 ### Menu
 
@@ -184,7 +183,7 @@ Kelompok baru **Laporan** (Komite Mutu, Direktur, Admin Sistem) berisi "Laporan 
     - hak baca;
     - bulan bawaan.
   - Mendekati tenggat: batas 0 dan 7 hari, yang sudah lewat, dan status Selesai.
-  - Fungsi murni: Triwulan, `keCsv`, `jadwalSimar`.
+  - Fungsi murni: Triwulan, `tambahHari`, `keCsv`, `tenggatSimar`.
 - UI dicek manual di browser, termasuk 390 px dan pratinjau cetak.
 
 ## Out of Scope
