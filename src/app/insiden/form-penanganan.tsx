@@ -20,7 +20,7 @@ import {
   type WarnaGrading,
 } from "@/lib/insiden";
 
-import { kelasPetunjuk, Kolom, PesanError } from "../form";
+import { KELAS_CHIP_CENTANG, kelasPetunjuk, Kolom, PesanError } from "../form";
 import { PilihCari } from "../pilih-cari";
 import { bukanInsidenAction, ereportAction, gradingAction, investigasiAction, tinjauAction } from "./actions";
 
@@ -166,7 +166,7 @@ export function FormInvestigasi(p: { id: string; awal: AwalInvestigasi | null; r
             <label
               // key memuat pilihan bawaan supaya Checkbox (Radix) kembali ke pilihan itu setelah form di-reset.
               key={`${f}:${faktor.includes(f)}`}
-              className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-pill border border-rule-2 bg-paper-3 px-3 text-[14px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink has-data-[state=checked]:border-signal-rule has-data-[state=checked]:bg-signal-soft has-data-[state=checked]:text-ink has-focus-visible:ring-2 has-focus-visible:ring-ring"
+              className={KELAS_CHIP_CENTANG}
             >
               <Checkbox name="faktorKontributor" value={f} defaultChecked={faktor.includes(f)} />
               {LABEL_FAKTOR_KONTRIBUTOR[f]}

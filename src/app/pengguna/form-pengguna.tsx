@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
+import { KELAS_CHIP_CENTANG, kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { Ikon } from "../ikon";
 import { inisial } from "../nav-samping";
 import { Pil, TableCell, TableRow } from "../ui";
@@ -71,7 +71,7 @@ function IsianPengguna({
                 // pilihan Unit yang ditolak tetap tercentang setelah form di-reset (seperti `key` pada select).
                 <label
                   key={`${u.id}:${dipilih}`}
-                  className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-pill border border-rule-2 bg-paper-3 px-3 text-[14px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink has-data-[state=checked]:border-signal-rule has-data-[state=checked]:bg-signal-soft has-data-[state=checked]:text-ink has-focus-visible:ring-2 has-focus-visible:ring-ring"
+                  className={KELAS_CHIP_CENTANG}
                 >
                   <Checkbox name="unitIds" value={u.id} defaultChecked={dipilih} />
                   {u.nama}

@@ -30,9 +30,9 @@ async function simpanNama<T>(nama: string, simpan: () => Promise<T>) {
   }
 }
 
-async function ubahUnit(id: string, data: Partial<typeof unit.$inferInsert>) {
+async function ubahUnit(q: Pick<typeof db, "update">, id: string, data: Partial<typeof unit.$inferInsert>) {
   const [hasil] = apakahUuid(id)
-    ? await db.update(unit).set(data).where(eq(unit.id, id)).returning(kolom)
+    ? await q.update(unit).set(data).where(eq(unit.id, id)).returning(kolom)
     : [];
   if (!hasil) throw new ServiceError(404, "Unit tidak ditemukan.");
   return hasil;
@@ -53,17 +53,26 @@ export async function pilihanUnit(aktor: Pengguna | null) {
 export async function tambahUnit(aktor: Pengguna | null, input: { nama: string }) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
   const nama = rapikanNama(input.nama);
-  const [baru] = await simpanNama(nama, () => db.insert(unit).values({ nama }).returning(kolom));
-  await catatJejak(db, aktor, "unit", baru.id, `Menambah Unit ${nama}`);
-  return baru;
+  return simpanNama(nama, () =>
+    db.transaction(async (tx) => {
+      const [baru] = await tx.insert(unit).values({ nama }).returning(kolom);
+      await catatJejak(tx, aktor, "unit", baru.id, `Menambah Unit ${nama}`);
+      return baru;
+    }),
+  );
 }
 
 export async function gantiNamaUnit(aktor: Pengguna | null, id: string, input: { nama: string }) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
   const nama = rapikanNama(input.nama);
-  const hasil = await simpanNama(nama, () => ubahUnit(id, { nama }));
-  await catatJejak(db, aktor, "unit", hasil.id, `Mengganti nama Unit menjadi ${nama}`);
-  return hasil;
+  return simpanNama(nama, () =>
+    db.transaction(async (tx) => {
+      const [lama] = apakahUuid(id) ? await tx.select({ nama: unit.nama }).from(unit).where(eq(unit.id, id)).for("update") : [];
+      const hasil = await ubahUnit(tx, id, { nama });
+      await catatJejak(tx, aktor, "unit", hasil.id, `Mengganti nama Unit ${lama.nama} menjadi ${nama}`);
+      return hasil;
+    }),
+  );
 }
 
 /**

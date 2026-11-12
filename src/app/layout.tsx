@@ -8,6 +8,7 @@ import { jadwalSimar } from "@/lib/laporan";
 import { config } from "@/lib/config";
 import { LABEL_PERAN, PERAN, type Peran } from "@/lib/peran";
 import { PELIHAT_RS } from "@/modules/capaian/service";
+import { PEMBACA_JEJAK } from "@/modules/jejak/service";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { getSessionUser } from "@/server/sesi";
 
@@ -68,7 +69,7 @@ const MENU: { judul: string; item: (ItemMenu & { peran: readonly Peran[] })[] }[
       { href: "/indikator", label: "Indikator", ikon: "indikator", peran: PERAN },
       { href: "/unit", label: "Unit", ikon: "unit", peran: ["adminSistem"] },
       { href: "/pengguna", label: "Pengguna", ikon: "pengguna", peran: ["adminSistem"] },
-      { href: "/jejak", label: "Jejak Audit", ikon: "jejak", peran: ["adminSistem", "komiteMutu"] },
+      { href: "/jejak", label: "Jejak Audit", ikon: "jejak", peran: PEMBACA_JEJAK },
     ],
   },
 ];

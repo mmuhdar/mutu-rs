@@ -89,24 +89,30 @@ export async function masuk(input: { username: string; sandi: string; ip: string
   const sandiBenar = await bcrypt.compare(input.sandi, akun?.hashSandi ?? (await (hashTiruan ??= hashSandi("tiruan"))));
   if (!akun || !sandiBenar) {
     kunci.forEach((k) => catatGagal(k, waktu));
-    // Tanpa pelaku: yang gagal belum tentu pemilik akun itu.
-    await catatJejak(db, null, "sesi", null, `Gagal masuk sebagai ${username.slice(0, 64)} dari ${input.ip}`);
+    // Tanpa pelaku (yang gagal belum tentu pemilik akun). Username yang tidak dikenal tidak ditulis: bisa jadi sandi yang
+    // salah diketik di kolom username.
+    await catatJejak(db, null, "sesi", null, `Gagal masuk ${akun ? `sebagai ${username}` : "dengan username tidak dikenal"} dari ${input.ip}`);
     // Pesan sama untuk username yang tidak ada dan sandi salah.
     throw new ServiceError(401, "Username atau sandi salah.");
   }
   // Hanya diberitahukan setelah sandi terbukti benar.
-  if (!akun.aktif) throw new ServiceError(403, "Akun Anda nonaktif. Hubungi Admin Sistem.");
+  if (!akun.aktif) {
+    await catatJejak(db, null, "sesi", null, `Gagal masuk sebagai ${username} dari ${input.ip}: akun nonaktif`);
+    throw new ServiceError(403, "Akun Anda nonaktif. Hubungi Admin Sistem.");
+  }
   kunci.forEach((k) => percobaanGagal.delete(k));
 
   const token = randomBytes(32).toString("base64url");
-  await db.insert(sesi).values({
-    penggunaId: akun.id,
-    tokenHash: hashToken(token),
-    expiresAt: new Date(waktu + SESI_MS),
+  await db.transaction(async (tx) => {
+    await tx.insert(sesi).values({
+      penggunaId: akun.id,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(waktu + SESI_MS),
+    });
+    // Bersihkan sesi kedaluwarsa milik Pengguna ini sambil lalu.
+    await tx.delete(sesi).where(and(eq(sesi.penggunaId, akun.id), lt(sesi.expiresAt, sekarang)));
+    await catatJejak(tx, akun, "sesi", null, `Masuk dari ${input.ip}`);
   });
-  // Bersihkan sesi kedaluwarsa milik Pengguna ini sambil lalu.
-  await db.delete(sesi).where(and(eq(sesi.penggunaId, akun.id), lt(sesi.expiresAt, sekarang)));
-  await catatJejak(db, akun, "sesi", null, `Masuk dari ${input.ip}`);
   return token;
 }
 
@@ -166,9 +172,11 @@ export async function gantiSandi(aktor: Pengguna | null, input: { sandiLama: str
   if (!akun || !(await bcrypt.compare(input.sandiLama, akun.hashSandi))) {
     throw new ServiceError(400, "Sandi lama salah.");
   }
-  await db.update(pengguna).set({ hashSandi: hashBaru }).where(eq(pengguna.id, aktor.id));
-  await db.delete(sesi).where(and(eq(sesi.penggunaId, aktor.id), ne(sesi.id, aktor.sesiId)));
-  await catatJejak(db, aktor, "pengguna", aktor.id, "Mengganti sandinya sendiri");
+  await db.transaction(async (tx) => {
+    await tx.update(pengguna).set({ hashSandi: hashBaru }).where(eq(pengguna.id, aktor.id));
+    await tx.delete(sesi).where(and(eq(sesi.penggunaId, aktor.id), ne(sesi.id, aktor.sesiId)));
+    await catatJejak(tx, aktor, "pengguna", aktor.id, "Mengganti sandinya sendiri");
+  });
 }
 
 /** Keluar: mengakhiri sesi yang sedang dipakai Pengguna. */

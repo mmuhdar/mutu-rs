@@ -3,10 +3,12 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { pengguna, rekomendasi, umpanBalikDewanPengawas } from "@/db/schema";
 import {
+  akhirBulan,
   bulanLalu,
   bulanTriwulan,
   geserBulan,
   hariIni,
+  keTanggal,
   labelTriwulan,
   tanggalValid,
   triwulanDari,
@@ -29,7 +31,7 @@ import { daftarIndikator } from "@/modules/indikator/service";
 import { catatJejak } from "@/modules/jejak/catat";
 import { bacaSemuaInsiden, rekapInsiden } from "@/modules/insiden/service";
 import { analisisPada, daftarPdsa } from "@/modules/perbaikan/service";
-import { daftarValidasi, rentangBulan } from "@/modules/validasi/service";
+import { daftarValidasi } from "@/modules/validasi/service";
 
 /*
  * Modul Laporan: Laporan Triwulan (Komite Mutu ke Direktur) dan Rekap SIMAR (isian INM bulanan ke Kemenkes). Angka
@@ -73,7 +75,8 @@ async function umpanBalikPada(triwulan: string) {
  *   ada Unit Pelapor bulan itu; IMP-Unit: setiap Unit Pelapor-nya bulan itu), dengan Analisis beserta Tindak
  *   Lanjut-nya, atau null = Belum dianalisis;
  * - `pdsa`: PDSA semua Lingkup yang periode uji cobanya bersinggungan dengan Triwulan itu;
- * - `validasi`: Validasi Data yang tanggalnya di Triwulan itu (PMKP 1: laporan memuat validasi);
+ * - `validasi`: Validasi Data yang dilakukan pada Triwulan itu, ditambah yang lebih lama tetapi masih belum valid (PMKP 1:
+ *   laporan memuat validasi);
  * - `insiden`: rekap Insiden Keselamatan Pasien Triwulan itu tanpa identitas (`rekapInsiden`, modul Insiden); null
  *   untuk Admin Sistem;
  * - `rekomendasi` (null = belum ditulis) dan `bolehTulis` (Rekomendasi);
@@ -104,7 +107,7 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
       .where(and(eq(rekomendasi.tahun, tahun), eq(rekomendasi.triwulan, nomor))),
     umpanBalikPada(triwulan),
     umpanBalikPada(triwulanSebelum(triwulan)),
-    daftarValidasi(aktor, { tanggal: rentangBulan(bulan[0], bulan[2]) }),
+    daftarValidasi(aktor),
   ]);
 
   const analisis = capaian.flatMap((c) =>
@@ -124,7 +127,8 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
     capaian,
     analisis,
     pdsa,
-    validasi,
+    // Validasi yang dilakukan pada Triwulan ini, ditambah yang dilakukan sebelumnya dan masih belum valid.
+    validasi: validasi.filter((v) => v.tanggal <= akhirBulan(bulan[2]) && (v.tanggal >= keTanggal(bulan[0]) || v.belumValid)),
     insiden,
     rekomendasi: rek ?? null,
     bolehTulis: bolehTulisRekomendasi(aktor),
@@ -148,11 +152,13 @@ export async function simpanRekomendasi(aktor: Pengguna | null, isian: { triwula
   if (teks.length > MAKS_REKOMENDASI) throw new ServiceError(400, `Rekomendasi maksimal ${MAKS_REKOMENDASI} karakter.`);
   const data = { teks, diubahOlehId: aktor.id, diubahPada: new Date() };
   const { tahun, nomor } = uraiTriwulan(isian.triwulan);
-  await db
-    .insert(rekomendasi)
-    .values({ tahun, triwulan: nomor, ...data })
-    .onConflictDoUpdate({ target: [rekomendasi.tahun, rekomendasi.triwulan], set: data });
-  await catatJejak(db, aktor, "laporan", null, `Menulis Rekomendasi ${labelTriwulan(isian.triwulan)}`);
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(rekomendasi)
+      .values({ tahun, triwulan: nomor, ...data })
+      .onConflictDoUpdate({ target: [rekomendasi.tahun, rekomendasi.triwulan], set: data });
+    await catatJejak(tx, aktor, "laporan", null, `Menulis Rekomendasi ${labelTriwulan(isian.triwulan)}`);
+  });
 }
 
 /**
@@ -175,11 +181,13 @@ export async function simpanUmpanBalik(
   if (tanggal > hariIni(sekarang)) throw new ServiceError(400, "Tanggal diterima tidak boleh di masa depan.");
   const data = { teks, diterimaPada: tanggal, diubahOlehId: aktor.id, diubahPada: new Date() };
   const { tahun, nomor } = uraiTriwulan(isian.triwulan);
-  await db
-    .insert(umpanBalikDewanPengawas)
-    .values({ tahun, triwulan: nomor, ...data })
-    .onConflictDoUpdate({ target: [umpanBalikDewanPengawas.tahun, umpanBalikDewanPengawas.triwulan], set: data });
-  await catatJejak(db, aktor, "laporan", null, `Mencatat Umpan Balik Dewan Pengawas ${labelTriwulan(isian.triwulan)}`);
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(umpanBalikDewanPengawas)
+      .values({ tahun, triwulan: nomor, ...data })
+      .onConflictDoUpdate({ target: [umpanBalikDewanPengawas.tahun, umpanBalikDewanPengawas.triwulan], set: data });
+    await catatJejak(tx, aktor, "laporan", null, `Mencatat Umpan Balik Dewan Pengawas ${labelTriwulan(isian.triwulan)}`);
+  });
 }
 
 /** Tindak lanjut Umpan Balik Dewan Pengawas satu Triwulan, untuk dievaluasi pada pertemuan berikutnya; umpan baliknya harus sudah dicatat. */
@@ -188,13 +196,15 @@ export async function simpanTindakLanjutUmpanBalik(aktor: Pengguna | null, isian
   if (typeof isian.triwulan !== "string" || !triwulanValid(isian.triwulan)) throw new ServiceError(400, "Triwulan tidak valid.");
   const tindakLanjut = wajibTeks(isian.tindakLanjut, "Tindak lanjut", MAKS_REKOMENDASI);
   const { tahun, nomor } = uraiTriwulan(isian.triwulan);
-  const diubah = await db
-    .update(umpanBalikDewanPengawas)
-    .set({ tindakLanjut, diubahOlehId: aktor.id, diubahPada: new Date() })
-    .where(and(eq(umpanBalikDewanPengawas.tahun, tahun), eq(umpanBalikDewanPengawas.triwulan, nomor)))
-    .returning({ id: umpanBalikDewanPengawas.id });
-  if (diubah.length === 0) throw new ServiceError(404, "Catat Umpan Balik Dewan Pengawas Triwulan itu dulu.");
-  await catatJejak(db, aktor, "laporan", null, `Mencatat tindak lanjut Umpan Balik Dewan Pengawas ${labelTriwulan(isian.triwulan)}`);
+  await db.transaction(async (tx) => {
+    const diubah = await tx
+      .update(umpanBalikDewanPengawas)
+      .set({ tindakLanjut, diubahOlehId: aktor.id, diubahPada: new Date() })
+      .where(and(eq(umpanBalikDewanPengawas.tahun, tahun), eq(umpanBalikDewanPengawas.triwulan, nomor)))
+      .returning({ id: umpanBalikDewanPengawas.id });
+    if (diubah.length === 0) throw new ServiceError(404, "Catat Umpan Balik Dewan Pengawas Triwulan itu dulu.");
+    await catatJejak(tx, aktor, "laporan", null, `Mencatat tindak lanjut Umpan Balik Dewan Pengawas ${labelTriwulan(isian.triwulan)}`);
+  });
 }
 
 /**

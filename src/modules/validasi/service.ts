@@ -1,13 +1,13 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { indikator, pengguna, unit, unitPelapor, validasiData } from "@/db/schema";
+import { indikator, pengguna, pengukuran, unit, unitPelapor, validasiData } from "@/db/schema";
 import { dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulanBerjalan } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { salahSatuDari, teksOpsional, wajibTeks } from "@/lib/form";
-import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import {
+  formatPersen,
   kesesuaian,
   PEMICU_VALIDASI,
   PENYEBAB_TIDAK_VALID,
@@ -16,10 +16,9 @@ import {
   type PenyebabTidakValid,
 } from "@/lib/validasi";
 import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
-import { melihatCapaianRs } from "@/modules/capaian/service";
 import { bersinggungan } from "@/modules/indikator/service";
 import { catatJejak } from "@/modules/jejak/catat";
-import { bolehBacaLingkup, bolehTulisLingkup } from "@/modules/perbaikan/service";
+import { bolehBacaLingkup, bolehMulaiPdsa, bolehTulisLingkup, saringLingkup } from "@/modules/perbaikan/service";
 
 /*
  * Modul Validasi Data (glosarium: Validasi Data). Satu validasi = pengukuran ulang sampel data satu Indikator di satu
@@ -32,9 +31,8 @@ const MAKS_NAMA = 120;
 const MAKS_TEKS = 4000;
 const MAKS_POPULASI = 1_000_000;
 
-const PENCATAT_SEMUA: readonly Peran[] = ["komiteMutu", "adminSistem"];
-/** Untuk tampilan (tombol "Catat Validasi"): aktor bisa mencatat validasi setidaknya untuk satu Unit. */
-export const bolehCatatValidasi = (aktor: Pengguna) => PENCATAT_SEMUA.includes(aktor.peran) || aktor.peran === "kepalaUnit";
+/** Untuk tampilan (tombol "Catat Validasi"): aktor bisa menulis setidaknya satu Lingkup Unit, sama dengan memulai PDSA. */
+export const bolehCatatValidasi = bolehMulaiPdsa;
 
 /** Isian satu validasi dari form; angka NaN = kosong (ditolak). */
 export type IsianValidasi = {
@@ -53,7 +51,7 @@ export type IsianValidasi = {
   catatan: string;
 };
 
-/** Bilangan bulat 0..maks; selain itu ditolak dengan `pesan`. */
+/** Bilangan bulat `min`..`maks`; selain itu ditolak dengan `pesan`. */
 function bulat(n: number, min: number, maks: number, pesan: string) {
   if (!Number.isInteger(n) || n < min || n > maks) throw new ServiceError(400, pesan);
   return n;
@@ -99,24 +97,29 @@ function periksaIsian(isian: IsianValidasi, sekarang: Date) {
 
 type Transaksi = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-/** Indikator dan Unit sebuah validasi; Unit harus Unit Pelapor Indikator itu pada bulan data. */
+/**
+ * Indikator dan Unit sebuah validasi. Unit harus Unit Pelapor Indikator itu pada bulan data, dan Pengukuran bulan itu
+ * (status apa pun) sudah ada: yang divalidasi adalah data yang sudah dikumpulkan. Baris Indikator dikunci `for share`,
+ * jadi perubahan Unit Pelapor (menguncinya `for update`, dan menolak memotong periode yang punya Pengukuran) bergiliran.
+ */
 async function ambilKunci(tx: Transaksi, k: { indikatorId: string; unitId: string; bulan: string }) {
-  const [x] =
-    apakahUuid(k.indikatorId) && apakahUuid(k.unitId)
-      ? await tx
-          .select({ kode: indikator.kode, unit: unit.nama })
-          .from(indikator)
-          .innerJoin(unit, eq(unit.id, k.unitId))
-          .where(eq(indikator.id, k.indikatorId))
-      : [];
-  if (!x) throw new ServiceError(404, "Indikator atau Unit tidak ditemukan.");
+  const [ind] = apakahUuid(k.indikatorId)
+    ? await tx.select({ kode: indikator.kode }).from(indikator).where(eq(indikator.id, k.indikatorId)).for("share")
+    : [];
+  const [u] = apakahUuid(k.unitId) ? await tx.select({ nama: unit.nama }).from(unit).where(eq(unit.id, k.unitId)) : [];
+  if (!ind || !u) throw new ServiceError(404, "Indikator atau Unit tidak ditemukan.");
   const [pelapor] = await tx
     .select({ id: unitPelapor.id })
     .from(unitPelapor)
     .where(and(eq(unitPelapor.indikatorId, k.indikatorId), eq(unitPelapor.unitId, k.unitId), bersinggungan(k.bulan, k.bulan)))
     .limit(1);
-  if (!pelapor) throw new ServiceError(400, `Unit ${x.unit} bukan Unit Pelapor ${x.kode} pada ${labelBulan(k.bulan)}.`);
-  return x;
+  if (!pelapor) throw new ServiceError(400, `Unit ${u.nama} bukan Unit Pelapor ${ind.kode} pada ${labelBulan(k.bulan)}.`);
+  const [ada] = await tx
+    .select({ id: pengukuran.id })
+    .from(pengukuran)
+    .where(and(eq(pengukuran.indikatorId, k.indikatorId), eq(pengukuran.unitId, k.unitId), eq(pengukuran.bulan, keTanggal(k.bulan))));
+  if (!ada) throw new ServiceError(400, `Belum ada Pengukuran ${ind.kode} Unit ${u.nama} ${labelBulan(k.bulan)} yang bisa divalidasi.`);
+  return { kode: ind.kode, unit: u.nama };
 }
 
 /**
@@ -151,7 +154,7 @@ export async function simpanValidasi(aktor: Pengguna | null, isian: IsianValidas
           .insert(validasiData)
           .values({ indikatorId: kunci.indikatorId, unitId: kunci.unitId, bulan: keTanggal(kunci.bulan), ...nilai })
           .returning({ id: validasiData.id });
-    const hasil = `${kesesuaian(data.sesuai, data.sampel).toLocaleString("id-ID", { maximumFractionDigits: 1 })}%, ${validData(data.sesuai, data.sampel) ? "valid" : "tidak valid"}`;
+    const hasil = `${formatPersen(kesesuaian(data.sesuai, data.sampel))}, ${validData(data.sesuai, data.sampel) ? "valid" : "tidak valid"}`;
     await catatJejak(tx, aktor, "validasi", baris.id, `${id ? "Memperbaiki catatan validasi" : "Mencatat validasi"} ${x.kode} Unit ${x.unit} ${labelBulan(kunci.bulan)}: ${hasil}`);
     return { id: baris.id };
   });
@@ -210,23 +213,14 @@ function denganHasil(v: Baris, semua: Baris[]) {
   };
 }
 
-/** Saringan baca: semua Unit bagi yang melihat Capaian RS, selain itu Unit milik aktor. */
-const saringBaca = (aktor: Pengguna) => (melihatCapaianRs(aktor) ? undefined : inArray(validasiData.unitId, aktor.unitIds));
-
-/**
- * Validasi yang boleh dibaca aktor, terbaru di atas. Saringan: `belumValid` (hanya yang belum valid), `tanggal`
- * (tanggal validasi "YYYY-MM-DD", keduanya termasuk; untuk Laporan Triwulan).
- */
-export async function daftarValidasi(
-  aktor: Pengguna | null,
-  saringan: { belumValid?: boolean; tanggal?: { mulai: string; akhir: string } } = {},
-) {
+/** Validasi yang boleh dibaca aktor (Lingkup Unit), terbaru di atas; `belumValid` = hanya yang belum valid. */
+export async function daftarValidasi(aktor: Pengguna | null, saringan: { belumValid?: boolean } = {}) {
   wajibPengguna(aktor);
-  const { tanggal } = saringan;
-  // Semua validasi yang terbaca dibaca sekaligus (jumlahnya kecil), supaya penanda diulang/belum valid lengkap.
-  const semua = await pilihValidasi().where(saringBaca(aktor)).orderBy(asc(validasiData.tanggal), asc(validasiData.createdAt));
+  // ponytail: semua validasi yang terbaca dibaca sekaligus supaya penanda diulang/belum valid lengkap; saring di query bila ribuan.
+  const semua = await pilihValidasi()
+    .where(saringLingkup(aktor, validasiData.unitId))
+    .orderBy(asc(validasiData.tanggal), asc(validasiData.createdAt));
   return semua
-    .filter((v) => !tanggal || (v.tanggal >= tanggal.mulai && v.tanggal <= tanggal.akhir))
     .map((v) => denganHasil(v, semua))
     .filter((v) => !saringan.belumValid || v.belumValid)
     .toReversed();
@@ -247,6 +241,3 @@ export async function ambilValidasi(aktor: Pengguna | null, id: string) {
     bolehTulis: bolehTulisLingkup(aktor, v.unit.id),
   };
 }
-
-/** Rentang tanggal untuk saringan `daftarValidasi` dari bulan "YYYY-MM" pertama dan terakhir (keduanya termasuk). */
-export const rentangBulan = (mulai: string, akhir: string) => ({ mulai: keTanggal(mulai), akhir: `${akhir}-31` });

@@ -169,6 +169,8 @@ export function triwulanDariAlamat(
 
 /** Kolom bulan di database = tanggal 1 bulan itu: "2026-10" ↔ "2026-10-01". */
 export const keTanggal = (bulan: string) => `${bulan}-01`;
+/** Tanggal terakhir bulan "YYYY-MM": "2026-02" → "2026-02-28". */
+export const akhirBulan = (bulan: string) => tambahHari(keTanggal(geserBulan(bulan, 1)), -1);
 export const dariTanggal = (tanggal: string) => tanggal.slice(0, 7);
 
 /** Periode bulan (keduanya termasuk): "Maret 2026 s.d. Juni 2026", atau "mulai Maret 2026" bila belum berhenti. */

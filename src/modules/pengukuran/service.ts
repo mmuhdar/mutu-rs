@@ -217,10 +217,6 @@ export async function ambilIsian(aktor: Pengguna | null, k: KunciIsian, sekarang
   return { ...konteks, bulan: k.bulan, pengukuran: ada ?? null, riwayat, bukti };
 }
 
-/**
- * Menyimpan isian sebagai Draf (membuat Pengukuran bila belum ada), lalu bila `ajukan` memindahkannya ke Diajukan.
- * Hanya Draf yang bisa diubah. Simpan pertama dan pengajuan dicatat di Riwayat Status; pengisi = aktor.
- */
 /** "INM-01 Unit ICU Oktober 2026" untuk Jejak Audit. */
 async function labelPengukuran(tx: Transaksi, id: string) {
   const [p] = await tx
@@ -232,6 +228,10 @@ async function labelPengukuran(tx: Transaksi, id: string) {
   return `${p.kode} Unit ${p.unit} ${labelBulan(dariTanggal(p.bulan))}`;
 }
 
+/**
+ * Menyimpan isian sebagai Draf (membuat Pengukuran bila belum ada), lalu bila `ajukan` memindahkannya ke Diajukan.
+ * Hanya Draf yang bisa diubah. Simpan pertama dan pengajuan dicatat di Riwayat Status; pengisi = aktor.
+ */
 async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: boolean, sekarang: Date) {
   return db.transaction(async (tx) => {
     const konteks = await periksaKonteks(tx, aktor, isian, sekarang);
@@ -549,8 +549,7 @@ export async function ubahStatusPengukuran(aktor: Pengguna | null, id: string, a
       throw new ServiceError(403, "Anda hanya bisa memverifikasi Pengukuran Unit Anda sendiri.");
     }
     const hasil = await pindahStatus(tx, p, aksi, aktor.id, teks);
-    const kata = { verifikasi: "Memverifikasi", kembalikan: "Mengembalikan", bukaKembali: "Membuka kembali" }[aksi];
-    await catatJejak(tx, aktor, "pengukuran", p.id, `${kata} Pengukuran ${await labelPengukuran(tx, p.id)}`);
+    await catatJejak(tx, aktor, "pengukuran", p.id, `Pengukuran ${await labelPengukuran(tx, p.id)} ${PERPINDAHAN[aksi].kata}`);
     return hasil;
   });
 }

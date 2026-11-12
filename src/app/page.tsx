@@ -62,7 +62,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     // Kesiapan SIMAR bulan lalu untuk pengelola Indikator (yang melapor ke SIMAR).
     bolehKelolaIndikator(pengguna) ? rekapSimar(pengguna) : null,
     ringkasanInsiden(pengguna),
-    bolehCatatValidasi(pengguna) ? daftarValidasi(pengguna, { belumValid: true }) : null,
+    // Pencatat validasi dan pimpinan (penanggung jawab validitas data, PMKP 5).
+    bolehCatatValidasi(pengguna) || perUnit === false ? daftarValidasi(pengguna, { belumValid: true }) : null,
   ]);
   const lewatTenggat = tindakLanjut.filter((t) => t.lewatTenggat).length;
   const mendekatiTenggat = tindakLanjut.filter((t) => t.mendekatiTenggat).length;

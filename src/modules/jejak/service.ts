@@ -13,9 +13,8 @@ import { wajibPeran, type Pengguna } from "@/modules/auth/service";
  * pembacaannya.
  */
 
-const PEMBACA: readonly Peran[] = ["adminSistem", "komiteMutu"];
-/** Membaca Jejak Audit: Admin Sistem dan Komite Mutu. Juga untuk tampilan (menu). */
-export const bolehBacaJejak = (aktor: Pengguna) => PEMBACA.includes(aktor.peran);
+/** Membaca Jejak Audit: Admin Sistem dan Komite Mutu. Juga daftar peran menu `/jejak`. */
+export const PEMBACA_JEJAK: readonly Peran[] = ["adminSistem", "komiteMutu"];
 
 /** Paling banyak baris yang ditampilkan sekali baca. */
 export const BATAS_JEJAK = 300;
@@ -26,7 +25,7 @@ export const BATAS_JEJAK = 300;
  * membaca Insiden).
  */
 export async function daftarJejak(aktor: Pengguna | null, saringan: { entitas?: string; dari?: string; sampai?: string } = {}) {
-  wajibPeran(aktor, PEMBACA, "Jejak Audit hanya untuk Admin Sistem dan Komite Mutu.");
+  wajibPeran(aktor, PEMBACA_JEJAK, "Jejak Audit hanya untuk Admin Sistem dan Komite Mutu.");
   const { entitas, dari, sampai } = saringan;
   if (entitas && !(ENTITAS_JEJAK as readonly string[]).includes(entitas)) throw new ServiceError(400, "Jenis data tidak dikenal.");
   for (const t of [dari, sampai]) if (t && !tanggalValid(t)) throw new ServiceError(400, "Tanggal saringan tidak valid.");

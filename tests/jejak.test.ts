@@ -3,6 +3,9 @@ import { before, describe, it } from "node:test";
 
 import { ServiceError } from "@/lib/errors";
 import type { Pengguna } from "@/modules/auth/service";
+import { db } from "@/db";
+import { masuk } from "@/modules/auth/service";
+import { catatJejak } from "@/modules/jejak/catat";
 import { daftarJejak } from "@/modules/jejak/service";
 import { tambahUnit } from "@/modules/unit/service";
 
@@ -34,7 +37,18 @@ describe("Jejak Audit", () => {
     await assert.rejects(daftarJejak(admin, { dari: "2026-02-30" }), tolak(400));
   });
 
-  it("Admin Sistem tidak membaca jejak Insiden", async () => {
-    assert.deepEqual(await daftarJejak(admin, { entitas: "insiden" }), []);
+  it("Admin Sistem tidak membaca jejak Insiden; Komite Mutu membacanya", async () => {
+    const ringkasan = unik("Insiden menjadi Selesai");
+    await catatJejak(db, komite, "insiden", null, ringkasan);
+    assert.equal((await daftarJejak(komite, { entitas: "insiden" })).some((j) => j.ringkasan === ringkasan), true);
+    assert.equal((await daftarJejak(admin)).some((j) => j.ringkasan === ringkasan), false);
+  });
+
+  it("percobaan masuk yang gagal tercatat tanpa pelaku; username tidak dikenal tidak ditulis", async () => {
+    const ketik = unik("mungkin-sandi");
+    await assert.rejects(masuk({ username: ketik, sandi: "salah-sekali", ip: "10.1.2.3" }));
+    const baris = (await daftarJejak(komite, { entitas: "sesi" })).find((j) => j.ringkasan === "Gagal masuk dengan username tidak dikenal dari 10.1.2.3");
+    assert.equal(baris?.oleh, null);
+    assert.equal((await daftarJejak(komite, { entitas: "sesi" })).some((j) => j.ringkasan.includes(ketik)), false);
   });
 });

@@ -41,5 +41,12 @@ export const sampelMinimalValidasi = (populasi: number) => (populasi <= 16 ? pop
 /** Kesesuaian (%) = jumlah data sesuai / jumlah sampel validator × 100. */
 export const kesesuaian = (sesuai: number, sampel: number) => (sesuai / sampel) * 100;
 
+/**
+ * Kesesuaian untuk tampilan, satu desimal dipotong (bukan dibulatkan), supaya 89,96% tidak tampil "90%" di samping
+ * "Tidak valid": "93,7%".
+ */
+export const formatPersen = (persen: number) =>
+  `${(Math.floor(persen * 10) / 10).toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
+
 /** Valid bila kesesuaian ≥ 90%; dihitung dengan perkalian supaya 9 dari 10 tidak meleset karena pembulatan. */
 export const validData = (sesuai: number, sampel: number) => sesuai * 100 >= AMBANG_VALID * sampel;

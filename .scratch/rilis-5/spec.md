@@ -1,6 +1,6 @@
 # Spec: MutuRS Rilis 5 — kelengkapan akreditasi
 
-Status: berjalan (branch `rilis-5`, dari `main` yang sudah memuat Rilis 4 dan modul Insiden)
+Status: selesai (2026-11-12, branch `rilis-5`, dari `main` yang sudah memuat Rilis 4 dan modul Insiden)
 
 Permintaan user (12 November 2026): "mulai rilis 5 saja dulu ... selesaikan saja dulu app ini sampai tahap akhir". Isi diambil dari kandidat Rilis 5 yang sudah disepakati sejak Rilis 4. User menyerahkan keputusan; semua keputusan dicatat di sini dan di laporan akhir.
 
@@ -37,17 +37,25 @@ Empat bukti akreditasi belum bisa dihasilkan MutuRS:
     - pencatat sama dengan penulis Lingkup Unit (`bolehTulisLingkup`: Komite Mutu, Admin Sistem, Kepala Unit Unit itu), karena validator boleh Kepala Unit bila tenaga terbatas;
     - pembaca sama dengan Lingkup (`bolehBacaLingkup`).
   - **Catatan validasi bisa diperbaiki** oleh pencatat. Setiap perubahan masuk Jejak Audit.
+  - **Validasi hanya untuk bulan yang sudah punya Pengukuran** (status apa pun) Indikator + Unit itu, karena yang divalidasi adalah data yang sudah dikumpulkan. Ini juga mencegah validasi di bulan yang bukan bulan ukur Semesteran. Periode Unit Pelapor-nya tidak bisa dihapus atau dipotong, karena aturan Unit Pelapor yang menyangkut Pengukuran.
+  - **Laporan Triwulan** memuat validasi yang dilakukan pada Triwulan itu (menurut tanggal validasi), ditambah validasi yang lebih lama tetapi masih belum valid. Penyebab dan perbaikannya ikut ditampilkan (PMKP 1: "validasi dan perbaikan").
+  - **Dashboard "Validasi belum valid"** tampil untuk pencatat validasi dan yang melihat Capaian RS (Direktur juga, sebagai pimpinan yang bertanggung jawab atas validitas data).
 - **Umpan Balik Dewan Pengawas:**
   - Dicatat oleh Komite Mutu, Direktur (penerima umpan balik), dan Admin Sistem.
   - Tanggal diterima tidak boleh sebelum Triwulan berakhir.
   - Satu baris per Triwulan, berisi umpan balik dan tindak lanjutnya.
 - **Analisis Efisiensi:**
-  - Menempel di PDSA, karena PDSA adalah proyek perbaikan di MutuRS.
+  - Menempel di PDSA, karena PDSA adalah proyek perbaikan di MutuRS. Tidak ada penanda "proyek prioritas tahun ini": proyek PMKP 4 g dipilih Komite Mutu dan terlihat dari PDSA yang punya Analisis Efisiensi.
   - Ada lima jenis sumber daya tetap; jenis yang tidak terkait dikosongkan.
   - Biaya dalam Rupiah bulat, maksimal 2 miliar per baris. Boleh diisi di tahap mana pun.
 - **Jejak Audit:**
-  - Ringkasan berupa kalimat untuk dibaca orang, tanpa sandi, isi berkas, atau identitas pasien. Jejak Insiden hanya mencatat perpindahan status, tanpa isi laporan.
-  - Percobaan masuk yang gagal juga dicatat.
+  - Ditulis dalam transaksi yang sama dengan perubahannya. Service yang sebelumnya tanpa transaksi sekarang memakai transaksi.
+  - Ringkasan berupa kalimat untuk dibaca orang, tanpa sandi, isi berkas, atau identitas pasien. Jejak Insiden tanpa isi laporan: hanya jenis, perpindahan status, warna grading, dan tanggal e-report.
+  - Nilai lama ikut dicatat bila relevan: N/D Pengukuran, Target yang diganti, nama Unit, peran Pengguna.
+  - **Masuk yang berhasil dan yang gagal dicatat:**
+    - username yang tidak dikenal tidak ditulis, karena bisa jadi sandi yang salah diketik di kolom username;
+    - akun nonaktif juga dicatat;
+    - percobaan yang ditolak karena terlalu sering (429) tidak dicatat, supaya serangan tebak sandi tidak membanjiri jejak.
   - Admin Sistem tidak membaca jejak Insiden (keputusan Q4 modul Insiden).
   - Halaman menampilkan 300 perubahan terbaru dengan saringan jenis data dan tanggal.
 

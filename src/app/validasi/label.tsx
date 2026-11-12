@@ -1,3 +1,5 @@
+import { formatPersen } from "@/lib/validasi";
+
 import { Pil } from "../ui";
 
 /** Hasil validasi sebagai teks (warna hanya pelengkap): Valid, Tidak valid (belum diulang), atau Tidak valid, diulang. */
@@ -10,7 +12,7 @@ export function LabelHasilValidasi({ valid, belumValid }: { valid: boolean; belu
 export function Kesesuaian({ persen, sesuai, sampel }: { persen: number; sesuai: number; sampel: number }) {
   return (
     <span className="whitespace-nowrap">
-      <span className="terukur text-[15px] text-cool">{persen.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%</span>{" "}
+      <span className="terukur text-[15px] text-cool">{formatPersen(persen)}</span>{" "}
       <span className="terukur text-[12px] text-ink-3">
         {sesuai}/{sampel}
       </span>

@@ -11,6 +11,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export const kelasPetunjuk = "text-[13px] leading-5 text-muted-foreground";
 
+/** Label pembungkus `Checkbox` berbentuk chip (pilihan banyak): bergaris, amber lembut saat tercentang. */
+export const KELAS_CHIP_CENTANG =
+  "inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-pill border border-rule-2 bg-paper-3 px-3 text-[14px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink has-data-[state=checked]:border-signal-rule has-data-[state=checked]:bg-signal-soft has-data-[state=checked]:text-ink has-focus-visible:ring-2 has-focus-visible:ring-ring";
+
 /** Pesan penolakan service di bawah form (shadcn `Alert`); kosong = tidak tampil. */
 export function PesanError({ pesan }: { pesan?: string }) {
   return pesan ? (

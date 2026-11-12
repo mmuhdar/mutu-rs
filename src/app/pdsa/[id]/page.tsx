@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { labelBulan, labelPeriode } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
+import { formatAngka } from "@/lib/capaian";
 import {
   formatRupiah,
   LABEL_KEPUTUSAN_PDSA,
@@ -259,7 +260,7 @@ function Efisiensi({ p, versi }: { p: Awaited<ReturnType<typeof ambilPdsa>>; ver
                 >
                   {selisih(e.ringkasan.hemat)}
                   {e.ringkasan.persen !== null && (
-                    <span className="terukur ml-1">({e.ringkasan.persen.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%)</span>
+                    <span className="terukur ml-1">({formatAngka(Math.round(e.ringkasan.persen * 10) / 10)}%)</span>
                   )}
                 </TableCell>
                 <TableCell />

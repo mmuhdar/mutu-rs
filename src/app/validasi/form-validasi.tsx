@@ -7,8 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { INPUT_BULAN } from "@/lib/bulan";
+import { bilanganBulat } from "@/lib/form";
 import {
   AMBANG_VALID,
+  formatPersen,
   kesesuaian,
   LABEL_PEMICU_VALIDASI,
   LABEL_PENYEBAB_TIDAK_VALID,
@@ -18,15 +20,13 @@ import {
   validData,
 } from "@/lib/validasi";
 
-import { kelasPetunjuk, Kolom, PesanError } from "../form";
+import { KELAS_CHIP_CENTANG, kelasPetunjuk, Kolom, PesanError } from "../form";
 import { PilihCari } from "../pilih-cari";
 import { simpanValidasiAction } from "./actions";
 
 /** Isian awal form: nama field → nilai teks (`penyebab` dipisah koma). */
 export type AwalValidasi = Partial<Record<string, string>>;
 
-/** Angka dari isian teks; kosong atau bukan bilangan bulat = null. */
-const angka = (s: string | undefined) => (s && /^\d+$/.test(s.trim()) ? Number(s.trim()) : null);
 
 /**
  * Form Validasi Data (metode kesesuaian hasil pengukuran, PMK 30/2022 BAB IV.B). Tanpa `id` = validasi baru (Indikator,
@@ -45,9 +45,10 @@ export function FormValidasi(p: {
   const [populasi, setPopulasi] = useState(a.populasi ?? "");
   const [sampel, setSampel] = useState(a.sampel ?? "");
   const [sesuai, setSesuai] = useState(a.sesuai ?? "");
-  const [nP, nS, nC] = [angka(populasi), angka(sampel), angka(sesuai)];
-  const minimal = nP ? sampelMinimalValidasi(nP) : null;
-  const hasil = nS && nC !== null && nC <= nS ? { persen: kesesuaian(nC, nS), valid: validData(nC, nS) } : null;
+  // Aturan angka sama dengan action (`bilanganBulat`): kosong atau bukan bilangan bulat = NaN.
+  const [nP, nS, nC] = [populasi, sampel, sesuai].map(bilanganBulat);
+  const minimal = nP > 0 ? sampelMinimalValidasi(nP) : null;
+  const hasil = nS > 0 && nC <= nS ? { persen: kesesuaian(nC, nS), valid: validData(nC, nS) } : null;
   const penyebab = (a.penyebab ?? "").split(",");
 
   return (
@@ -99,7 +100,7 @@ export function FormValidasi(p: {
         <p aria-live="polite" className="text-[15px]">
           {hasil ? (
             <>
-              Kesesuaian <span className="terukur text-cool">{hasil.persen.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%</span>:{" "}
+              Kesesuaian <span className="terukur text-cool">{formatPersen(hasil.persen)}</span>:{" "}
               <span className={hasil.valid ? "text-ok" : "text-bad"}>{hasil.valid ? "valid" : `tidak valid (di bawah ${AMBANG_VALID}%)`}</span>
             </>
           ) : (
@@ -115,7 +116,7 @@ export function FormValidasi(p: {
             <label
               // key memuat pilihan bawaan supaya Checkbox (Radix) kembali ke pilihan itu setelah form di-reset.
               key={`${x}:${penyebab.includes(x)}`}
-              className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-pill border border-rule-2 bg-paper-3 px-3 text-[14px] text-ink-2 transition-colors hover:border-ink-3 hover:text-ink has-data-[state=checked]:border-signal-rule has-data-[state=checked]:bg-signal-soft has-data-[state=checked]:text-ink has-focus-visible:ring-2 has-focus-visible:ring-ring"
+              className={KELAS_CHIP_CENTANG}
             >
               <Checkbox name="penyebab" value={x} defaultChecked={penyebab.includes(x)} />
               {LABEL_PENYEBAB_TIDAK_VALID[x]}

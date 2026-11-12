@@ -66,8 +66,8 @@ export const bolehTulisLingkup = (aktor: Pengguna, unitId: Lingkup) =>
 /** Untuk tampilan (tombol "Mulai PDSA"): aktor bisa menulis pada setidaknya satu Lingkup. */
 export const bolehMulaiPdsa = (aktor: Pengguna) => PENULIS_SEMUA.includes(aktor.peran) || aktor.peran === "kepalaUnit";
 
-/** Saringan query: Lingkup yang boleh dibaca aktor (semua, atau hanya Unit miliknya; Lingkup RS tidak). */
-const saringLingkup = (aktor: Pengguna, kolomUnit: AnyColumn) =>
+/** Saringan query: Lingkup yang boleh dibaca aktor (semua, atau hanya Unit miliknya; Lingkup RS tidak). Juga modul Validasi. */
+export const saringLingkup = (aktor: Pengguna, kolomUnit: AnyColumn) =>
   melihatCapaianRs(aktor) ? undefined : inArray(kolomUnit, aktor.unitIds);
 
 function wajibBaca(aktor: Pengguna | null, unitId: Lingkup): asserts aktor is Pengguna {
@@ -348,12 +348,14 @@ export async function tambahTindakLanjut(aktor: Pengguna | null, analisisId: str
   if (!a) throw new ServiceError(404, "Analisis tidak ditemukan. Simpan Analisis dulu sebelum menambah Tindak Lanjut.");
   wajibTulis(aktor, a.unitId);
   const data = periksaTindakLanjut(isian);
-  const [baru] = await db
-    .insert(tindakLanjut)
-    .values({ analisisId: a.id, ...data, status: "direncanakan", diubahOlehId: aktor.id })
-    .returning({ id: tindakLanjut.id });
-  await catatJejak(db, aktor, "perbaikan", baru.id, `Menambah Tindak Lanjut ${kutip(data.tindakan)} pada Analisis ${a.kode} ${labelBulan(dariTanggal(a.bulan))}`);
-  return { id: baru.id };
+  return db.transaction(async (tx) => {
+    const [baru] = await tx
+      .insert(tindakLanjut)
+      .values({ analisisId: a.id, ...data, status: "direncanakan", diubahOlehId: aktor.id })
+      .returning({ id: tindakLanjut.id });
+    await catatJejak(tx, aktor, "perbaikan", baru.id, `Menambah Tindak Lanjut ${kutip(data.tindakan)} pada Analisis ${a.kode} ${labelBulan(dariTanggal(a.bulan))}`);
+    return { id: baru.id };
+  });
 }
 
 /**
@@ -386,11 +388,13 @@ export async function ubahTindakLanjut(
   if (isian.status === "dibatalkan" && !catatan) {
     throw new ServiceError(400, "Alasan pembatalan wajib diisi saat Tindak Lanjut Dibatalkan.");
   }
-  await db
-    .update(tindakLanjut)
-    .set({ ...data, status: isian.status, catatan, diubahOlehId: aktor.id, diubahPada: new Date() })
-    .where(eq(tindakLanjut.id, tl.id));
-  await catatJejak(db, aktor, "perbaikan", tl.id, `Mengubah Tindak Lanjut ${kutip(data.tindakan)}, status ${LABEL_STATUS_TINDAK_LANJUT[isian.status]}`);
+  await db.transaction(async (tx) => {
+    await tx
+      .update(tindakLanjut)
+      .set({ ...data, status: isian.status, catatan, diubahOlehId: aktor.id, diubahPada: new Date() })
+      .where(eq(tindakLanjut.id, tl.id));
+    await catatJejak(tx, aktor, "perbaikan", tl.id, `Mengubah Tindak Lanjut ${kutip(data.tindakan)}, status ${LABEL_STATUS_TINDAK_LANJUT[isian.status]}`);
+  });
 }
 
 /** Saringan status daftar Tindak Lanjut: satu status, "terbuka" (Direncanakan + Berjalan, bawaan), atau "semua". */

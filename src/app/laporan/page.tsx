@@ -14,7 +14,7 @@ import {
   triwulanDariAlamat,
   triwulanLalu,
 } from "@/lib/bulan";
-import { formatCapaian } from "@/lib/capaian";
+import { formatAngka, formatCapaian } from "@/lib/capaian";
 import { config } from "@/lib/config";
 import { KELOMPOK, TANDA_ARAH } from "@/lib/indikator";
 import {
@@ -26,7 +26,7 @@ import {
   WARNA_GRADING,
 } from "@/lib/insiden";
 import { formatRupiah, LABEL_KEPUTUSAN_PDSA, labelLingkup } from "@/lib/perbaikan";
-import { LABEL_PEMICU_VALIDASI } from "@/lib/validasi";
+import { LABEL_PEMICU_VALIDASI, LABEL_PENYEBAB_TIDAK_VALID } from "@/lib/validasi";
 import { laporanTriwulan, type LaporanTriwulan } from "@/modules/laporan/service";
 import { requireUser } from "@/server/sesi";
 
@@ -91,6 +91,9 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
   }
 
   const { ringkasan: r } = lap;
+  // Versi data yang diubah form-form halaman ini: setelah satu form berhasil, semua form dibuat ulang dan pesan
+  // penolakan form lain hilang.
+  const versiForm = [lap.rekomendasi, lap.umpanBalik, lap.umpanBalikSebelumnya].map((x) => x?.diubahPada.toISOString()).join("|");
   return (
     <Halaman>
       <KepalaHalaman
@@ -191,9 +194,13 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
                           {formatRupiah(p.efisiensi.sebelum)} sebelum, {formatRupiah(p.efisiensi.sesudah)} sesudah
                         </span>
                         {p.efisiensi.persen !== null && (
-                          <span className={p.efisiensi.hemat >= 0 ? "text-ok" : "text-bad"}>
+                          <span className={p.efisiensi.hemat > 0 ? "text-ok" : p.efisiensi.hemat < 0 ? "text-bad" : undefined}>
                             {" "}
-                            ({p.efisiensi.hemat >= 0 ? "hemat" : "bertambah"} {Math.abs(p.efisiensi.persen).toLocaleString("id-ID", { maximumFractionDigits: 1 })}%)
+                            (
+                            {p.efisiensi.hemat === 0
+                              ? "tetap"
+                              : `${p.efisiensi.hemat > 0 ? "hemat" : "bertambah"} ${formatAngka(Math.round(Math.abs(p.efisiensi.persen) * 10) / 10)}%`}
+                            )
                           </span>
                         )}
                         {p.kesimpulanEfisiensi && <span className="mt-1 block">{p.kesimpulanEfisiensi}</span>}
@@ -209,11 +216,14 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
 
       {lap.insiden && <BagianInsiden lap={lap} r={lap.insiden} />}
 
-      <Kartu judul="Validasi Data" sub="Validasi yang dilakukan pada Triwulan ini (PMKP 5); valid bila kesesuaian mencapai 90%.">
+      <Kartu
+        judul="Validasi Data"
+        sub="Validasi yang dilakukan pada Triwulan ini, ditambah yang lebih lama tetapi masih belum valid (PMKP 5); valid bila kesesuaian mencapai 90%."
+      >
         {lap.validasi.length === 0 ? (
           <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada validasi data pada {labelTriwulan(lap.triwulan)}.</p>
         ) : (
-          <Tabel label="Validasi Data" lebarMin="min-w-[48rem]">
+          <Tabel label="Validasi Data" lebarMin="min-w-[62rem]">
             <TableHeader>
               <TableRow>
                 <TableHead>Indikator</TableHead>
@@ -221,6 +231,7 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
                 <TableHead>Pemicu</TableHead>
                 <TableHead className="text-right">Kesesuaian</TableHead>
                 <TableHead>Hasil</TableHead>
+                <TableHead>Penyebab dan perbaikan</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,6 +251,10 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
                   <TableCell>
                     <LabelHasilValidasi valid={v.valid} belumValid={v.belumValid} />
                   </TableCell>
+                  <TableCell className="min-w-56 text-[14px] whitespace-normal text-ink-2">
+                    {v.penyebab.length > 0 && <span className="block">{v.penyebab.map((x) => LABEL_PENYEBAB_TIDAK_VALID[x]).join(", ")}</span>}
+                    {v.perbaikan && <span className="block">{v.perbaikan}</span>}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -251,7 +266,7 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
         <div className="grid gap-3 px-5 pb-5">
           {lap.bolehTulis && (
             <div className="print:hidden">
-              <FormRekomendasi key={lap.rekomendasi?.teks} triwulan={lap.triwulan} teks={lap.rekomendasi?.teks ?? ""} />
+              <FormRekomendasi key={versiForm} triwulan={lap.triwulan} teks={lap.rekomendasi?.teks ?? ""} />
             </div>
           )}
           <div className={lap.bolehTulis ? "hidden print:block" : undefined}>
@@ -270,7 +285,7 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
         </div>
       </Kartu>
 
-      <UmpanBalik lap={lap} />
+      <UmpanBalik lap={lap} versi={versiForm} />
 
       {/* Kolom tanda tangan, hanya di hasil cetak. */}
       <div className="hidden grid-cols-2 gap-8 pt-4 text-center print:grid print:break-inside-avoid">
@@ -623,7 +638,7 @@ function BagianInsiden({ lap, r }: { lap: LaporanTriwulan; r: NonNullable<Lapora
  * Umpan Balik Dewan Pengawas (KMK 1596/2024 TKRS 1): tindak lanjut atas umpan balik Triwulan sebelumnya (dievaluasi pada
  * pertemuan laporan ini), lalu umpan balik atas laporan ini (dicatat setelah pertemuannya). Di hasil cetak hanya teksnya.
  */
-function UmpanBalik({ lap }: { lap: LaporanTriwulan }) {
+function UmpanBalik({ lap, versi }: { lap: LaporanTriwulan; versi: string }) {
   const { umpanBalik: ub, umpanBalikSebelumnya: ubs } = lap;
   const pencatat = (u: NonNullable<typeof ub>) => (
     <p className="text-[13px] text-ink-3">
@@ -631,8 +646,6 @@ function UmpanBalik({ lap }: { lap: LaporanTriwulan }) {
       <span className="terukur text-cool">{formatWaktu(u.diubahPada)}</span>
     </p>
   );
-  // Setiap simpan mengubah `diubahPada`, jadi form dibuat ulang dan pesan penolakan lama hilang.
-  const versi = `${ub?.diubahPada.toISOString()}|${ubs?.diubahPada.toISOString()}`;
   return (
     <Kartu judul="Umpan Balik Dewan Pengawas" sub="Umpan balik tertulis atas laporan triwulan dan evaluasi tindak lanjutnya pada pertemuan berikutnya.">
       <div className="grid">

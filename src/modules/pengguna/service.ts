@@ -96,7 +96,7 @@ async function simpan(
   aktor: Pengguna,
   id: string,
   ubah: Partial<typeof pengguna.$inferInsert>,
-  jejak: (username: string) => string,
+  jejak: (username: string, lama: { peran: Pengguna["peran"] }) => string,
   unitIds?: string[],
 ) {
   if (!apakahUuid(id)) throw new ServiceError(404, "Pengguna tidak ditemukan.");
@@ -115,13 +115,14 @@ async function simpan(
         );
       }
     }
+    const [lama] = await tx.select({ peran: pengguna.peran }).from(pengguna).where(eq(pengguna.id, id)).for("update");
+    if (!lama) throw new ServiceError(404, "Pengguna tidak ditemukan.");
     const [hasil] = await tx
       .update(pengguna)
       .set(ubah)
       .where(eq(pengguna.id, id))
       .returning({ id: pengguna.id, username: pengguna.username });
-    if (!hasil) throw new ServiceError(404, "Pengguna tidak ditemukan.");
-    await catatJejak(tx, aktor, "pengguna", id, jejak(hasil.username));
+    await catatJejak(tx, aktor, "pengguna", id, jejak(hasil.username, lama));
     if (!unitIds) return;
     await tx.delete(penggunaUnit).where(eq(penggunaUnit.penggunaId, id));
     if (unitIds.length) await tx.insert(penggunaUnit).values(unitIds.map((unitId) => ({ penggunaId: id, unitId })));
@@ -132,7 +133,14 @@ async function simpan(
 export async function ubahPengguna(aktor: Pengguna | null, id: string, input: DataPengguna) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
   const { unitIds, ...data } = await periksa(input);
-  await simpan(aktor, id, data, (u) => `Mengubah nama, peran (${LABEL_PERAN[data.peran]}), dan Unit Pengguna ${u}`, unitIds);
+  await simpan(
+    aktor,
+    id,
+    data,
+    (u, lama) =>
+      `Mengubah Pengguna ${u}${lama.peran === data.peran ? "" : `: peran ${LABEL_PERAN[lama.peran]} menjadi ${LABEL_PERAN[data.peran]}`}`,
+    unitIds,
+  );
 }
 
 /**

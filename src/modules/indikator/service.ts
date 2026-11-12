@@ -182,11 +182,12 @@ export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: I
 /** Menonaktifkan atau mengaktifkan kembali Indikator. Tidak ada hapus, supaya riwayatnya tetap ada. */
 export async function aturAktifIndikator(aktor: Pengguna | null, id: string, aktif: boolean) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
-  const [baris] = apakahUuid(id)
-    ? await db.update(indikator).set({ aktif }).where(eq(indikator.id, id)).returning({ id: indikator.id, kode: indikator.kode })
-    : [];
-  if (!baris) throw tidakDitemukan();
-  await catatJejak(db, aktor, "indikator", id, `${aktif ? "Mengaktifkan" : "Menonaktifkan"} Indikator ${baris.kode}`);
+  if (!apakahUuid(id)) throw tidakDitemukan();
+  await db.transaction(async (tx) => {
+    const [baris] = await tx.update(indikator).set({ aktif }).where(eq(indikator.id, id)).returning({ kode: indikator.kode });
+    if (!baris) throw tidakDitemukan();
+    await catatJejak(tx, aktor, "indikator", id, `${aktif ? "Mengaktifkan" : "Menonaktifkan"} Indikator ${baris.kode}`);
+  });
 }
 
 /** Menambah IMP-RS, IMP-Unit, atau SPM beserta Target awalnya. Mengembalikan id Indikator baru. */
@@ -232,17 +233,20 @@ export async function tetapkanTarget(aktor: Pengguna | null, indikatorId: string
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const { nilai, berlakuMulai } = periksaTarget(isian);
   if (!apakahUuid(indikatorId)) throw tidakDitemukan();
-  try {
-    await db
+  await db.transaction(async (tx) => {
+    const [ind] = await tx.select({ kode: indikator.kode }).from(indikator).where(eq(indikator.id, indikatorId));
+    if (!ind) throw tidakDitemukan();
+    const [lama] = await tx
+      .select({ nilai: target.nilai })
+      .from(target)
+      .where(and(eq(target.indikatorId, indikatorId), eq(target.berlakuMulai, keTanggal(berlakuMulai))));
+    await tx
       .insert(target)
       .values({ indikatorId, nilai, berlakuMulai: keTanggal(berlakuMulai) })
       .onConflictDoUpdate({ target: [target.indikatorId, target.berlakuMulai], set: { nilai } });
-  } catch (error) {
-    if (kodePg(error) === "23503") throw tidakDitemukan();
-    throw error;
-  }
-  const [ind] = await db.select({ kode: indikator.kode }).from(indikator).where(eq(indikator.id, indikatorId));
-  await catatJejak(db, aktor, "indikator", indikatorId, `Menetapkan Target ${ind.kode} ${nilai} mulai ${labelBulan(berlakuMulai)}`);
+    const ganti = lama ? ` (mengganti ${lama.nilai})` : "";
+    await catatJejak(tx, aktor, "indikator", indikatorId, `Menetapkan Target ${ind.kode} ${nilai} mulai ${labelBulan(berlakuMulai)}${ganti}`);
+  });
 }
 
 /**

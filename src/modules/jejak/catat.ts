@@ -4,8 +4,9 @@ import type { EntitasJejak } from "@/lib/jejak";
 
 /*
  * Penulisan Jejak Audit, dipisah dari `./service.ts` supaya service lain (termasuk auth) bisa memanggilnya tanpa impor
- * melingkar. Setiap service yang mengubah data memanggil `catatJejak` di dalam transaksi yang sama, atau tepat sesudah
- * perubahannya bila tanpa transaksi. Ringkasan ditulis untuk dibaca orang dan tidak memuat sandi, isi berkas, atau
+ * melingkar. Setiap service yang mengubah data memanggil `catatJejak` di dalam transaksi yang sama dengan perubahannya
+ * (perubahan tanpa jejak, atau jejak tanpa perubahan, tidak mungkin). Hanya percobaan masuk yang gagal yang ditulis
+ * sendiri, karena tidak ada perubahan. Ringkasan ditulis untuk dibaca orang dan tidak memuat sandi, isi berkas, atau
  * identitas pasien.
  */
 

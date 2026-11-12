@@ -7,7 +7,7 @@ import type { Pengguna } from "@/modules/auth/service";
 import { laporanTriwulan } from "@/modules/laporan/service";
 import { ambilValidasi, daftarValidasi, simpanValidasi, type IsianValidasi } from "@/modules/validasi/service";
 
-import { indikatorBaru, komiteMutu, sebagai, unitBaru, unitPelapor } from "./bantuan";
+import { indikatorBaru, komiteMutu, sebagai, terverifikasi, unitBaru, unitPelapor } from "./bantuan";
 
 /* Validasi Data (PMKP 5). Hanya file ini yang mencatat validasi; memakai tahun 2011. */
 
@@ -41,6 +41,9 @@ before(async () => {
   indikatorId = await indikatorBaru({ target: { nilai: 80, berlakuMulai: "2011-01" } });
   unitV = await unitPelapor(indikatorId, "Unit Validasi", "2011-01");
   kepala = await sebagai("kepalaUnit", [unitV.id]);
+  // Yang divalidasi adalah data yang sudah dikumpulkan: Pengukuran Agustus dan September ada, Juni tidak.
+  await terverifikasi(indikatorId, unitV.id, "2011-08", 90, 100);
+  await terverifikasi(indikatorId, unitV.id, "2011-09", 92, 100);
 });
 
 describe("aturan murni Validasi Data", () => {
@@ -90,6 +93,7 @@ describe("mencatat validasi", () => {
     await assert.rejects(coba({ tanggal: "2011-08-31" }), ditolak(400, /sebelum September 2011/));
     await assert.rejects(coba({ bulan: "2012-01" }), ditolak(400));
     await assert.rejects(coba({ unitId: (await unitBaru()).id }), ditolak(400, /bukan Unit Pelapor/));
+    await assert.rejects(coba({ bulan: "2011-06", tanggal: "2011-07-05" }), ditolak(400, /Belum ada Pengukuran/));
   });
 
   it("hak akses mengikuti Lingkup Unit", async () => {
