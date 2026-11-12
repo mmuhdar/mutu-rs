@@ -72,6 +72,10 @@ Jumlah Pengukuran Terverifikasi dibanding jumlah Pengukuran yang seharusnya ada 
 Tercapai atau Belum Tercapai, hasil membandingkan Capaian dengan Target menurut Arah.
 _Avoid_: memenuhi target, merah/hijau
 
+**Bukti**:
+Foto atau PDF asal N dan D yang dilampirkan pengisi ke Pengukuran Draf (paling banyak 5 berkas, masing-masing 10 MB); terkunci setelah Diajukan dan dibuka Kepala Unit saat Verifikasi.
+_Avoid_: lampiran, dokumen pendukung
+
 **Verifikasi**:
 Pemeriksaan Pengukuran oleh Kepala Unit; hanya Pengukuran Terverifikasi yang dihitung dalam Capaian.
 

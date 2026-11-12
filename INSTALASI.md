@@ -38,6 +38,7 @@ Petunjuk untuk IT RS. MutuRS berjalan dengan docker compose di satu server RS, b
   ls -l backup/
   ```
 
+- **Ukuran backup ikut bukti.** Berkas Bukti Pengukuran (foto/PDF, maks 10 MB per berkas) disimpan di database, jadi ikut setiap dump. Bila semua Unit rutin melampirkan bukti, perkirakan sekitar 1 GB per tahun, dan karena 30 dump disimpan, folder backup bisa mencapai puluhan GB. Pantau ruang disk (`du -sh backup/`, `df -h`).
 - Berkas backup berisi seluruh data MutuRS, termasuk hash sandi Pengguna. Batasi siapa yang bisa membaca folder backup dan salinannya.
 
 ### Menyalin ke NAS: tanggung jawab IT RS

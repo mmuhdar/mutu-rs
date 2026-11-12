@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  customType,
   date,
   index,
   integer,
@@ -18,6 +19,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
+import { JENIS_BUKTI, MAKS_UKURAN_BUKTI, type JenisBukti } from "../lib/bukti";
 import { ARAH, FREKUENSI, KELOMPOK, type Arah, type Frekuensi, type Kelompok } from "../lib/indikator";
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
 import {
@@ -226,6 +228,36 @@ export const riwayatStatusPengukuran = pgTable(
     index("riwayat_status_pengukuran_idx").on(t.pengukuranId, t.waktu),
     check("riwayat_status_pengukuran_asal_check", salahSatu(t.statusAsal, STATUS_PENGUKURAN)),
     check("riwayat_status_pengukuran_tujuan_check", salahSatu(t.statusTujuan, STATUS_PENGUKURAN)),
+  ],
+);
+
+/** Isi berkas biner (PostgreSQL `bytea`); driver pg mengembalikannya sebagai Buffer. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
+
+/**
+ * Bukti Pengukuran: PDF/JPG/PNG yang dilampirkan pengisi selama Draf. Isinya disimpan di database supaya ikut backup
+ * harian; tidak pernah dihapus berantai karena Pengukuran tidak pernah dihapus.
+ */
+export const buktiPengukuran = pgTable(
+  "bukti_pengukuran",
+  {
+    id: id(),
+    pengukuranId: uuid("pengukuran_id")
+      .notNull()
+      .references(() => pengukuran.id),
+    nama: varchar("nama", { length: 200 }).notNull(),
+    jenis: varchar("jenis", { length: 32 }).$type<JenisBukti>().notNull(),
+    ukuran: integer("ukuran").notNull(),
+    isi: bytea("isi").notNull(),
+    diunggahOlehId: uuid("diunggah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diunggahPada: timestamp("diunggah_pada", { withTimezone: true }).notNull().default(sql`clock_timestamp()`),
+  },
+  (t) => [
+    index("bukti_pengukuran_pengukuran_idx").on(t.pengukuranId),
+    check("bukti_pengukuran_jenis_check", salahSatu(t.jenis, JENIS_BUKTI)),
+    check("bukti_pengukuran_ukuran_check", sql`${t.ukuran} = octet_length(${t.isi}) and ${t.ukuran} between 1 and ${sql.raw(String(MAKS_UKURAN_BUKTI))}`),
   ],
 );
 

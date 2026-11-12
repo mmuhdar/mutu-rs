@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 
 import { Ikon } from "../../ikon";
 import { Halaman, KepalaHalaman } from "../../ui";
+import { DaftarBukti } from "../bukti";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 import { FormVerifikasi } from "./form-verifikasi";
 
@@ -72,6 +73,9 @@ export default async function HalamanDetailPengukuran({ params }: PageProps<"/pe
               <p className="mt-2 max-w-[70ch] whitespace-pre-line">{p.catatan || <span className="text-ink-3">Tidak ada catatan.</span>}</p>
             </div>
           </section>
+
+          {/* Sebelum aksi Verifikasi: Kepala Unit memeriksa bukti lebih dulu. */}
+          <DaftarBukti bukti={p.bukti} />
 
           {p.status === "draf"
             ? bolehIsiPengukuran(pengguna) && (

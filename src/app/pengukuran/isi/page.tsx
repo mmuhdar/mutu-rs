@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 import { Ikon } from "../../ikon";
 import { Halaman, KepalaHalaman } from "../../ui";
+import { DaftarBukti } from "../bukti";
 import { FormPengukuran } from "../form-pengukuran";
 import { AlasanPengembalian, formatWaktu, LabelStatus, Pesan, pesanAtau, RiwayatStatus } from "../status";
 
@@ -38,7 +39,7 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
     );
   }
 
-  const { indikator, unit, pengukuran, riwayat } = isian;
+  const { indikator, unit, pengukuran, riwayat, bukti } = isian;
   // Hanya Draf yang bisa diubah; Pengukuran lain dibuka di detail Pengukuran (tempat Verifikasi).
   if (pengukuran && pengukuran.status !== "draf") redirect(`/pengukuran/${pengukuran.id}`);
   const target = await targetBerlaku(pengguna, indikator.id, isian.bulan);
@@ -101,6 +102,8 @@ export default async function HalamanIsiPengukuran({ searchParams }: PageProps<"
         definisiDenominator={indikator.definisiDenominator}
         awal={pengukuran}
       />
+
+      <DaftarBukti bukti={bukti} ubah pengukuranId={pengukuran?.id} />
 
       <RiwayatStatus riwayat={riwayat} />
     </Halaman>

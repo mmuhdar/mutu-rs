@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { hasilAtauError } from "@/lib/errors";
 import { teks } from "@/lib/form";
 import type { AksiVerifikasi } from "@/lib/pengukuran";
-import { ajukanPengukuran, simpanPengukuran, ubahStatusPengukuran } from "@/modules/pengukuran/service";
+import { ajukanPengukuran, hapusBukti, simpanPengukuran, tambahBukti, ubahStatusPengukuran } from "@/modules/pengukuran/service";
 import { getSessionUser } from "@/server/sesi";
 
 export type StatePengukuran = { error?: string };
@@ -48,4 +48,31 @@ export async function ubahStatusPengukuranAction(_prev: StatePengukuran, formDat
   if ("error" in hasil) return { error: hasil.error };
   revalidatePath("/pengukuran", "layout");
   redirect("/pengukuran/verifikasi");
+}
+
+/**
+ * Unggah satu atau beberapa Bukti ke Pengukuran Draf. Setiap berkas diperiksa service sendiri-sendiri: yang lolos tetap
+ * tersimpan, pesan menyebut yang ditolak.
+ */
+export async function unggahBuktiAction(_prev: StatePengukuran, formData: FormData): Promise<StatePengukuran> {
+  const aktor = await getSessionUser();
+  const pengukuranId = teks(formData, "pengukuranId");
+  // Input berkas yang tidak diisi mengirim satu File kosong tanpa nama.
+  const berkas = formData.getAll("berkas").filter((f): f is File => f instanceof File && (f.size > 0 || f.name !== ""));
+  if (berkas.length === 0) return { error: "Pilih berkas bukti." };
+  const ditolak: string[] = [];
+  for (const f of berkas) {
+    const hasil = await hasilAtauError(tambahBukti(aktor, pengukuranId, { nama: f.name, isi: new Uint8Array(await f.arrayBuffer()) }));
+    if ("error" in hasil) ditolak.push(hasil.error);
+  }
+  revalidatePath("/pengukuran", "layout");
+  return ditolak.length > 0 ? { error: ditolak.join(" ") } : {};
+}
+
+/** Hapus satu Bukti dari Pengukuran Draf. */
+export async function hapusBuktiAction(_prev: StatePengukuran, formData: FormData): Promise<StatePengukuran> {
+  const hasil = await hasilAtauError(hapusBukti(await getSessionUser(), teks(formData, "buktiId")));
+  if ("error" in hasil) return { error: hasil.error };
+  revalidatePath("/pengukuran", "layout");
+  return {};
 }

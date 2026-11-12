@@ -1,9 +1,10 @@
-import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
-import { indikator, pengguna, pengukuran, riwayatStatusPengukuran, unit, unitPelapor } from "@/db/schema";
+import { buktiPengukuran, indikator, pengguna, pengukuran, riwayatStatusPengukuran, unit, unitPelapor } from "@/db/schema";
 import { bulanBerjalan, dariTanggal, keTanggal, labelBulan, wajibBulan } from "@/lib/bulan";
+import { jenisBukti, MAKS_BUKTI, MAKS_UKURAN_BUKTI, namaBerkas } from "@/lib/bukti";
 import { hitungCapaian } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
 import { diukurPadaBulan } from "@/lib/indikator";
@@ -176,9 +177,25 @@ const riwayatStatus = (pengukuranId: string) =>
     .where(eq(riwayatStatusPengukuran.pengukuranId, pengukuranId))
     .orderBy(asc(riwayatStatusPengukuran.waktu));
 
+/** Bukti satu Pengukuran tanpa isinya, urut waktu unggah. */
+const daftarBukti = (pengukuranId: string) =>
+  db
+    .select({
+      id: buktiPengukuran.id,
+      nama: buktiPengukuran.nama,
+      jenis: buktiPengukuran.jenis,
+      ukuran: buktiPengukuran.ukuran,
+      diunggahOleh: pengguna.nama,
+      diunggahPada: buktiPengukuran.diunggahPada,
+    })
+    .from(buktiPengukuran)
+    .innerJoin(pengguna, eq(pengguna.id, buktiPengukuran.diunggahOlehId))
+    .where(eq(buktiPengukuran.pengukuranId, pengukuranId))
+    .orderBy(asc(buktiPengukuran.diunggahPada));
+
 /**
  * Bahan formulir isian: Indikator (definisi N, D, Sumber Data, faktor, satuan), Unit, Pengukuran yang sudah ada
- * (null = belum diisi), dan Riwayat Status-nya. Ditolak dengan aturan yang sama seperti menyimpan.
+ * (null = belum diisi), Riwayat Status-nya, dan Bukti-nya. Ditolak dengan aturan yang sama seperti menyimpan.
  */
 export async function ambilIsian(aktor: Pengguna | null, k: KunciIsian, sekarang = new Date()) {
   const konteks = await periksaKonteks(db, aktor, k, sekarang);
@@ -195,8 +212,8 @@ export async function ambilIsian(aktor: Pengguna | null, k: KunciIsian, sekarang
     .from(pengukuran)
     .innerJoin(pengguna, eq(pengguna.id, pengukuran.pengisiId))
     .where(pengukuranUntuk(konteks.indikator.id, konteks.unit.id, k.bulan));
-  const riwayat = ada ? await riwayatStatus(ada.id) : [];
-  return { ...konteks, bulan: k.bulan, pengukuran: ada ?? null, riwayat };
+  const [riwayat, bukti] = ada ? await Promise.all([riwayatStatus(ada.id), daftarBukti(ada.id)]) : [[], []];
+  return { ...konteks, bulan: k.bulan, pengukuran: ada ?? null, riwayat, bukti };
 }
 
 /**
@@ -330,7 +347,7 @@ export async function pengukuranDikembalikan(aktor: Pengguna | null) {
 /** Yang melihat status Pengukuran semua Unit: Komite Mutu dan Admin Sistem. Petugas dan Kepala Unit hanya Unit-nya. */
 const PEMANTAU: readonly Peran[] = ["komiteMutu", "adminSistem"];
 
-/** Detail Pengukuran beserta Capaian dan Riwayat Status-nya, untuk Unit itu, Komite Mutu, dan Admin Sistem. */
+/** Detail Pengukuran beserta Capaian, Riwayat Status, dan Bukti-nya, untuk Unit itu, Komite Mutu, dan Admin Sistem. */
 export async function ambilPengukuran(aktor: Pengguna | null, id: string) {
   wajibPeran(aktor, [...PENGISI, ...PEMANTAU], "Anda tidak berhak melihat Pengukuran.");
   const [p] = apakahUuid(id) ? await pilihPengukuran().where(eq(pengukuran.id, id)) : [];
@@ -338,7 +355,90 @@ export async function ambilPengukuran(aktor: Pengguna | null, id: string) {
   if (bolehIsiPengukuran(aktor) && !aktor.unitIds.includes(p.unit.id)) {
     throw new ServiceError(403, "Anda hanya bisa melihat Pengukuran Unit Anda sendiri.");
   }
-  return { ...denganCapaian(p), riwayat: await riwayatStatus(p.id) };
+  const [riwayat, bukti] = await Promise.all([riwayatStatus(p.id), daftarBukti(p.id)]);
+  return { ...denganCapaian(p), riwayat, bukti };
+}
+
+/** Berkas yang diunggah sebagai Bukti: nama asli dan isinya. */
+export type BerkasBukti = { nama: string; isi: Uint8Array };
+
+/**
+ * Pengukuran Draf yang Bukti-nya boleh diubah aktor: pengisi dengan Unit Pengukuran itu, aturan konteks sama dengan
+ * menyimpan isian, dan status Draf. Urutan kunci sama dengan `simpan` (Indikator `for share` lewat `periksaKonteks`,
+ * lalu Pengukuran `for update`), jadi pengajuan yang bersamaan menunggu dan Bukti tidak berubah setelah Diajukan.
+ */
+async function drafUntukBukti(tx: Transaksi, aktor: Pengguna | null, pengukuranId: string, sekarang: Date) {
+  wajibPeran(aktor, PENGISI, HANYA_PENGISI);
+  const [p] = apakahUuid(pengukuranId)
+    ? await tx
+        .select({ indikatorId: pengukuran.indikatorId, unitId: pengukuran.unitId, bulan: pengukuran.bulan })
+        .from(pengukuran)
+        .where(eq(pengukuran.id, pengukuranId))
+    : [];
+  if (!p) throw new ServiceError(404, "Pengukuran tidak ditemukan.");
+  await periksaKonteks(tx, aktor, { ...p, bulan: dariTanggal(p.bulan) }, sekarang);
+  const [{ status }] = await tx.select({ status: pengukuran.status }).from(pengukuran).where(eq(pengukuran.id, pengukuranId)).for("update");
+  if (status !== "draf") {
+    throw new ServiceError(409, `Pengukuran ini sudah ${LABEL_STATUS_PENGUKURAN[status]}; Bukti hanya bisa diubah selama Draf.`);
+  }
+}
+
+/**
+ * Melampirkan satu Bukti (PDF/JPG/PNG menurut isinya, maks 10 MB) ke Pengukuran Draf Unit aktor; paling banyak
+ * `MAKS_BUKTI` per Pengukuran. Mengembalikan id Bukti.
+ */
+export async function tambahBukti(aktor: Pengguna | null, pengukuranId: string, berkas: BerkasBukti, sekarang = new Date()) {
+  wajibPeran(aktor, PENGISI, HANYA_PENGISI);
+  const nama = namaBerkas(berkas.nama);
+  const isi = Buffer.from(berkas.isi.buffer, berkas.isi.byteOffset, berkas.isi.byteLength);
+  if (isi.length === 0) throw new ServiceError(400, `Berkas ${nama} kosong.`);
+  if (isi.length > MAKS_UKURAN_BUKTI) throw new ServiceError(400, `Berkas ${nama} lebih dari 10 MB.`);
+  const jenis = jenisBukti(isi);
+  if (!jenis) throw new ServiceError(400, `Berkas ${nama} bukan PDF, JPG, atau PNG.`);
+
+  return db.transaction(async (tx) => {
+    await drafUntukBukti(tx, aktor, pengukuranId, sekarang);
+    const [{ jumlah }] = await tx
+      .select({ jumlah: count() })
+      .from(buktiPengukuran)
+      .where(eq(buktiPengukuran.pengukuranId, pengukuranId));
+    if (jumlah >= MAKS_BUKTI) throw new ServiceError(400, `Bukti paling banyak ${MAKS_BUKTI} berkas per Pengukuran.`);
+    const [{ id }] = await tx
+      .insert(buktiPengukuran)
+      .values({ pengukuranId, nama, jenis, ukuran: isi.length, isi, diunggahOlehId: aktor!.id })
+      .returning({ id: buktiPengukuran.id });
+    return id;
+  });
+}
+
+/** Menghapus satu Bukti dari Pengukuran Draf Unit aktor. */
+export async function hapusBukti(aktor: Pengguna | null, buktiId: string, sekarang = new Date()) {
+  wajibPeran(aktor, PENGISI, HANYA_PENGISI);
+  await db.transaction(async (tx) => {
+    const [b] = apakahUuid(buktiId)
+      ? await tx.select({ pengukuranId: buktiPengukuran.pengukuranId }).from(buktiPengukuran).where(eq(buktiPengukuran.id, buktiId))
+      : [];
+    if (!b) throw new ServiceError(404, "Bukti tidak ditemukan.");
+    await drafUntukBukti(tx, aktor, b.pengukuranId, sekarang);
+    await tx.delete(buktiPengukuran).where(eq(buktiPengukuran.id, buktiId));
+  });
+}
+
+/** Nama, jenis, dan isi satu Bukti untuk dibuka; hak baca sama dengan detail Pengukuran (`ambilPengukuran`). */
+export async function ambilBerkasBukti(aktor: Pengguna | null, buktiId: string) {
+  wajibPeran(aktor, [...PENGISI, ...PEMANTAU], "Anda tidak berhak melihat Pengukuran.");
+  const [b] = apakahUuid(buktiId)
+    ? await db
+        .select({ nama: buktiPengukuran.nama, jenis: buktiPengukuran.jenis, isi: buktiPengukuran.isi, unitId: pengukuran.unitId })
+        .from(buktiPengukuran)
+        .innerJoin(pengukuran, eq(pengukuran.id, buktiPengukuran.pengukuranId))
+        .where(eq(buktiPengukuran.id, buktiId))
+    : [];
+  if (!b) throw new ServiceError(404, "Bukti tidak ditemukan.");
+  if (bolehIsiPengukuran(aktor) && !aktor.unitIds.includes(b.unitId)) {
+    throw new ServiceError(403, "Anda hanya bisa melihat Pengukuran Unit Anda sendiri.");
+  }
+  return { nama: b.nama, jenis: b.jenis, isi: b.isi };
 }
 
 /**

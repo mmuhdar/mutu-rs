@@ -4,13 +4,13 @@
 
 **Blocked by:** –
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-12)
 
-- [ ] Tabel `bukti_pengukuran` (bytea) + migrasi.
-- [ ] Aturan murni `src/lib/bukti.ts`: `jenisBukti` dari tanda awal berkas, `MAKS_UKURAN_BUKTI`, `MAKS_BUKTI`, nama berkas dirapikan.
-- [ ] Service: `tambahBukti`, `hapusBukti`, `ambilBerkasBukti`; daftar bukti di `ambilIsian` dan `ambilPengukuran`.
-- [ ] Batas body server action dan proxy 52 MB.
-- [ ] `/pengukuran/isi`: bagian Bukti (unggah banyak, hapus); `/pengukuran/[id]`: daftar baca-saja; route `/pengukuran/bukti/[id]`.
-- [ ] Glosarium: Bukti. `INSTALASI.md`: ukuran backup.
-- [ ] Tes `tests/bukti.test.ts`.
-- [ ] Dicek manual di browser (unggah, hapus, buka, 390 px).
+- [x] Tabel `bukti_pengukuran` (bytea) + migrasi.
+- [x] Aturan murni `src/lib/bukti.ts`: `jenisBukti` dari tanda awal berkas, `MAKS_UKURAN_BUKTI`, `MAKS_BUKTI`, nama berkas dirapikan.
+- [x] Service: `tambahBukti`, `hapusBukti`, `ambilBerkasBukti`; daftar bukti di `ambilIsian` dan `ambilPengukuran`.
+- [x] Batas body server action dan proxy 52 MB.
+- [x] `/pengukuran/isi`: bagian Bukti (unggah banyak, hapus); `/pengukuran/[id]`: daftar baca-saja; route `/pengukuran/bukti/[id]`.
+- [x] Glosarium: Bukti. `INSTALASI.md`: ukuran backup.
+- [x] Tes `tests/bukti.test.ts`.
+- [x] Dicek manual di browser (unggah, hapus, buka, 390 px).
