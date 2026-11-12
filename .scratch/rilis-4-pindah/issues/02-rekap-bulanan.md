@@ -4,10 +4,10 @@
 
 **Blocked by:** 01 (urutan kelompok)
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-12)
 
-- [ ] `rekapBulanan(aktor, bulan?, sekarang?)` di modul Capaian.
-- [ ] Route handler `/rekap-bulanan?bulan=` (CSV lewat `keCsv`).
-- [ ] Tombol "Unduh CSV" di Dashboard (hanya `melihatCapaianRs`).
-- [ ] Glosarium: Rekap Bulanan.
-- [ ] Tes (tahun 2017).
+- [x] `rekapBulanan(aktor, bulan?, sekarang?)` di modul Capaian.
+- [x] Route handler `/rekap-bulanan?bulan=` (CSV lewat `keCsv`).
+- [x] Tombol "Unduh CSV" di Dashboard (hanya `melihatCapaianRs`).
+- [x] Glosarium: Rekap Bulanan.
+- [x] Tes (tahun 2017).

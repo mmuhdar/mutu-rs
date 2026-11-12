@@ -112,6 +112,9 @@ _Avoid_: laporan PMKP, evaluasi triwulan
 **Rekomendasi**:
 Kesimpulan dan saran perbaikan Komite Mutu untuk satu Triwulan, bagian akhir Laporan Triwulan.
 
+**Rekap Bulanan**:
+Unduhan CSV Capaian satu bulan dari Dashboard: per Indikator, Capaian RS (kecuali IMP-Unit) lalu Capaian setiap Unit Pelapor-nya, untuk diolah di Excel.
+
 **Rekap SIMAR**:
 Isian INM satu bulan untuk SIMAR Kemenkes, per INM: N dan D dari Capaian RS, "Analisa Capaian" dari Analisis Lingkup RS, dan "Rencana Tindak Lanjut" dari Tindak Lanjut-nya, ditandai bila belum siap; paling lambat tanggal 10 bulan berikutnya. "Analisa Capaian" dan "Rencana Tindak Lanjut" hanya dipakai sebagai nama isian SIMAR.
 

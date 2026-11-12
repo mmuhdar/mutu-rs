@@ -257,7 +257,20 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
       <Kartu
         judul="Capaian per Indikator"
         sub={`${labelBulan(ringkasan.bulan)}. Garis tegak = Target; Belum Tercapai di atas.`}
-        aksi={<TautanKecil href={`/monitoring?bulan=${ringkasan.bulan}`}>Buka Monitoring</TautanKecil>}
+        aksi={
+          <span className="flex flex-wrap gap-2">
+            {!perUnit && (
+              // Tautan biasa, bukan `Link`: tujuannya route handler yang mengunduh berkas.
+              <Button asChild variant="outline" size="sm">
+                <a href={`/rekap-bulanan?bulan=${ringkasan.bulan}`} download>
+                  <Ikon nama="unduh" className="size-4" />
+                  Unduh CSV
+                </a>
+              </Button>
+            )}
+            <TautanKecil href={`/monitoring?bulan=${ringkasan.bulan}`}>Buka Monitoring</TautanKecil>
+          </span>
+        }
       >
         {urut.length === 0 ? (
           <div className="px-5 pb-5">

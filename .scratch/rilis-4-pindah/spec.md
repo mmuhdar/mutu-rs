@@ -99,7 +99,7 @@ Selain itu, pengaturan v1 (52 nama Indikator di 53 ruangan, beserta definisi dan
   - Hanya `PELIHAT_RS`.
   - Tanpa bulan = `bulanLalu`; bulan yang belum berjalan ditolak.
   - Hanya Indikator aktif yang diukur bulan itu.
-  - Per Indikator: satu baris Capaian RS (`unit` null), lalu satu baris per Unit Pelapor (urut nama).
+  - Per Indikator: satu baris Capaian RS (`unit` null; tidak ada untuk IMP-Unit, yang hanya punya Lingkup Unit), lalu satu baris per Unit Pelapor (urut nama).
   - Urutan Indikator: kelompok, lalu kode.
 - Route handler `/rekap-bulanan?bulan=` (`src/app/rekap-bulanan/route.ts`), CSV lewat `keCsv`. Kolom:
   - Kelompok, Kode, Indikator, Lingkup ("RS" atau nama Unit), Satuan, Arah

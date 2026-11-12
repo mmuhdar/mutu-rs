@@ -5,7 +5,8 @@ import { indikator, pengukuran, unit, unitPelapor } from "@/db/schema";
 import { bulanLalu, bulanTriwulan, geserBulan, keTanggal, wajibBulanBerjalan, wajibTriwulanSelesai } from "@/lib/bulan";
 import { capaianDari, ringkasStatus } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
-import { diukurPadaBulan, targetPadaBulan } from "@/lib/indikator";
+import { diukurPadaBulan, KELOMPOK, targetPadaBulan } from "@/lib/indikator";
+import { punyaLingkupRs } from "@/lib/perbaikan";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
@@ -157,6 +158,33 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
     belumTercapai: baris.filter((b) => b.status === "belumTercapai"),
   };
 }
+
+/**
+ * Rekap Bulanan (unduhan CSV Dashboard): Indikator aktif yang diukur pada bulan "YYYY-MM", urut kelompok lalu kode.
+ * Per Indikator satu baris Capaian RS (`unit` null; tidak ada untuk IMP-Unit, yang hanya punya Lingkup Unit), lalu
+ * satu baris per Unit Pelapor urut nama. Hanya Komite Mutu, Direktur, dan Admin Sistem; tanpa bulan = bulan lalu.
+ */
+export async function rekapBulanan(aktor: Pengguna | null, bulan?: string, sekarang = new Date()) {
+  wajibPeran(aktor, PELIHAT_RS, "Rekap Bulanan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
+  bulan ||= bulanLalu(sekarang);
+  wajibBulanBerjalan(bulan, sekarang);
+  const pelapor = (await unitPelaporBulan(bulan, eq(indikator.aktif, true))).filter((p) =>
+    diukurPadaBulan(p.indikator.frekuensi, bulan),
+  );
+  const daftar = [...new Map(pelapor.map((p) => [p.indikator.id, p.indikator])).values()].sort(
+    (a, b) => KELOMPOK.indexOf(a.kelompok) - KELOMPOK.indexOf(b.kelompok) || a.kode.localeCompare(b.kode),
+  );
+  const targetPada = await targetUntuk(daftar.map((i) => i.id));
+  const baris = daftar.flatMap((ind) => {
+    const milik = pelapor.filter((p) => p.indikator.id === ind.id);
+    const target = targetPada(ind.id, bulan);
+    const rs = punyaLingkupRs(ind.kelompok) ? [{ indikator: ind, unit: null, ...capaianDari(milik, ind, target) }] : [];
+    return [...rs, ...milik.map((p) => ({ indikator: ind, unit: p.unit, ...capaianDari([p], ind, target) }))];
+  });
+  return { bulan, baris };
+}
+
+export type RekapBulanan = Awaited<ReturnType<typeof rekapBulanan>>;
 
 /**
  * Capaian Triwulan ("YYYY-T", hanya yang sudah selesai) untuk Laporan Triwulan; hanya yang melihat Capaian RS. Satu
