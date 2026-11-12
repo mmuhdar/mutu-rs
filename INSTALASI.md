@@ -60,6 +60,24 @@ Unit, Indikator (beserta definisi dan Target), dan Unit Pelapor dari modul Mutu 
 
 6. Komite Mutu melengkapi yang ditandai "Belum diisi (dari aplikasi lama)" (Sumber Data, dan definisi yang kosong) di halaman Indikator sebelum isian pertama bulan peralihan, karena definisi N dan D terkunci setelah ada Pengukuran.
 
+## Listrik padam dan server rusak
+
+- **Setelah listrik kembali**, aplikasi hidup sendiri:
+  - semua layanan memakai `restart: unless-stopped`, asalkan Docker ikut menyala saat server boot (`sudo systemctl enable docker`);
+  - bila MutuRS berjalan di VM Proxmox, aktifkan juga **Start at boot** pada VM itu.
+
+  PostgreSQL memulihkan dirinya sendiri setelah mati mendadak; transaksi yang sudah tersimpan tidak hilang.
+- **Kurangi risiko kerusakan disk:**
+  - pasang UPS untuk server;
+  - bila ada, pakai NUT supaya server dimatikan dengan rapi saat baterai UPS hampir habis.
+- **Bila server rusak total:**
+  1. Pasang Docker di server baru.
+  2. Salin folder aplikasi dan `.env`.
+  3. Pulihkan dump terakhir dari NAS (lihat "Memulihkan ke database kosong" di bawah).
+
+  Karena itu simpan salinan `.env` di tempat aman di luar server (isinya sandi database dan Admin Sistem), dan pastikan folder backup tersalin ke NAS setiap hari.
+- **Uji pemulihan** sesekali di komputer lain. Backup yang belum pernah dipulihkan belum terbukti bisa dipakai.
+
 ## Backup harian
 
 - Layanan `backup` membuat dump seluruh database MutuRS setiap hari pukul 01.00 menurut zona waktu `APP_TIMEZONE`.
