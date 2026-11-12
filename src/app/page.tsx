@@ -7,6 +7,7 @@ import { TANDA_ARAH } from "@/lib/indikator";
 import { HARI_MENDEKATI_TENGGAT, LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
 import { melihatCapaianRs, ringkasanCapaian, trenRingkasan } from "@/modules/capaian/service";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
+import { menanganiInsiden, ringkasanInsiden } from "@/modules/insiden/service";
 import { rekapSimar } from "@/modules/laporan/service";
 import { antreanVerifikasi, bolehIsiPengukuran, bolehVerifikasi, pengukuranDikembalikan } from "@/modules/pengukuran/service";
 import { belumDianalisis, bolehTulisLingkup, daftarPdsa, daftarTindakLanjut } from "@/modules/perbaikan/service";
@@ -42,14 +43,14 @@ export const metadata: Metadata = { title: "Dashboard" };
 /**
  * Dashboard: halaman pertama setelah masuk. Pertanyaannya: Indikator mana yang belum tercapai bulan ini, dan apa yang
  * harus saya kerjakan? Angka Capaian dari `ringkasanCapaian` dan `trenRingkasan` (modul Capaian); Analisis yang belum
- * ditulis, Tindak Lanjut, dan PDSA dari modul Perbaikan.
+ * ditulis, Tindak Lanjut, dan PDSA dari modul Perbaikan; antrean Insiden dari `ringkasanInsiden` (modul Insiden).
  */
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const pengguna = await requireUser();
   // Bulan tidak valid atau belum berjalan diganti bulan bawaan (ditentukan service) dengan pemberitahuan.
   const { bulan, pemberitahuan } = bulanDariAlamat((await searchParams).bulan);
   const perUnit = !melihatCapaianRs(pengguna);
-  const [ringkasan, tren, antrean, dikembalikan, belum, tindakLanjut, pdsa, simar] = await Promise.all([
+  const [ringkasan, tren, antrean, dikembalikan, belum, tindakLanjut, pdsa, simar, insiden] = await Promise.all([
     pesanAtau(ringkasanCapaian(pengguna, bulan)),
     pesanAtau(trenRingkasan(pengguna, bulan)),
     bolehVerifikasi(pengguna) ? antreanVerifikasi(pengguna) : null,
@@ -59,6 +60,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     daftarPdsa(pengguna),
     // Kesiapan SIMAR bulan lalu untuk pengelola Indikator (yang melapor ke SIMAR).
     bolehKelolaIndikator(pengguna) ? rekapSimar(pengguna) : null,
+    ringkasanInsiden(pengguna),
   ]);
   const lewatTenggat = tindakLanjut.filter((t) => t.lewatTenggat).length;
   const mendekatiTenggat = tindakLanjut.filter((t) => t.mendekatiTenggat).length;
@@ -127,6 +129,42 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             ikon: "kembalikan" as const,
             nada: "warn" as const,
             href: "/pengukuran",
+          },
+        ]
+      : []),
+    // Insiden: yang menunggu penangan (Kepala Unit, Komite Mutu); Direktur melihat yang masih terbuka.
+    ...(menanganiInsiden(pengguna)
+      ? [
+          { label: "Insiden menunggu Anda", nilai: insiden.menunggu, ikon: "insiden" as const, nada: "warn" as const, href: "/insiden" },
+          {
+            label: "Insiden lewat tenggat investigasi",
+            nilai: insiden.lewatTenggat,
+            ikon: "jam" as const,
+            nada: insiden.lewatTenggat > 0 ? ("neg" as const) : ("tindak" as const),
+            href: "/insiden",
+          },
+        ]
+      : pengguna.peran === "direktur"
+        ? [
+            {
+              label: "Insiden terbuka",
+              nilai: insiden.terbuka,
+              keterangan: `${insiden.lewatTenggat} lewat tenggat investigasi`,
+              ikon: "insiden" as const,
+              nada: insiden.lewatTenggat > 0 ? ("neg" as const) : ("tindak" as const),
+              href: "/insiden",
+            },
+          ]
+        : []),
+    ...(insiden.belumEreport !== null
+      ? [
+          {
+            label: "KTD dan Sentinel belum di e-report",
+            nilai: insiden.belumEreport,
+            keterangan: "laporan ke Kemenkes",
+            ikon: "insiden" as const,
+            nada: "warn" as const,
+            href: "/insiden?status=semua",
           },
         ]
       : []),

@@ -17,11 +17,20 @@ import {
 import { formatCapaian } from "@/lib/capaian";
 import { config } from "@/lib/config";
 import { KELOMPOK, TANDA_ARAH } from "@/lib/indikator";
+import {
+  LABEL_AKIBAT_INSIDEN,
+  LABEL_JENIS_INSIDEN,
+  LABEL_STATUS_INSIDEN,
+  LABEL_TIPE_INSIDEN,
+  LABEL_WARNA_GRADING,
+  WARNA_GRADING,
+} from "@/lib/insiden";
 import { LABEL_KEPUTUSAN_PDSA, labelLingkup } from "@/lib/perbaikan";
 import { laporanTriwulan, type LaporanTriwulan } from "@/modules/laporan/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
+import { LabelWarna } from "../insiden/label";
 import { Kolom } from "../form";
 import { Ikon } from "../ikon";
 import { LabelTahap } from "../pdsa/tahap";
@@ -181,6 +190,8 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
           </ul>
         )}
       </Kartu>
+
+      <RekapInsiden lap={lap} />
 
       <Kartu judul="Rekomendasi" sub={`Kesimpulan dan saran perbaikan Komite Mutu untuk ${labelTriwulan(lap.triwulan)}.`}>
         <div className="grid gap-3 px-5 pb-5">
@@ -408,6 +419,143 @@ function AnalisisDanTindakLanjut({ lap }: { lap: LaporanTriwulan }) {
               </section>
             );
           })}
+        </div>
+      )}
+    </Kartu>
+  );
+}
+
+/** Daftar hitungan berlabel di satu panel rekap Insiden (per Unit, per tipe, per akibat). */
+function DaftarHitung({ judul, isi }: { judul: string; isi: { label: string; jumlah: number }[] }) {
+  return (
+    <div className="grid min-w-0 content-start gap-2 bg-paper-2 p-5 print:break-inside-avoid">
+      <h3 className="text-[14px] font-medium text-ink-2">{judul}</h3>
+      {isi.length === 0 ? (
+        <p className="text-[14px] text-ink-3">tidak ada</p>
+      ) : (
+        <ul className="grid gap-1">
+          {isi.map((x) => (
+            <li key={x.label} className="flex items-baseline justify-between gap-4 text-[14px]">
+              <span className="min-w-0">{x.label}</span>
+              <span className="terukur text-ink">{x.jumlah}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Rekap Insiden Keselamatan Pasien Triwulan (KMK 1596/2024 PMKP 1 dan 9): jumlah per jenis × warna grading, per Unit,
+ * per tipe insiden, per akibat, penanganan, dan Insiden yang diinvestigasi dengan RCA. Tanpa identitas pasien maupun
+ * Pembuat Laporan; semua dari `rekapInsiden`.
+ */
+function RekapInsiden({ lap }: { lap: LaporanTriwulan }) {
+  const r = lap.insiden;
+  return (
+    <Kartu
+      judul="Insiden Keselamatan Pasien"
+      sub="Menurut waktu insiden, tanpa Bukan Insiden; tanpa identitas pasien maupun Pembuat Laporan. Grading = grading terakhir."
+    >
+      {r.jumlah === 0 ? (
+        <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada Insiden pada {labelTriwulan(lap.triwulan)}.</p>
+      ) : (
+        <div className="grid gap-5 pb-5">
+          <Tabel label="Insiden per jenis dan warna grading" lebarMin="min-w-[40rem]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Jenis insiden</TableHead>
+                {WARNA_GRADING.map((w) => (
+                  <TableHead key={w} className="text-right">
+                    {LABEL_WARNA_GRADING[w]}
+                  </TableHead>
+                ))}
+                <TableHead className="text-right">Belum digrading</TableHead>
+                <TableHead className="border-l border-rule text-right">Jumlah</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {r.perJenis.map((j) => (
+                <TableRow key={j.jenis}>
+                  <TableCell className="font-medium">{LABEL_JENIS_INSIDEN[j.jenis]}</TableCell>
+                  {WARNA_GRADING.map((w) => (
+                    <TableCell key={w} className={`terukur text-right ${j.perWarna[w] ? "text-ink" : "text-ink-3"}`}>
+                      {j.perWarna[w]}
+                    </TableCell>
+                  ))}
+                  <TableCell className={`terukur text-right ${j.belumDigrading ? "text-signal" : "text-ink-3"}`}>{j.belumDigrading}</TableCell>
+                  <TableCell className="terukur border-l border-rule text-right text-ink">{j.jumlah}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell className="font-medium">Semua jenis</TableCell>
+                {WARNA_GRADING.map((w) => (
+                  <TableCell key={w} className="terukur text-right text-ink">
+                    {r.perJenis.reduce((n, j) => n + j.perWarna[w], 0)}
+                  </TableCell>
+                ))}
+                <TableCell className="terukur text-right text-ink">{r.perJenis.reduce((n, j) => n + j.belumDigrading, 0)}</TableCell>
+                <TableCell className="terukur border-l border-rule text-right text-[15px] text-ink">{r.jumlah}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Tabel>
+
+          <p className="px-5 text-[15px]">
+            Penanganan: <span className="terukur text-ink">{r.penanganan.selesai}</span> Selesai,{" "}
+            <span className="terukur text-ink">{r.penanganan.berjalan}</span> masih berjalan
+            {r.penanganan.lewatTenggat > 0 && (
+              <>
+                , <span className="terukur text-bad">{r.penanganan.lewatTenggat}</span> lewat tenggat investigasi
+              </>
+            )}
+            .
+          </p>
+
+          {/* Tiga hitungan berdampingan: satu permukaan dibagi garis rambut. */}
+          <div className="mx-5 grid gap-px overflow-hidden rounded-card border border-rule bg-rule md:grid-cols-3 print:grid-cols-3">
+            <DaftarHitung judul="Per Unit" isi={r.perUnit.map((u) => ({ label: u.unit.nama, jumlah: u.jumlah }))} />
+            <DaftarHitung
+              judul="Per tipe insiden"
+              isi={[
+                ...r.perTipe.map((t) => ({ label: LABEL_TIPE_INSIDEN[t.kunci], jumlah: t.jumlah })),
+                ...(r.belumDiinvestigasi > 0 ? [{ label: "Belum diinvestigasi", jumlah: r.belumDiinvestigasi }] : []),
+              ]}
+            />
+            <DaftarHitung judul="Akibat terhadap pasien" isi={r.perAkibat.map((a) => ({ label: LABEL_AKIBAT_INSIDEN[a.kunci], jumlah: a.jumlah }))} />
+          </div>
+
+          <section aria-labelledby="insiden-rca" className="grid">
+            <h3 id="insiden-rca" className="px-5 pb-2 font-display text-[16px] font-medium">
+              Insiden yang diinvestigasi dengan RCA
+            </h3>
+            {r.rca.length === 0 ? (
+              <p className="px-5 text-[15px] text-ink-3">Tidak ada RCA pada {labelTriwulan(lap.triwulan)}.</p>
+            ) : (
+              <ul className="grid">
+                {r.rca.map((i) => (
+                  <li key={i.id} className="grid gap-2 border-t border-rule px-5 py-4 print:break-inside-avoid">
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="text-[16px] font-medium">{i.judul}</span>
+                      <LabelWarna warna={i.warna} />
+                      {i.lewatTenggat && <Pil nada="neg">Lewat tenggat</Pil>}
+                    </span>
+                    <span className="text-[14px] text-ink-3">
+                      {LABEL_JENIS_INSIDEN[i.jenis]}, Unit {i.unit.nama}, <span className="terukur text-[13px] text-cool">{formatWaktu(i.waktuInsiden)}</span>,{" "}
+                      {LABEL_STATUS_INSIDEN[i.status]}
+                      {i.tipeInsiden && `, ${LABEL_TIPE_INSIDEN[i.tipeInsiden]}`}
+                    </span>
+                    {i.akarMasalah && (
+                      <dl className="grid gap-2 pt-1">
+                        <Teks label="Akar masalah">{i.akarMasalah}</Teks>
+                        <Teks label="Rekomendasi">{i.rekomendasi}</Teks>
+                      </dl>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
       )}
     </Kartu>
