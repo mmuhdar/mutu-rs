@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -174,7 +175,35 @@ function MenuAkun({ pengguna, namaRs }: { pengguna: { nama: string; peran: strin
 }
 
 /**
- * Bingkai aplikasi untuk Pengguna yang masuk (shadcn `SidebarProvider`): sidebar navy di kiri (laci di HP, bisa
+ * Mode terang/gelap: `data-theme` di <html> langsung diganti (token di `globals.css`), pilihannya disimpan di cookie
+ * `tema` supaya layout merender mode yang sama pada permintaan berikutnya.
+ */
+function TombolTema({ terangAwal }: { terangAwal: boolean }) {
+  const [terang, setTerang] = useState(terangAwal);
+  function ganti() {
+    const baru = !terang;
+    document.documentElement.dataset.theme = baru ? "light" : "dark";
+    document.cookie = `tema=${baru ? "terang" : "gelap"}; path=/; max-age=31536000; samesite=lax`;
+    setTerang(baru);
+  }
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      onClick={ganti}
+      aria-pressed={terang}
+      aria-label="Mode terang"
+      title={terang ? "Ganti ke mode gelap" : "Ganti ke mode terang"}
+      className="shrink-0"
+    >
+      <Ikon nama={terang ? "gelap" : "terang"} className="size-[18px]" />
+    </Button>
+  );
+}
+
+/**
+ * Bingkai aplikasi untuk Pengguna yang masuk (shadcn `SidebarProvider`): sidebar di kiri (laci di HP, bisa
  * disembunyikan di desktop; keadaannya disimpan di cookie `sidebar_state`), bar atas berisi pencarian Indikator dan menu
  * akun, lalu isi halaman. Menu sudah disaring per peran oleh layout (hanya tampilan).
  */
@@ -184,6 +213,7 @@ export function Bingkai(p: {
   pengguna: { nama: string; peran: string };
   kartu?: KartuSamping;
   bukaAwal: boolean;
+  terangAwal: boolean;
   children: React.ReactNode;
 }) {
   const aktif = menuAktif(
@@ -208,7 +238,8 @@ export function Bingkai(p: {
                 className="pl-10"
               />
             </form>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <TombolTema terangAwal={p.terangAwal} />
               <MenuAkun pengguna={p.pengguna} namaRs={p.namaRs} />
             </div>
           </div>

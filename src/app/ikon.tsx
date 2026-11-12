@@ -22,12 +22,14 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  Moon,
   Plus,
   Printer,
   RefreshCw,
   Search,
   ShieldCheck,
   SquarePen,
+  Sun,
   Target,
   Undo2,
   Users,
@@ -72,6 +74,8 @@ const BENTUK = {
   cetak: Printer,
   unduh: Download,
   salin: Copy,
+  terang: Sun,
+  gelap: Moon,
 } as const;
 
 export type NamaIkon = keyof typeof BENTUK;

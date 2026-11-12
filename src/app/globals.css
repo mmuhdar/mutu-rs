@@ -16,6 +16,21 @@
 @import "./base.css" layer(base);
 
 /*
+ * Mode terang/gelap mengganti token (blok "paper" di bawah), bukan kelas: kelas `.dark` tidak pernah dipasang, jadi
+ * penyesuaian `dark:` bawaan komponen shadcn tidak aktif dan tampilan tidak ikut preferensi OS.
+ */
+@custom-variant dark (&:is(.dark *));
+/* Mode terang = `data-theme="light"` di <html> (cookie `tema`, dibaca layout), dan selalu saat cetak. */
+@custom-variant terang {
+  &:where([data-theme="light"], [data-theme="light"] *) {
+    @slot;
+  }
+  @media print {
+    @slot;
+  }
+}
+
+/*
  * Nama variabel shadcn dan MutuRS diarahkan ke token Console (tokens.css), jadi setiap komponen ikut sistem baru tanpa
  * warna literal. Makna warna: amber (signal) = orang dan aksi utama (tombol utama, menu aktif, langkah yang sedang
  * berjalan, penyimpangan); cool = instrumen (nilai yang diukur, waktu); ok/bad hanya untuk Status Capaian dan status.
@@ -225,9 +240,41 @@
 }
 
 /*
- * Tampilan cetak ("Cetak / Simpan PDF", mis. Laporan Triwulan): warna "paper" tema Console (kertas terang, tinta gelap,
- * amber dan cool versi gelap), A4, tanpa bingkai aplikasi (sidebar, bar atas), tabel selebar kertas tanpa wadah geser.
- * Bagian yang hanya untuk layar (saringan, tombol, form) diberi `print:hidden` di halamannya.
+ * Warna "paper" tema Console untuk mode terang dan cetak: kertas terang, tinta gelap, amber dan cool versi gelap. Tiga
+ * tingkat kertas tetap bermakna sama dengan mode gelap (dasar, panel, isian/sidebar); semua teks ≥ 4.5:1.
+ */
+:root {
+  @variant terang {
+    color-scheme: light;
+    --color-paper: oklch(97% 0.006 85);
+    --color-paper-2: oklch(99.5% 0.003 85);
+    --color-paper-3: oklch(94.5% 0.008 85);
+    --color-ink: oklch(19% 0.01 60);
+    --color-ink-2: oklch(30% 0.01 60);
+    --color-ink-3: oklch(45% 0.01 60);
+    --color-rule: oklch(86% 0.008 85);
+    --color-rule-2: oklch(66% 0.01 85);
+    --color-signal: oklch(50% 0.13 70);
+    --color-signal-ink: oklch(99% 0.004 85);
+    --color-signal-soft: oklch(94% 0.04 80);
+    --color-signal-rule: oklch(72% 0.1 75);
+    --color-focus: oklch(50% 0.13 70);
+    --color-cool: oklch(49% 0.14 250);
+    --color-cool-soft: oklch(94.5% 0.025 245);
+    --color-cool-rule: oklch(72% 0.08 245);
+    --color-ok: oklch(45% 0.13 150);
+    --color-ok-soft: oklch(94.5% 0.035 150);
+    --color-ok-rule: oklch(70% 0.09 150);
+    --color-bad: oklch(50% 0.17 25);
+    --color-bad-soft: oklch(95% 0.025 25);
+    --color-bad-rule: oklch(72% 0.1 25);
+  }
+}
+
+/*
+ * Tampilan cetak ("Cetak / Simpan PDF", mis. Laporan Triwulan): warna "paper" di atas dengan dasar seputih panel, A4,
+ * tanpa bingkai aplikasi (sidebar, bar atas), tabel selebar kertas tanpa wadah geser. Bagian yang hanya untuk layar
+ * (saringan, tombol, form) diberi `print:hidden` di halamannya.
  */
 @media print {
   @page {
@@ -235,28 +282,7 @@
     margin: 14mm 12mm;
   }
   :root {
-    color-scheme: light;
-    --color-paper: oklch(98% 0.006 85);
-    --color-paper-2: oklch(98% 0.006 85);
-    --color-paper-3: oklch(95% 0.008 85);
-    --color-ink: oklch(19% 0.01 60);
-    --color-ink-2: oklch(30% 0.01 60);
-    --color-ink-3: oklch(42% 0.01 60);
-    --color-rule: oklch(82% 0.008 85);
-    --color-rule-2: oklch(65% 0.01 85);
-    --color-signal: oklch(54% 0.14 70);
-    --color-signal-ink: oklch(98% 0.006 85);
-    --color-signal-soft: oklch(93% 0.04 80);
-    --color-signal-rule: oklch(70% 0.1 75);
-    --color-cool: oklch(52% 0.14 250);
-    --color-cool-soft: oklch(93% 0.03 245);
-    --color-cool-rule: oklch(70% 0.08 245);
-    --color-ok: oklch(45% 0.13 150);
-    --color-ok-soft: oklch(93% 0.04 150);
-    --color-ok-rule: oklch(68% 0.09 150);
-    --color-bad: oklch(48% 0.17 25);
-    --color-bad-soft: oklch(94% 0.03 25);
-    --color-bad-rule: oklch(70% 0.1 25);
+    --color-paper: var(--color-paper-2);
   }
   html,
   body,

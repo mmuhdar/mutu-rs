@@ -75,8 +75,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
   const pengguna = await getSessionUser();
   const simar = jadwalSimar(bulanLalu());
+  const kue = await cookies();
+  // Mode gelap kecuali Pengguna memilih terang (cookie dari `TombolTema` di nav-samping).
+  const terang = kue.get("tema")?.value === "terang";
   return (
-    <html lang="id" className={`${host.variable} ${atkinson.variable}`}>
+    <html lang="id" data-theme={terang ? "light" : "dark"} className={`${host.variable} ${atkinson.variable}`}>
       <body className="min-h-dvh bg-background font-sans text-base leading-6 text-foreground">
         {pengguna ? (
           <Bingkai
@@ -89,7 +92,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             namaRs={config.namaRs}
             pengguna={{ nama: pengguna.nama, peran: LABEL_PERAN[pengguna.peran] }}
             // Sidebar desktop terbuka kecuali Pengguna menutupnya (cookie dari shadcn `SidebarProvider`).
-            bukaAwal={(await cookies()).get("sidebar_state")?.value !== "false"}
+            bukaAwal={kue.get("sidebar_state")?.value !== "false"}
+            terangAwal={terang}
             kartu={
               bolehKelolaIndikator(pengguna)
                 ? {

@@ -5,11 +5,11 @@ The locked system. Every Hallmark run reads this first and screens share it. Cha
 ## System
 - Genre: modern-minimal
 - Shape: app screen (every route; no hero, no fold, no marketing sections)
-- Theme: Console, colourway graphite (deal 2/3)
+- Theme: Console, colourway graphite (deal 2/3); light mode and print use the Console colourway paper
 - Axes: dark/grotesk-sans/chromatic-amber · posture: restrained
 
 ## Tokens
-`src/app/tokens.css` is the source of truth (Tailwind 4 `@theme static`, so every token is a utility: `bg-paper-2`, `text-ink-3`, `border-rule-2`, `text-signal`, `bg-cool-soft`, `font-display`, `rounded-card`). Two Hallmark names are renamed because shadcn owns them: accent is `signal`, muted is `ink-3`. `src/app/globals.css` points every shadcn and older MutuRS variable (`background`, `card`, `primary`, `muted-foreground`, `success`, `danger`, `warning`, `brand`…) at these tokens, and swaps in the light "paper" colourway for print.
+`src/app/tokens.css` is the source of truth (Tailwind 4 `@theme static`, so every token is a utility: `bg-paper-2`, `text-ink-3`, `border-rule-2`, `text-signal`, `bg-cool-soft`, `font-display`, `rounded-card`). Two Hallmark names are renamed because shadcn owns them: accent is `signal`, muted is `ink-3`. `src/app/globals.css` points every shadcn and older MutuRS variable (`background`, `card`, `primary`, `muted-foreground`, `success`, `danger`, `warning`, `brand`…) at these tokens, and swaps in the light "paper" colourway (one block, the `terang` variant) for light mode and print. Light mode = `data-theme="light"` on `<html>`, from the `tema` cookie the toggle in the top bar sets; the default is graphite and the OS preference is not followed. The shadcn `dark:` classes never fire (`.dark` is never set): both modes are tokens only, every text pair ≥ 4.5:1 in both.
 ```css
 :root {
   --color-paper: oklch(17% 0.008 250);  --color-paper-2: oklch(21% 0.009 250);  --color-paper-3: oklch(13.5% 0.007 250);
