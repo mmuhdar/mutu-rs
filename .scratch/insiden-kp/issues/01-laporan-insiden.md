@@ -4,11 +4,11 @@
 
 **Blocked by:** –
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-12)
 
-- [ ] Aturan murni `src/lib/insiden.ts` (konstanta, label, `kelompokUmur`, `akibatSesuaiJenis`, `terlambatDilaporkan`); `waktuSetempat`/`dariWaktuSetempat` di `src/lib/bulan.ts`.
-- [ ] Tabel `insiden` dan `riwayat_status_insiden` + migrasi.
-- [ ] Service: `laporkanInsiden`, `ubahLaporan`, `ambilInsiden`, `daftarInsiden`, `bolehBacaInsiden`.
-- [ ] Halaman `/insiden`, `/insiden/lapor`, `/insiden/[id]` (bacaan), `/insiden/[id]/ubah`; menu "Insiden".
-- [ ] Glosarium: bagian Keselamatan Pasien; Komite Mutu = Tim Keselamatan Pasien.
-- [ ] Tes service.
+- [x] Aturan murni `src/lib/insiden.ts` (konstanta, label, `kelompokUmur`, `akibatSesuaiJenis`, `terlambatDilaporkan`); `waktuSetempat`/`dariWaktuSetempat` di `src/lib/bulan.ts`.
+- [x] Tabel `insiden` dan `riwayat_status_insiden` + migrasi.
+- [x] Service: `laporkanInsiden`, `ubahLaporan`, `ambilInsiden`, `daftarInsiden`, `bolehBacaInsiden`.
+- [x] Halaman `/insiden`, `/insiden/lapor`, `/insiden/[id]` (bacaan), `/insiden/[id]/ubah`; menu "Insiden".
+- [x] Glosarium: bagian Keselamatan Pasien; Komite Mutu = Tim Keselamatan Pasien.
+- [x] Tes service.

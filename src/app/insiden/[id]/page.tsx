@@ -19,6 +19,7 @@ import {
   LABEL_TINDAKAN_OLEH,
   LABEL_TIPE_INSIDEN,
   labelUmur,
+  selGrading,
   STATUS_INSIDEN_TERBUKA,
   warnaGrading,
 } from "@/lib/insiden";
@@ -78,7 +79,7 @@ function barisLaporan(i: DetailInsiden): [string, React.ReactNode][] {
 /** Langkah berikutnya menurut status: form bila aktor boleh, selain itu siapa yang sedang ditunggu. */
 function LangkahBerikutnya({ i }: { i: DetailInsiden }) {
   const versi = i.diubahPada.toISOString();
-  const grading = i.dampak && i.probabilitas ? { dampak: i.dampak, probabilitas: i.probabilitas } : null;
+  const grading = selGrading(i);
   const tenggat = i.tenggat && (
     <span className="flex flex-wrap items-center gap-2">
       Paling lambat {labelTanggal(i.tenggat)}
@@ -177,6 +178,8 @@ export default async function HalamanDetailInsiden({ params }: PageProps<"/insid
   const terbuka = STATUS_INSIDEN_TERBUKA.includes(i.status);
   // Hasil investigasi dibaca di kartu sendiri bila tidak sedang diisi lewat form.
   const tampilInvestigasi = i.investigasi && !i.boleh.investigasi;
+  // Setiap simpan yang berhasil mengubah `diubahPada`, jadi semua form dibuat ulang dan pesan penolakan lama hilang.
+  const versi = i.diubahPada.toISOString();
 
   return (
     <Halaman>
@@ -246,7 +249,7 @@ export default async function HalamanDetailInsiden({ params }: PageProps<"/insid
               sub="KTD dan Kejadian Sentinel dilaporkan ke mutufasyankes.kemkes.go.id (Log In RS (IKP)). MutuRS hanya mencatat tanggalnya."
             >
               <div className="px-5 pb-5">
-                <FormEreport key={i.ereportPada} id={i.id} tanggal={i.ereportPada} maks={hariIni()} />
+                <FormEreport key={versi} id={i.id} tanggal={i.ereportPada} maks={hariIni()} />
               </div>
             </Kartu>
           )}
@@ -260,7 +263,7 @@ export default async function HalamanDetailInsiden({ params }: PageProps<"/insid
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <FormBukanInsiden id={i.id} />
+                  <FormBukanInsiden key={versi} id={i.id} />
                 </CollapsibleContent>
               </Collapsible>
             </Kartu>

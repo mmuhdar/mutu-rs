@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { hasilAtauError } from "@/lib/errors";
-import { ditolak, teks, type StateForm } from "@/lib/form";
+import { bilanganBulat, ditolak, teks, type StateForm } from "@/lib/form";
 import {
   catatEreport,
   gradingInsiden,
@@ -18,12 +18,6 @@ import {
   type IsianLaporan,
 } from "@/modules/insiden/service";
 import { getSessionUser } from "@/server/sesi";
-
-/** Angka dari form; isian kosong = NaN (bukan 0), ditolak atau dianggap kosong oleh service. */
-const angka = (formData: FormData, nama: string) => {
-  const nilai = teks(formData, nama).trim();
-  return nilai === "" ? Number.NaN : Number(nilai);
-};
 
 /** Pilihan Ya/Tidak dari form; selain itu null (ditolak service). */
 const yaTidak = (nilai: string) => (nilai === "ya" ? true : nilai === "tidak" ? false : null);
@@ -40,8 +34,8 @@ const isianLaporan = (formData: FormData): IsianLaporan => ({
   pasienInisial: teks(formData, "pasienInisial"),
   pasienNoRm: teks(formData, "pasienNoRm"),
   pasienRuangan: teks(formData, "pasienRuangan"),
-  umurTahun: angka(formData, "umurTahun"),
-  umurBulan: angka(formData, "umurBulan"),
+  umurTahun: bilanganBulat(teks(formData, "umurTahun")),
+  umurBulan: bilanganBulat(teks(formData, "umurBulan")),
   jenisKelamin: teks(formData, "jenisKelamin"),
   penanggungBiaya: teks(formData, "penanggungBiaya"),
   kategoriPasien: teks(formData, "kategoriPasien"),
@@ -102,12 +96,15 @@ export async function investigasiAction(_prev: StateForm, formData: FormData): P
   const aktor = await getSessionUser();
   const id = teks(formData, "id");
   const lanjut = teks(formData, "lanjut");
-  return aksi(
+  const isian = isianInvestigasi(formData);
+  const state = await aksi(
     formData,
     lanjut === "selesai"
-      ? selesaikanRca(aktor, id, { ...isianInvestigasi(formData), ...grading(formData) })
-      : simpanInvestigasi(aktor, id, isianInvestigasi(formData), lanjut === "kirim"),
+      ? selesaikanRca(aktor, id, { ...isian, ...grading(formData) })
+      : simpanInvestigasi(aktor, id, isian, lanjut === "kirim"),
   );
+  // Faktor kontributor bernilai banyak; `ditolak` hanya menyimpan yang terakhir, jadi semuanya dikirim ulang dipisah koma.
+  return state.nilai ? { ...state, nilai: { ...state.nilai, faktorKontributor: isian.faktorKontributor.join(",") } } : state;
 }
 
 export async function tinjauAction(_prev: StateForm, formData: FormData): Promise<StateForm> {

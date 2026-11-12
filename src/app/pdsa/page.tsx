@@ -10,7 +10,7 @@ import { requireUser } from "@/server/sesi";
 
 import { Ikon } from "../ikon";
 import { Pesan } from "../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon } from "../ui";
+import { Halaman, Kartu, KELAS_SEGMEN_TAUTAN, KepalaHalaman, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon } from "../ui";
 import { JejakTahap, LabelTahap } from "./tahap";
 
 export const metadata: Metadata = { title: "PDSA" };
@@ -31,9 +31,6 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
   const semua = teksAlamat(await searchParams, "status") === "semua";
   const daftar = await daftarPdsa(pengguna, { semua });
   const jumlah = (tahap: TahapPdsa) => daftar.filter((p) => p.tahap === tahap).length;
-  // Segmen saringan: jalur paper-3, pilihan yang dibuka di paper-2 dengan garis amber di bawahnya.
-  const kelasPilihan =
-    "h-9 px-3.5 text-[14px] text-ink-3 hover:bg-transparent hover:text-ink aria-[current=page]:bg-card aria-[current=page]:text-ink aria-[current=page]:shadow-[inset_0_-2px_0_var(--color-signal)]";
 
   return (
     <Halaman>
@@ -44,12 +41,12 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
           <>
             {/* Saringan di atas daftar: jumlah per tahap ikut saringan ini. */}
             <nav aria-label="Saringan status" className="grid w-full grid-cols-2 gap-0.5 rounded-md border border-rule bg-paper-3 p-0.5 sm:flex sm:w-auto">
-              <Button asChild variant="ghost" size="sm" className={kelasPilihan}>
+              <Button asChild variant="ghost" size="sm" className={KELAS_SEGMEN_TAUTAN}>
                 <Link href="/pdsa" aria-current={!semua ? "page" : undefined}>
                   Sedang berjalan
                 </Link>
               </Button>
-              <Button asChild variant="ghost" size="sm" className={kelasPilihan}>
+              <Button asChild variant="ghost" size="sm" className={KELAS_SEGMEN_TAUTAN}>
                 <Link href="/pdsa?status=semua" aria-current={semua ? "page" : undefined}>
                   Semua
                 </Link>

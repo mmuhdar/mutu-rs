@@ -29,9 +29,13 @@ export const lewatTenggat = (tl: { status: StatusTindakLanjut; tenggat: string }
 /** Berapa hari sebelum tenggat Tindak Lanjut ditandai mendekati tenggat. */
 export const HARI_MENDEKATI_TENGGAT = 7;
 
+/** Tenggat ("YYYY-MM-DD") jatuh hari ini sampai `HARI_MENDEKATI_TENGGAT` hari lagi; juga dipakai tenggat investigasi Insiden. */
+export const dalamJendelaTenggat = (tenggat: string, hariIni: string) =>
+  tenggat >= hariIni && tenggat <= tambahHari(hariIni, HARI_MENDEKATI_TENGGAT);
+
 /** Mendekati tenggat: status masih terbuka dan tenggat hari ini sampai 7 hari lagi ("YYYY-MM-DD"). Dihitung, bukan status. */
 export const mendekatiTenggat = (tl: { status: StatusTindakLanjut; tenggat: string }, hariIni: string) =>
-  STATUS_TERBUKA.includes(tl.status) && tl.tenggat >= hariIni && tl.tenggat <= tambahHari(hariIni, HARI_MENDEKATI_TENGGAT);
+  STATUS_TERBUKA.includes(tl.status) && dalamJendelaTenggat(tl.tenggat, hariIni);
 
 /** Tahap aktif PDSA, berurutan; PDSA yang baru dibuat (Plan sudah diisi) langsung berada di tahap Do. */
 export const TAHAP_PDSA = ["plan", "do", "study", "act", "selesai"] as const;

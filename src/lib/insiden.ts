@@ -1,5 +1,4 @@
-import { tambahHari } from "./bulan";
-import { HARI_MENDEKATI_TENGGAT } from "./perbaikan";
+import { dalamJendelaTenggat } from "./perbaikan";
 
 /*
  * Konstanta dan aturan murni modul Insiden (Insiden Keselamatan Pasien); service di `src/modules/insiden`. Pilihan dan
@@ -45,9 +44,9 @@ export const STATUS_INSIDEN = pilihan(LABEL_STATUS_INSIDEN);
 /** Status yang masih menunggu penanganan (bawaan daftar Insiden). */
 export const STATUS_INSIDEN_TERBUKA: readonly StatusInsiden[] = ["dilaporkan", "investigasi", "ditinjau", "rca"];
 /** Status yang punya tenggat investigasi. */
-const STATUS_BERTENGGAT: readonly StatusInsiden[] = ["investigasi", "rca"];
+export const STATUS_BERTENGGAT: readonly StatusInsiden[] = ["investigasi", "rca"];
 
-/** Warna grading risiko (band Rendah, Moderat, Tinggi, Ekstrim). */
+/** Warna grading risiko (di pedoman: risiko Rendah, Moderat, Tinggi, Ekstrim). */
 export const LABEL_WARNA_GRADING = { biru: "Biru", hijau: "Hijau", kuning: "Kuning", merah: "Merah" } as const;
 export type WarnaGrading = keyof typeof LABEL_WARNA_GRADING;
 export const WARNA_GRADING = pilihan(LABEL_WARNA_GRADING);
@@ -60,7 +59,7 @@ export const DAMPAK = [
   { nilai: 4, label: "Mayor", keterangan: "Cedera luas/berat, kehilangan fungsi (irreversibel)" },
   { nilai: 5, label: "Katastropik", keterangan: "Kematian yang tidak berhubungan dengan perjalanan penyakit" },
 ] as const;
-/** Tingkat probabilitas 1–5: seberapa sering kejadian serupa terjadi di RS (KKP-RS 2008 Tabel 2). */
+/** Tingkat probabilitas 1–5: seberapa sering insiden serupa terjadi di RS (KKP-RS 2008 Tabel 2). */
 export const PROBABILITAS = [
   { nilai: 1, label: "Sangat jarang", keterangan: "lebih dari 5 tahun sekali" },
   { nilai: 2, label: "Jarang", keterangan: "lebih dari 2 sampai 5 tahun sekali" },
@@ -84,8 +83,15 @@ const MATRIKS: readonly (readonly WarnaGrading[])[] = [
 /** Benar bila `n` tingkat dampak/probabilitas yang sah (bilangan bulat 1–5). */
 export const tingkatValid = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 5;
 
+/** Sel matriks sebagai nilai form "dampak-probabilitas"; undefined = belum digrading. */
+export const selGrading = (g: { dampak: number | null; probabilitas: number | null }) =>
+  g.dampak && g.probabilitas ? `${g.dampak}-${g.probabilitas}` : undefined;
+
 /** Warna grading dari dampak dan probabilitas (masing-masing 1–5). */
 export const warnaGrading = (dampak: number, probabilitas: number): WarnaGrading => MATRIKS[probabilitas - 1][dampak - 1];
+
+/** Perlu dicatat tanggal e-report Kemenkes-nya: KTD atau Kejadian Sentinel yang bukan Bukan Insiden. */
+export const perluEreport = (i: { jenis: JenisInsiden; status: StatusInsiden }) => JENIS_EREPORT.includes(i.jenis) && i.status !== "bukanInsiden";
 
 /** Kuning, merah, dan semua Kejadian Sentinel diinvestigasi dengan RCA oleh Komite Mutu; biru dan hijau cukup Investigasi Sederhana. */
 export const perluRca = (jenis: JenisInsiden, warna: WarnaGrading) => jenis === "sentinel" || warna === "kuning" || warna === "merah";
@@ -100,15 +106,12 @@ type BerTenggat = { status: StatusInsiden; tenggat: string | null };
 export const lewatTenggatInsiden = (i: BerTenggat, hariIni: string) =>
   STATUS_BERTENGGAT.includes(i.status) && i.tenggat !== null && i.tenggat < hariIni;
 
-/** Mendekati tenggat: masih Investigasi Sederhana atau RCA dan tenggatnya hari ini sampai `HARI_MENDEKATI_TENGGAT` hari lagi. */
+/** Mendekati tenggat: masih Investigasi Sederhana atau RCA dan tenggatnya hari ini sampai 7 hari lagi (sama dengan Tindak Lanjut). */
 export const mendekatiTenggatInsiden = (i: BerTenggat, hariIni: string) =>
-  STATUS_BERTENGGAT.includes(i.status) &&
-  i.tenggat !== null &&
-  i.tenggat >= hariIni &&
-  i.tenggat <= tambahHari(hariIni, HARI_MENDEKATI_TENGGAT);
+  STATUS_BERTENGGAT.includes(i.status) && i.tenggat !== null && dalamJendelaTenggat(i.tenggat, hariIni);
 
 /** Batas laporan internal: 2×24 jam (PMK 11/2017 Pasal 18 ayat (1)). */
-export const JAM_BATAS_LAPOR = 48;
+const JAM_BATAS_LAPOR = 48;
 /** Laporan dibuat lebih dari 2×24 jam setelah waktu insiden. Hanya penanda: laporan terlambat tetap diterima. */
 export const terlambatDilaporkan = (waktuInsiden: Date, dilaporkanPada: Date) =>
   dilaporkanPada.getTime() - waktuInsiden.getTime() > JAM_BATAS_LAPOR * 3_600_000;
@@ -217,7 +220,7 @@ export const TIPE_INSIDEN = pilihan(LABEL_TIPE_INSIDEN);
 
 /** Faktor kontributor (Formulir 2 bagian D), boleh lebih dari satu. */
 export const LABEL_FAKTOR_KONTRIBUTOR = {
-  eksternal: "Eksternal/di luar fasilitas",
+  eksternal: "Eksternal/di luar RS",
   organisasi: "Organisasi dan manajemen",
   lingkungan: "Lingkungan kerja",
   tim: "Tim",
@@ -229,15 +232,15 @@ export const LABEL_FAKTOR_KONTRIBUTOR = {
 export type FaktorKontributor = keyof typeof LABEL_FAKTOR_KONTRIBUTOR;
 export const FAKTOR_KONTRIBUTOR = pilihan(LABEL_FAKTOR_KONTRIBUTOR);
 
-/** Kelompok umur Formulir 1 dari umur dalam bulan (batas atas termasuk: 12 bulan = ">1 bulan–1 tahun"). */
+/** Kelompok umur Formulir 1 dari umur dalam bulan (batas atas termasuk: 12 bulan = ">1 bulan s.d. 1 tahun"). */
 export function kelompokUmur(umurBulan: number) {
   const batas: [number, string][] = [
-    [1, "0–1 bulan"],
-    [12, ">1 bulan–1 tahun"],
-    [60, ">1–5 tahun"],
-    [180, ">5–15 tahun"],
-    [360, ">15–30 tahun"],
-    [780, ">30–65 tahun"],
+    [1, "0 s.d. 1 bulan"],
+    [12, ">1 bulan s.d. 1 tahun"],
+    [60, ">1 s.d. 5 tahun"],
+    [180, ">5 s.d. 15 tahun"],
+    [360, ">15 s.d. 30 tahun"],
+    [780, ">30 s.d. 65 tahun"],
   ];
   return batas.find(([b]) => umurBulan <= b)?.[1] ?? ">65 tahun";
 }

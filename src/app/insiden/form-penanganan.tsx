@@ -17,38 +17,39 @@ import {
   TIPE_INSIDEN,
   warnaGrading,
   type FaktorKontributor,
+  type WarnaGrading,
 } from "@/lib/insiden";
 
 import { kelasPetunjuk, Kolom, PesanError } from "../form";
 import { PilihCari } from "../pilih-cari";
 import { bukanInsidenAction, ereportAction, gradingAction, investigasiAction, tinjauAction } from "./actions";
-import { SEL_WARNA } from "./label";
 
 /*
  * Form penanganan Insiden di halaman detail (client, `useActionState`). Grading = satu sel matriks dampak × probabilitas
  * (RadioGroup; nilai "dampak-probabilitas"), warna tiap sel ditulis di selnya.
  */
 
-type Grading = { dampak: number; probabilitas: number } | null;
+/** Kelas sel matriks per warna grading (latar lembut + teks), sama dengan `Pil` nada warna itu di `./label`. */
+const SEL_WARNA: Record<WarnaGrading, string> = {
+  biru: "bg-cool-soft text-cool",
+  hijau: "bg-ok-soft text-ok",
+  kuning: "bg-signal-soft text-signal",
+  merah: "bg-bad-soft text-bad",
+};
 
 /**
- * Matriks grading KKP-RS 2008: baris = probabilitas (5 di atas), kolom = dampak. Satu sel dipilih; selnya bertuliskan
- * warna. Di HP judul baris/kolom hanya angka, keterangannya di daftar di bawah matriks.
+ * Matriks grading KKP-RS 2008: baris = probabilitas (5 di atas), kolom = dampak. Satu sel dipilih (`nilai` =
+ * "dampak-probabilitas"); selnya bertuliskan warna. Di HP judul baris/kolom hanya angka, keterangannya di bawah matriks.
  */
-export function MatriksGrading({ nilai }: { nilai: Grading }) {
+function MatriksGrading({ nilai }: { nilai?: string }) {
   return (
     <fieldset className="grid min-w-0 gap-3">
       <legend className="text-sm font-medium">Grading risiko</legend>
       <p className={kelasPetunjuk}>
-        Pilih sel pertemuan dampak (kolom) dan probabilitas (baris): seberapa sering kejadian serupa terjadi di RS.
+        Pilih sel pertemuan dampak (kolom) dan probabilitas (baris): seberapa sering insiden serupa terjadi di RS.
       </p>
-      {/* key: pilihan awal (mis. grading tersimpan) dipasang ulang bila berubah. */}
-      <RadioGroup
-        key={nilai ? `${nilai.dampak}-${nilai.probabilitas}` : "kosong"}
-        name="grading"
-        required
-        aria-label="Matriks grading risiko"
-        defaultValue={nilai ? `${nilai.dampak}-${nilai.probabilitas}` : undefined}
+      {/* key: pilihan awal (grading tersimpan, atau pilihan yang ditolak) dipasang ulang bila berubah. */}
+      <RadioGroup key={nilai ?? "kosong"} name="grading" required aria-label="Matriks grading risiko" defaultValue={nilai}
         className="grid max-w-2xl grid-cols-[minmax(0,1.1fr)_repeat(5,minmax(0,1fr))] gap-px overflow-hidden rounded-md border border-rule bg-rule"
       >
         {/* Di HP sudut ini kosong: petunjuk di atas sudah menyebut baris dan kolomnya. */}
@@ -115,7 +116,7 @@ export function FormGrading({ id, petunjuk }: { id: string; petunjuk: string }) 
     <form action={action} className="grid gap-4">
       <input type="hidden" name="id" value={id} />
       <p className="text-[14px] text-ink-2">{petunjuk}</p>
-      <MatriksGrading nilai={null} />
+      <MatriksGrading nilai={state.nilai?.grading} />
       <p className={kelasPetunjuk}>Biru dan hijau: Investigasi Sederhana oleh Kepala Unit. Kuning, merah, dan Kejadian Sentinel: RCA oleh Komite Mutu.</p>
       <PesanError pesan={state.error} />
       <Button type="submit" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
@@ -125,7 +126,7 @@ export function FormGrading({ id, petunjuk }: { id: string; petunjuk: string }) 
   );
 }
 
-export type AwalInvestigasi = {
+type AwalInvestigasi = {
   tipeInsiden: string;
   faktorKontributor: FaktorKontributor[];
   penyebabLangsung: string;
@@ -137,10 +138,11 @@ export type AwalInvestigasi = {
  * Isian investigasi (Investigasi Sederhana atau RCA). `rca` = RCA oleh Komite Mutu: matriks grading akhir ikut, tombol
  * utama "Selesaikan RCA"; selain itu tombol utama mengirim ke Komite Mutu.
  */
-export function FormInvestigasi(p: { id: string; awal: AwalInvestigasi | null; rca: boolean; grading: Grading }) {
+export function FormInvestigasi(p: { id: string; awal: AwalInvestigasi | null; rca: boolean; grading?: string }) {
   const [state, action, pending] = useActionState(investigasiAction, {});
   const a = { ...p.awal, ...state.nilai };
-  const faktor: readonly string[] = p.awal?.faktorKontributor ?? [];
+  // Pilihan yang ditolak (dipisah koma oleh action) didahulukan dari isian tersimpan.
+  const faktor: readonly string[] = state.nilai ? (state.nilai.faktorKontributor ?? "").split(",") : (p.awal?.faktorKontributor ?? []);
   return (
     <form action={action} className="grid gap-5">
       <input type="hidden" name="id" value={p.id} />
@@ -181,7 +183,7 @@ export function FormInvestigasi(p: { id: string; awal: AwalInvestigasi | null; r
       <Kolom label="Rekomendasi dan tindakan perbaikan" htmlFor="rekomendasi" petunjuk="Menjadi umpan balik ke Unit dan Pembuat Laporan setelah Selesai.">
         <Textarea id="rekomendasi" name="rekomendasi" rows={4} required maxLength={4000} defaultValue={a.rekomendasi} className="leading-6" />
       </Kolom>
-      {p.rca && <MatriksGrading nilai={p.grading} />}
+      {p.rca && <MatriksGrading nilai={state.nilai?.grading ?? p.grading} />}
       <PesanError pesan={state.error} />
       <div className="grid gap-2.5 sm:grid-flow-col sm:justify-start">
         <Button type="submit" name="lanjut" value={p.rca ? "selesai" : "kirim"} size="lg" disabled={pending} className="w-full sm:w-auto">
@@ -196,12 +198,12 @@ export function FormInvestigasi(p: { id: string; awal: AwalInvestigasi | null; r
 }
 
 /** Tinjauan Komite Mutu: grading akhir (terisi grading terakhir) dan catatan opsional. */
-export function FormTinjau({ id, grading }: { id: string; grading: Grading }) {
+export function FormTinjau({ id, grading }: { id: string; grading?: string }) {
   const [state, action, pending] = useActionState(tinjauAction, {});
   return (
     <form action={action} className="grid gap-5">
       <input type="hidden" name="id" value={id} />
-      <MatriksGrading nilai={grading} />
+      <MatriksGrading nilai={state.nilai?.grading ?? grading} />
       <Kolom label="Catatan Komite Mutu" htmlFor="catatan" petunjuk="Opsional; umpan balik untuk Unit.">
         <Textarea id="catatan" name="catatan" rows={3} maxLength={1000} defaultValue={state.nilai?.catatan} className="leading-6" />
       </Kolom>

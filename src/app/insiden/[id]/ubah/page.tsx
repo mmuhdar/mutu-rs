@@ -8,6 +8,7 @@ import { requireUser } from "@/server/sesi";
 import { Pesan, pesanAtau } from "../../../pengukuran/status";
 import { Halaman, KepalaHalaman } from "../../../ui";
 import { FormLaporan, type AwalLaporan } from "../../form-laporan";
+import { PengingatSentinel } from "../../label";
 
 export const metadata: Metadata = { title: "Ubah Laporan Insiden" };
 
@@ -56,7 +57,10 @@ export default async function HalamanUbahLaporan({ params }: PageProps<"/insiden
         sub="Laporan bisa diubah sampai digrading oleh Kepala Unit atau Komite Mutu."
       />
       <section aria-label="Laporan Insiden" className="rounded-card border border-rule bg-card p-5 sm:p-6">
-        <FormLaporan id={i.id} unit={unit.map((u) => ({ id: u.id, label: u.nama }))} awal={awalDari(i)} maksWaktu={waktuSetempat(new Date())} />
+        <FormLaporan id={i.id} unit={unit.map((u) => ({ id: u.id, label: u.nama }))} awal={awalDari(i)}
+          maksWaktu={waktuSetempat(new Date())}
+          pengingatSentinel={<PengingatSentinel />}
+        />
       </section>
     </Halaman>
   );

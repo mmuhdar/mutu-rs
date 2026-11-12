@@ -28,6 +28,7 @@ import {
   type IsianInvestigasi,
   type IsianLaporan,
 } from "@/modules/insiden/service";
+import { laporanTriwulan } from "@/modules/laporan/service";
 import { aturAktifUnit } from "@/modules/unit/service";
 
 import { adminSistem, komiteMutu, sebagai, unitBaru } from "./bantuan";
@@ -124,7 +125,17 @@ describe("aturan murni Insiden", () => {
   it("kelompok umur mengikuti Formulir 1 dengan batas atas termasuk", () => {
     assert.deepEqual(
       [0, 1, 2, 12, 13, 60, 61, 780, 781].map(kelompokUmur),
-      ["0–1 bulan", "0–1 bulan", ">1 bulan–1 tahun", ">1 bulan–1 tahun", ">1–5 tahun", ">1–5 tahun", ">5–15 tahun", ">30–65 tahun", ">65 tahun"],
+      [
+        "0 s.d. 1 bulan",
+        "0 s.d. 1 bulan",
+        ">1 bulan s.d. 1 tahun",
+        ">1 bulan s.d. 1 tahun",
+        ">1 s.d. 5 tahun",
+        ">1 s.d. 5 tahun",
+        ">5 s.d. 15 tahun",
+        ">30 s.d. 65 tahun",
+        ">65 tahun",
+      ],
     );
     assert.deepEqual([0, 5, 12, 38].map(labelUmur), ["0 bulan", "5 bulan", "1 tahun", "3 tahun 2 bulan"]);
   });
@@ -231,6 +242,8 @@ describe("hak baca dan ubah laporan", () => {
     await ubahLaporan(petugasA, id, isian({ judul: "Label obat tertukar (diperbaiki)" }), SEKARANG);
     assert.equal((await ambilInsiden(petugasA, id, SEKARANG)).judul, "Label obat tertukar (diperbaiki)");
     await assert.rejects(ubahLaporan(kepalaA, id, isian(), SEKARANG), ditolak(403));
+    // Bukan Pembuat Laporan ditolak lebih dulu, walau isiannya juga tidak sah.
+    await assert.rejects(ubahLaporan(kepalaA, id, isian({ judul: "" }), SEKARANG), ditolak(403));
     await gradingInsiden(kepalaA, id, { dampak: 1, probabilitas: 1 });
     await assert.rejects(ubahLaporan(petugasA, id, isian(), SEKARANG), ditolak(409, /sudah digrading/));
   });
@@ -279,10 +292,15 @@ describe("alur grading dan investigasi", () => {
     assert.equal((await ambilInsiden(komite, id, SEKARANG)).tenggat, "2026-06-29");
     await simpanInvestigasi(kepalaA, id, investigasi, true);
     const tinjau = new Date("2026-06-20T02:00:00Z");
-    assert.deepEqual(await tinjauInsiden(komite, id, { dampak: 3, probabilitas: 3, catatan: "" }, tinjau), { status: "rca", warna: "kuning" });
+    assert.deepEqual(await tinjauInsiden(komite, id, { dampak: 3, probabilitas: 3, catatan: "Dialihkan ke RCA." }, tinjau), {
+      status: "rca",
+      warna: "kuning",
+    });
     const i = await ambilInsiden(komite, id, tinjau);
     assert.equal(i.tenggat, "2026-08-04");
-    assert.equal(i.riwayat.at(-1)?.catatan, null);
+    assert.equal(i.riwayat.at(-1)?.catatan, "Dialihkan ke RCA.");
+    // Pembuat Laporan baru melihat catatan Komite Mutu setelah Insiden ditutup.
+    assert.equal((await ambilInsiden(petugasA, id, tinjau)).riwayat.at(-1)?.catatan, null);
     assert.equal(i.boleh.investigasi, true);
     assert.equal((await ambilInsiden(kepalaA, id, tinjau)).boleh.investigasi, false);
     await assert.rejects(simpanInvestigasi(kepalaA, id, investigasi, false), ditolak(403, /RCA/));
@@ -293,6 +311,8 @@ describe("alur grading dan investigasi", () => {
     assert.equal(akhir.status, "selesai");
     assert.equal(akhir.warna, "hijau");
     assert.equal(akhir.investigasi?.rekomendasi, "Rekomendasi RCA.");
+    const pembuat = await ambilInsiden(petugasA, id, tinjau);
+    assert.equal(pembuat.riwayat.find((r) => r.statusTujuan === "rca")?.catatan, "Dialihkan ke RCA.");
   });
 
   it("Kejadian Sentinel selalu masuk RCA walau gradingnya biru", async () => {
@@ -341,6 +361,18 @@ describe("alur grading dan investigasi", () => {
 });
 
 describe("ringkasan Dashboard", () => {
+  it("lewat tenggat Kepala Unit hanya Investigasi Sederhana Unit-nya; RCA dihitung untuk Komite Mutu", async () => {
+    const nanti = new Date("2027-06-15T02:00:00Z");
+    const [kepala, komiteSebelum] = [await ringkasanInsiden(kepalaA, nanti), await ringkasanInsiden(komite, nanti)];
+    const rca = await lapor({ jenis: "sentinel", akibat: "kematian" });
+    await gradingInsiden(kepalaA, rca, { dampak: 5, probabilitas: 1 });
+    assert.equal((await ringkasanInsiden(kepalaA, nanti)).lewatTenggat, kepala.lewatTenggat);
+    assert.equal((await ringkasanInsiden(komite, nanti)).lewatTenggat, komiteSebelum.lewatTenggat + 1);
+    const sederhana = await lapor();
+    await gradingInsiden(kepalaA, sederhana, { dampak: 1, probabilitas: 1 });
+    assert.equal((await ringkasanInsiden(kepalaA, nanti)).lewatTenggat, kepala.lewatTenggat + 1);
+  });
+
   it("menghitung yang menunggu tindakan aktor", async () => {
     const [kepala, komiteSebelum] = [await ringkasanInsiden(kepalaA, SEKARANG), await ringkasanInsiden(komite, SEKARANG)];
     const id = await lapor();
@@ -366,34 +398,45 @@ describe("rekap Insiden Triwulan", () => {
     await gradingInsiden(kepalaB, biru, { dampak: 1, probabilitas: 1 });
     const bukan = await lapor({ waktuInsiden: "2013-01-05T09:00", tanggalMasuk: "" }, petugasA, april);
     await tandaiBukanInsiden(komite, bukan, "Duplikat.");
+    // RCA yang masih berjalan dengan isian tersimpan: tipe dan teksnya belum masuk rekap.
+    const berjalan = await lapor({ jenis: "ktd", akibat: "cederaSedang", waktuInsiden: "2013-03-02T10:00", tanggalMasuk: "" }, petugasA, april);
+    await gradingInsiden(komite, berjalan, { dampak: 3, probabilitas: 3 });
+    await simpanInvestigasi(komite, berjalan, { ...investigasi, tipeInsiden: "jatuh", akarMasalah: "Draf akar masalah." }, false);
     // Triwulan II, tidak dihitung.
     await lapor({ waktuInsiden: "2013-04-01T00:10", tanggalMasuk: "" }, petugasA, april);
   });
 
   it("menurut waktu insiden, tanpa Bukan Insiden, dengan daftar RCA", async () => {
     const r = await rekapInsiden(komite, "2013-1", april);
-    assert.equal(r.jumlah, 2);
+    assert.equal(r.jumlah, 3);
     const ktd = r.perJenis.find((j) => j.jenis === "ktd")!;
-    assert.deepEqual([ktd.jumlah, ktd.perWarna.merah], [1, 1]);
+    assert.deepEqual([ktd.jumlah, ktd.perWarna.merah, ktd.perWarna.kuning], [2, 1, 1]);
     assert.equal(r.perJenis.find((j) => j.jenis === "knc")!.perWarna.biru, 1);
+    assert.deepEqual(r.semuaJenis, { perWarna: { biru: 1, hijau: 0, kuning: 1, merah: 1 }, belumDigrading: 0, jumlah: 3 });
     assert.deepEqual(
       r.perUnit.map((u) => u.jumlah),
-      [1, 1],
+      [2, 1],
     );
     assert.deepEqual(r.perTipe, [{ kunci: "medikasi", jumlah: 1 }]);
-    assert.equal(r.belumDiinvestigasi, 1);
-    assert.deepEqual(r.penanganan, { selesai: 1, berjalan: 1, lewatTenggat: 0 });
+    assert.equal(r.belumDiinvestigasi, 2);
+    assert.deepEqual(r.penanganan, { selesai: 1, berjalan: 2, lewatTenggat: 0 });
     assert.deepEqual(
-      r.rca.map((x) => [x.id, x.akarMasalah, x.warna]),
-      [[rca, investigasi.akarMasalah, "merah"]],
+      r.rca.map((x) => [x.id === rca, x.tanggal, x.akarMasalah, x.warna]),
+      [
+        [true, "2013-02-10", investigasi.akarMasalah, "merah"],
+        [false, "2013-03-02", null, "kuning"],
+      ],
     );
     // Tanpa identitas pasien dan Pembuat Laporan.
     assert.equal(JSON.stringify(r).includes("Tn AR"), false);
   });
 
-  it("hanya untuk yang melihat Capaian RS dan hanya Triwulan yang sudah selesai", async () => {
+  it("hanya untuk Komite Mutu dan Direktur, dan hanya Triwulan yang sudah selesai; Laporan Triwulan Admin Sistem tanpa rekap Insiden", async () => {
     await assert.rejects(rekapInsiden(kepalaA, "2013-1", april), ditolak(403));
+    await assert.rejects(rekapInsiden(admin, "2013-1", april), ditolak(403));
     await assert.rejects(rekapInsiden(komite, "2013-2", april), ditolak(400));
-    assert.equal((await rekapInsiden(admin, "2013-1", april)).jumlah, 2);
+    assert.equal((await rekapInsiden(direktur, "2013-1", april)).jumlah, 3);
+    assert.equal((await laporanTriwulan(admin, "2013-1", april)).insiden, null);
+    assert.equal((await laporanTriwulan(komite, "2013-1", april)).insiden?.jumlah, 3);
   });
 });

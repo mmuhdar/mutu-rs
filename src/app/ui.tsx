@@ -195,6 +195,13 @@ const KELAS_TUMPUK =
  * Letak sel tabel `tumpuk` di HP: `penuh` = selebar baris, `dua` = dua kolom pertama, `ujung` = rata kanan di kolom
  * terakhir, `urut1`…`urut7` = urutan tampil (sel diurutkan ulang supaya nama, bacaan, lalu bar terbaca berurutan).
  */
+/**
+ * Kelas tautan saringan berbentuk segmen di kepala halaman (`Button asChild variant="ghost" size="sm"` + `Link` dengan
+ * `aria-current`): jalur paper-3, pilihan yang dibuka di paper-2 dengan garis amber di bawahnya.
+ */
+export const KELAS_SEGMEN_TAUTAN =
+  "h-9 px-3.5 text-[14px] text-ink-3 hover:bg-transparent hover:text-ink aria-[current=page]:bg-card aria-[current=page]:text-ink aria-[current=page]:shadow-[inset_0_-2px_0_var(--color-signal)]";
+
 export const TUMPUK = {
   penuh: "max-sm:col-span-3",
   dua: "max-sm:col-span-2",

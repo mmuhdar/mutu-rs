@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { labelBulan, waktuSetempat } from "@/lib/bulan";
+import { labelBulan } from "@/lib/bulan";
 import { LABEL_STATUS_CAPAIAN } from "@/lib/capaian";
 import { keCsv, type SelCsv } from "@/lib/csv";
 import { responsPenolakan } from "@/lib/errors";
@@ -50,18 +50,21 @@ function barisCsv(lap: LaporanTriwulan): SelCsv[][] {
   ];
 }
 
-/** Rekap Insiden sebagai dua tabel di bawah tabel Capaian: jumlah per jenis × warna grading, lalu daftar RCA. */
+/** Rekap Insiden sebagai dua tabel di bawah tabel Capaian: jumlah per jenis × warna grading, lalu daftar RCA. Tanpa rekap (Admin Sistem) = tidak ada. */
 function barisInsiden({ insiden: r }: LaporanTriwulan): SelCsv[][] {
+  if (!r) return [];
+  const baris = (label: string, x: (typeof r)["semuaJenis"]) => [label, ...WARNA_GRADING.map((w) => x.perWarna[w]), x.belumDigrading, x.jumlah];
   return [
     [],
     ["Insiden Keselamatan Pasien (menurut waktu insiden, tanpa Bukan Insiden)"],
     ["Jenis insiden", ...WARNA_GRADING.map((w) => LABEL_WARNA_GRADING[w]), "Belum digrading", "Jumlah"],
-    ...r.perJenis.map((j) => [LABEL_JENIS_INSIDEN[j.jenis], ...WARNA_GRADING.map((w) => j.perWarna[w]), j.belumDigrading, j.jumlah]),
+    ...r.perJenis.map((j) => baris(LABEL_JENIS_INSIDEN[j.jenis], j)),
+    baris("Semua jenis", r.semuaJenis),
     [],
     ["Insiden yang diinvestigasi dengan RCA"],
-    ["Waktu insiden", "Insiden", "Jenis", "Grading", "Unit", "Status", "Tipe insiden", "Akar masalah", "Rekomendasi"],
+    ["Tanggal insiden", "Insiden", "Jenis", "Grading", "Unit", "Status", "Tipe insiden", "Akar masalah", "Rekomendasi"],
     ...r.rca.map((i) => [
-      waktuSetempat(i.waktuInsiden).replace("T", " "),
+      i.tanggal,
       i.judul,
       LABEL_JENIS_INSIDEN[i.jenis],
       i.warna ? LABEL_WARNA_GRADING[i.warna] : null,

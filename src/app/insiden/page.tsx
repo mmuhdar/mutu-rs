@@ -4,13 +4,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { labelTanggal } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
-import { LABEL_JENIS_INSIDEN, LABEL_STATUS_INSIDEN, STATUS_INSIDEN_TERBUKA } from "@/lib/insiden";
+import { LABEL_JENIS_INSIDEN, LABEL_STATUS_INSIDEN, perluEreport, STATUS_BERTENGGAT, STATUS_INSIDEN_TERBUKA } from "@/lib/insiden";
 import { daftarInsiden, type SaringanStatusInsiden } from "@/modules/insiden/service";
 import { requireUser } from "@/server/sesi";
 
 import { Ikon } from "../ikon";
 import { formatWaktu, Pesan, pesanAtau } from "../pengukuran/status";
-import { Halaman, Kartu, KepalaHalaman, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon } from "../ui";
+import { Halaman, Kartu, KELAS_SEGMEN_TAUTAN, KepalaHalaman, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon } from "../ui";
 import { LabelStatusInsiden, LabelWarna } from "./label";
 
 export const metadata: Metadata = { title: "Insiden" };
@@ -28,13 +28,12 @@ const SARINGAN: { nilai: SaringanStatusInsiden; label: string }[] = [
 export default async function HalamanInsiden({ searchParams }: PageProps<"/insiden">) {
   const pengguna = await requireUser();
   const status = (teksAlamat(await searchParams, "status") || "terbuka") as SaringanStatusInsiden;
-  const [daftar, terbuka] = await Promise.all([pesanAtau(daftarInsiden(pengguna, { status })), daftarInsiden(pengguna)]);
+  // Pita jumlah selalu dari Insiden terbuka; bila saringannya juga "terbuka", satu panggilan cukup.
+  const terbuka = await daftarInsiden(pengguna);
+  const daftar = status === "terbuka" ? terbuka : await pesanAtau(daftarInsiden(pengguna, { status }));
   const lewat = terbuka.filter((i) => i.lewatTenggat).length;
   const judul =
     status === "terbuka" ? "Insiden terbuka" : status === "semua" ? "Semua Insiden" : `Insiden ${LABEL_STATUS_INSIDEN[status] ?? ""}`.trim();
-  // Segmen saringan: jalur paper-3, pilihan yang dibuka di paper-2 dengan garis amber di bawahnya (seperti PDSA).
-  const kelasPilihan =
-    "h-9 px-3.5 text-[14px] text-ink-3 hover:bg-transparent hover:text-ink aria-[current=page]:bg-card aria-[current=page]:text-ink aria-[current=page]:shadow-[inset_0_-2px_0_var(--color-signal)]";
 
   return (
     <Halaman>
@@ -45,7 +44,7 @@ export default async function HalamanInsiden({ searchParams }: PageProps<"/insid
           <>
             <nav aria-label="Saringan status" className="grid w-full grid-cols-3 gap-0.5 rounded-md border border-rule bg-paper-3 p-0.5 sm:flex sm:w-auto">
               {SARINGAN.map((s) => (
-                <Button key={s.nilai} asChild variant="ghost" size="sm" className={kelasPilihan}>
+                <Button key={s.nilai} asChild variant="ghost" size="sm" className={KELAS_SEGMEN_TAUTAN}>
                   <Link href={s.nilai === "terbuka" ? "/insiden" : `/insiden?status=${s.nilai}`} aria-current={status === s.nilai ? "page" : undefined}>
                     {s.label}
                   </Link>
@@ -114,7 +113,14 @@ export default async function HalamanInsiden({ searchParams }: PageProps<"/insid
                       </Link>
                       <span className="terukur mt-0.5 block text-[12px] text-cool">{formatWaktu(i.waktuInsiden)}</span>
                     </TableCell>
-                    <TableCell className="text-[14px] whitespace-nowrap">{LABEL_JENIS_INSIDEN[i.jenis]}</TableCell>
+                    <TableCell className="text-[14px] whitespace-nowrap">
+                      <span className="block">{LABEL_JENIS_INSIDEN[i.jenis]}</span>
+                      {perluEreport(i) && !i.ereportPada && (
+                        <span className="mt-1 block">
+                          <Pil nada="warn">Belum e-report</Pil>
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <LabelWarna warna={i.warna} />
                     </TableCell>
@@ -123,7 +129,7 @@ export default async function HalamanInsiden({ searchParams }: PageProps<"/insid
                       <LabelStatusInsiden status={i.status} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {i.tenggat && (i.status === "investigasi" || i.status === "rca") ? (
+                      {i.tenggat && STATUS_BERTENGGAT.includes(i.status) ? (
                         <span className="flex flex-wrap items-center gap-2 text-[14px]">
                           {labelTanggal(i.tenggat)}
                           {i.lewatTenggat && <Pil nada="neg">Lewat tenggat</Pil>}

@@ -4,9 +4,9 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-12)
 
-- [ ] Aturan murni: `warnaGrading` (Tabel 3 KKP-RS 2008), `perluRca`, `hariInvestigasi`, lewat/mendekati tenggat.
-- [ ] Service: `gradingInsiden`, `simpanInvestigasi`, `tinjauInsiden`, `selesaikanRca`, `tandaiBukanInsiden`, `catatEreport`; semua perpindahan lewat satu `pindah`.
-- [ ] Detail `/insiden/[id]`: form langkah berikutnya, matriks grading `RadioGroup`, riwayat, alat Komite Mutu.
-- [ ] Tes service: alur biru/hijau/kuning/sentinel, tenggat, hak per peran, umpan balik ke Pembuat Laporan.
+- [x] Aturan murni: `warnaGrading` (Tabel 3 KKP-RS 2008), `perluRca`, `hariInvestigasi`, lewat/mendekati tenggat.
+- [x] Service: `gradingInsiden`, `simpanInvestigasi`, `tinjauInsiden`, `selesaikanRca`, `tandaiBukanInsiden`, `catatEreport`; semua perpindahan lewat satu `pindah`.
+- [x] Detail `/insiden/[id]`: form langkah berikutnya, matriks grading `RadioGroup`, riwayat, alat Komite Mutu.
+- [x] Tes service: alur biru/hijau/kuning/sentinel, tenggat, hak per peran, umpan balik ke Pembuat Laporan.

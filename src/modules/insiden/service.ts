@@ -19,6 +19,7 @@ import {
   LABEL_STATUS_INSIDEN,
   lewatTenggatInsiden,
   mendekatiTenggatInsiden,
+  perluEreport,
   ORANG_PERTAMA,
   PENANGGUNG_BIAYA,
   perluRca,
@@ -39,7 +40,6 @@ import {
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
-import { PELIHAT_RS } from "@/modules/capaian/service";
 
 /*
  * Modul Insiden: laporan Insiden Keselamatan Pasien (Formulir 1 PMK 11/2017), grading, Investigasi Sederhana, RCA, dan
@@ -64,6 +64,9 @@ const pembacaPenuh = (aktor: Pengguna, unitId: string) => PEMBACA_SEMUA.includes
 /** Membaca satu Insiden: Pembuat Laporan, Kepala Unit dari Unit itu, Komite Mutu, dan Direktur. */
 export const bolehBacaInsiden = (aktor: Pengguna, i: { unitId: string; dilaporkanOlehId: string }) =>
   i.dilaporkanOlehId === aktor.id || pembacaPenuh(aktor, i.unitId);
+
+/** Membaca semua Insiden dan rekapnya (Komite Mutu, Direktur). Juga untuk tampilan. */
+export const bacaSemuaInsiden = (aktor: Pengguna) => PEMBACA_SEMUA.includes(aktor.peran);
 
 /** Untuk tampilan (Dashboard): peran yang ikut menangani Insiden. */
 export const menanganiInsiden = (aktor: Pengguna) => aktor.peran === "komiteMutu" || aktor.peran === "kepalaUnit";
@@ -105,10 +108,15 @@ export type IsianLaporan = {
   pernahTerjadiKeterangan: string;
 };
 
-/** Unit aktif menurut id dari form; null bila kosong dan boleh kosong. */
-async function unitAktif(id: string, label: string, wajib: boolean) {
+/**
+ * Unit aktif menurut id dari form; null bila kosong dan boleh kosong. Baris Unit dikunci `for share` sampai transaksi
+ * selesai, jadi Unit tidak bisa dinonaktifkan (`aturAktifUnit` menguncinya `for update`) di antara pemeriksaan dan simpan.
+ */
+async function unitAktif(tx: Transaksi, id: string, label: string, wajib: boolean) {
   if (!id && !wajib) return null;
-  const [u] = apakahUuid(id) ? await db.select({ id: unit.id, aktif: unit.aktif }).from(unit).where(eq(unit.id, id)) : [];
+  const [u] = apakahUuid(id)
+    ? await tx.select({ id: unit.id, aktif: unit.aktif }).from(unit).where(eq(unit.id, id)).for("share")
+    : [];
   if (!u) throw new ServiceError(400, `Pilih ${label}.`);
   if (!u.aktif) throw new ServiceError(400, `${label} sudah nonaktif; pilih Unit aktif.`);
   return u.id;
@@ -125,7 +133,7 @@ function umurBulan(tahun: number, bulan: number) {
 }
 
 /** Isian laporan yang sudah diperiksa, siap disimpan. Data pasien wajib kecuali untuk KPC (di KPC isian kosong = null). */
-async function periksaLaporan(isian: IsianLaporan, sekarang: Date) {
+async function periksaLaporan(tx: Transaksi, isian: IsianLaporan, sekarang: Date) {
   const jenis = salahSatuDari(isian.jenis, JENIS_INSIDEN, "Pilih jenis insiden.");
   const kpc = jenis === "kpc";
   const waktuInsiden = dariWaktuSetempat(isian.waktuInsiden);
@@ -141,7 +149,7 @@ async function periksaLaporan(isian: IsianLaporan, sekarang: Date) {
     );
   }
   if (typeof isian.pernahTerjadi !== "boolean") {
-    throw new ServiceError(400, "Pilih apakah kejadian yang sama pernah terjadi di unit kerja lain.");
+    throw new ServiceError(400, "Pilih apakah insiden serupa pernah terjadi di unit kerja lain.");
   }
 
   // Data pasien: wajib, kecuali KPC (belum ada insiden pada pasien) yang boleh kosong per isian.
@@ -156,8 +164,8 @@ async function periksaLaporan(isian: IsianLaporan, sekarang: Date) {
   if (tanggalMasuk && tanggalMasuk > waktuInsiden) throw new ServiceError(400, "Tanggal masuk tidak boleh setelah waktu insiden.");
 
   return {
-    unitId: (await unitAktif(isian.unitId, "Unit tempat insiden", true))!,
-    unitPenyebabId: await unitAktif(isian.unitPenyebabId, "Unit penyebab", false),
+    unitId: (await unitAktif(tx, isian.unitId, "Unit tempat insiden", true))!,
+    unitPenyebabId: await unitAktif(tx, isian.unitPenyebabId, "Unit penyebab", false),
     waktuInsiden,
     judul: wajibTeks(isian.judul, "Insiden", 200),
     kronologi: wajibTeks(isian.kronologi, "Kronologi insiden", MAKS_TEKS),
@@ -186,8 +194,8 @@ async function periksaLaporan(isian: IsianLaporan, sekarang: Date) {
 /** Insiden baru berstatus Dilaporkan; Pembuat Laporan = aktor. Semua Pengguna boleh melapor. */
 export async function laporkanInsiden(aktor: Pengguna | null, isian: IsianLaporan, sekarang = new Date()) {
   wajibPengguna(aktor);
-  const data = await periksaLaporan(isian, sekarang);
   return db.transaction(async (tx) => {
+    const data = await periksaLaporan(tx, isian, sekarang);
     const [baru] = await tx
       .insert(insiden)
       .values({ ...data, dilaporkanOlehId: aktor.id, dilaporkanPada: sekarang, status: "dilaporkan" })
@@ -248,23 +256,23 @@ async function pindah(
   aktor: Pengguna,
   i: InsidenTerkunci,
   ke: StatusInsiden,
-  perubahan: Partial<typeof insiden.$inferInsert>,
-  riwayat: { dampak?: number; probabilitas?: number; catatan?: string | null } = {},
+  { perubahan = {}, grading, catatan = null }: { perubahan?: Partial<typeof insiden.$inferInsert>; grading?: Grading; catatan?: string | null } = {},
 ) {
+  const nilaiGrading = grading ? { dampak: grading.dampak, probabilitas: grading.probabilitas } : {};
   await tx
     .update(insiden)
-    .set({ ...perubahan, status: ke, diubahPada: new Date() })
+    .set({ ...perubahan, ...nilaiGrading, status: ke, diubahPada: new Date() })
     .where(eq(insiden.id, i.id));
-  await tx.insert(riwayatStatusInsiden).values({ insidenId: i.id, statusAsal: i.status, statusTujuan: ke, olehId: aktor.id, ...riwayat });
+  await tx.insert(riwayatStatusInsiden).values({ insidenId: i.id, statusAsal: i.status, statusTujuan: ke, olehId: aktor.id, ...nilaiGrading, catatan });
 }
 
 /** Mengubah laporan: hanya Pembuat Laporan, selama masih Dilaporkan (belum digrading). Aturan isian sama dengan melapor. */
 export async function ubahLaporan(aktor: Pengguna | null, id: string, isian: IsianLaporan, sekarang = new Date()) {
   wajibPengguna(aktor);
-  const data = await periksaLaporan(isian, sekarang);
   await ubahTerkunci(id, async (tx, i) => {
     if (i.dilaporkanOlehId !== aktor.id) throw new ServiceError(403, "Laporan hanya bisa diubah Pembuat Laporan-nya.");
     wajibStatus(i, ["dilaporkan"], "diubah lagi karena sudah digrading");
+    const data = await periksaLaporan(tx, isian, sekarang);
     await tx
       .update(insiden)
       .set({ ...data, diubahPada: new Date() })
@@ -294,7 +302,7 @@ export async function gradingInsiden(aktor: Pengguna | null, id: string, grading
     wajibStatus(i, ["dilaporkan"], "digrading");
     const ke = perluRca(i.jenis, g.warna) ? "rca" : "investigasi";
     const tenggat = tambahHari(hariIni(i.dilaporkanPada), hariInvestigasi(i.jenis, g.warna));
-    await pindah(tx, aktor, i, ke, { dampak: g.dampak, probabilitas: g.probabilitas, tenggat }, { dampak: g.dampak, probabilitas: g.probabilitas });
+    await pindah(tx, aktor, i, ke, { perubahan: { tenggat }, grading: g });
     return { status: ke, warna: g.warna };
   });
 }
@@ -341,7 +349,7 @@ export async function simpanInvestigasi(aktor: Pengguna | null, id: string, isia
       wajibTangani(aktor, i);
     }
     if (kirim) {
-      await pindah(tx, aktor, i, "ditinjau", data);
+      await pindah(tx, aktor, i, "ditinjau", { perubahan: data });
     } else {
       await tx
         .update(insiden)
@@ -362,14 +370,11 @@ export async function tinjauInsiden(aktor: Pengguna | null, id: string, isian: G
   return ubahTerkunci(id, async (tx, i) => {
     wajibStatus(i, ["ditinjau"], "ditinjau");
     const rca = perluRca(i.jenis, g.warna);
-    await pindah(
-      tx,
-      aktor,
-      i,
-      rca ? "rca" : "selesai",
-      { dampak: g.dampak, probabilitas: g.probabilitas, ...(rca ? { tenggat: tambahHari(hariIni(sekarang), hariInvestigasi(i.jenis, g.warna)) } : {}) },
-      { dampak: g.dampak, probabilitas: g.probabilitas, catatan: catatan || null },
-    );
+    await pindah(tx, aktor, i, rca ? "rca" : "selesai", {
+      perubahan: rca ? { tenggat: tambahHari(hariIni(sekarang), hariInvestigasi(i.jenis, g.warna)) } : {},
+      grading: g,
+      catatan: catatan || null,
+    });
     return { status: rca ? ("rca" as const) : ("selesai" as const), warna: g.warna };
   });
 }
@@ -381,7 +386,7 @@ export async function selesaikanRca(aktor: Pengguna | null, id: string, isian: I
   const g = periksaGrading(isian);
   await ubahTerkunci(id, async (tx, i) => {
     wajibStatus(i, ["rca"], "diselesaikan sebagai RCA");
-    await pindah(tx, aktor, i, "selesai", { ...data, dampak: g.dampak, probabilitas: g.probabilitas }, { dampak: g.dampak, probabilitas: g.probabilitas });
+    await pindah(tx, aktor, i, "selesai", { perubahan: data, grading: g });
   });
 }
 
@@ -391,7 +396,7 @@ export async function tandaiBukanInsiden(aktor: Pengguna | null, id: string, ala
   const catatan = wajibTeks(alasan, "Alasan", MAKS_CATATAN);
   await ubahTerkunci(id, async (tx, i) => {
     wajibStatus(i, STATUS_INSIDEN_TERBUKA, "ditandai Bukan Insiden");
-    await pindah(tx, aktor, i, "bukanInsiden", {}, { catatan });
+    await pindah(tx, aktor, i, "bukanInsiden", { catatan });
   });
 }
 
@@ -404,8 +409,9 @@ export async function catatEreport(aktor: Pengguna | null, id: string, tanggal: 
   if (tanggal && !tanggalValid(tanggal)) throw new ServiceError(400, "Tanggal e-report harus tanggal yang valid.");
   if (tanggal > hariIni(sekarang)) throw new ServiceError(400, "Tanggal e-report tidak boleh di masa depan.");
   await ubahTerkunci(id, async (tx, i) => {
-    if (!JENIS_EREPORT.includes(i.jenis)) throw new ServiceError(400, "e-Report Kemenkes hanya untuk KTD dan Kejadian Sentinel.");
-    if (i.status === "bukanInsiden") throw new ServiceError(409, "Bukan Insiden tidak dilaporkan ke e-report.");
+    if (!perluEreport(i)) {
+      throw new ServiceError(i.status === "bukanInsiden" ? 409 : 400, "e-Report Kemenkes hanya untuk KTD dan Kejadian Sentinel yang bukan Bukan Insiden.");
+    }
     await tx
       .update(insiden)
       .set({ ereportPada: tanggal || null, diubahPada: new Date() })
@@ -542,6 +548,8 @@ export async function ambilInsiden(aktor: Pengguna | null, id: string, sekarang 
 
   const { tipeInsiden, faktorKontributor, penyebabLangsung, akarMasalah, rekomendasi, ...laporan } = baris;
   const penuh = pembacaPenuh(aktor, unitId);
+  // Pembuat Laporan tanpa hak baca lain: hasil investigasi dan catatan Komite Mutu baru terlihat setelah ditutup.
+  const ditutup = baris.status === "selesai" || baris.status === "bukanInsiden";
   const komite = aktor.peran === "komiteMutu";
   const terbuka = STATUS_INSIDEN_TERBUKA.includes(baris.status);
   return {
@@ -549,14 +557,14 @@ export async function ambilInsiden(aktor: Pengguna | null, id: string, sekarang 
     unitPenyebab: baris.unitPenyebab?.id ? baris.unitPenyebab : null,
     investigasi:
       tipeInsiden && (penuh || baris.status === "selesai") ? { tipeInsiden, faktorKontributor, penyebabLangsung, akarMasalah, rekomendasi } : null,
-    riwayat,
+    riwayat: penuh || ditutup ? riwayat : riwayat.map((r) => ({ ...r, catatan: null })),
     boleh: {
       ubah: baris.dilaporkanOlehId === aktor.id && baris.status === "dilaporkan",
       grading: baris.status === "dilaporkan" && bolehTangani(aktor, unitId),
       investigasi: (baris.status === "investigasi" && bolehTangani(aktor, unitId)) || (baris.status === "rca" && komite),
       tinjau: baris.status === "ditinjau" && komite,
       bukanInsiden: terbuka && komite,
-      ereport: komite && JENIS_EREPORT.includes(baris.jenis) && baris.status !== "bukanInsiden",
+      ereport: komite && perluEreport(baris),
     },
   };
 }
@@ -567,6 +575,7 @@ export type DetailInsiden = Awaited<ReturnType<typeof ambilInsiden>>;
  * Angka Insiden untuk Dashboard, dari Insiden yang boleh dibaca aktor: `terbuka`, `lewatTenggat` (di antara yang
  * terbuka), `menunggu` (yang menunggu tindakan aktor: Kepala Unit = grading dan Investigasi Sederhana Unit-nya, Komite
  * Mutu = grading, tinjauan, dan RCA), `belumEreport` (Komite Mutu saja: KTD/Kejadian Sentinel tanpa tanggal e-report).
+ * `lewatTenggat` Kepala Unit hanya Investigasi Sederhana Unit-nya.
  */
 export async function ringkasanInsiden(aktor: Pengguna | null, sekarang = new Date()) {
   wajibPengguna(aktor);
@@ -589,9 +598,10 @@ export async function ringkasanInsiden(aktor: Pengguna | null, sekarang = new Da
     komite ? ["dilaporkan", "ditinjau", "rca"].includes(i.status) : atasan(aktor, i.unitId) && ["dilaporkan", "investigasi"].includes(i.status);
   return {
     terbuka: terbuka.length,
-    lewatTenggat: terbuka.filter((i) => lewatTenggatInsiden(i, hari)).length,
+    // Kepala Unit: hanya Investigasi Sederhana Unit-nya (RCA tanggungan Komite Mutu); peran lain: semua yang terbaca.
+    lewatTenggat: terbuka.filter((i) => lewatTenggatInsiden(i, hari) && (aktor.peran !== "kepalaUnit" || menungguSaya(i))).length,
     menunggu: terbuka.filter(menungguSaya).length,
-    belumEreport: komite ? baris.filter((i) => JENIS_EREPORT.includes(i.jenis) && !i.ereportPada && i.status !== "bukanInsiden").length : null,
+    belumEreport: komite ? baris.filter((i) => perluEreport(i) && !i.ereportPada).length : null,
   };
 }
 
@@ -600,13 +610,13 @@ const hitungPer = <K extends string>(daftar: readonly K[], nilai: (K | null)[]) 
   daftar.map((k) => ({ kunci: k, jumlah: nilai.filter((n) => n === k).length })).filter((x) => x.jumlah > 0);
 
 /**
- * Rekap Insiden satu Triwulan yang sudah selesai untuk Laporan Triwulan (yang melihat Capaian RS), menurut waktu
- * insiden, tanpa Bukan Insiden dan tanpa identitas pasien maupun Pembuat Laporan: jumlah per jenis × warna grading
- * terakhir, per Unit, per tipe insiden, per akibat terhadap pasien, penanganan (Selesai, berjalan, lewat tenggat), dan
- * daftar Insiden yang pernah masuk RCA beserta akar masalah dan rekomendasinya.
+ * Rekap Insiden satu Triwulan yang sudah selesai untuk Laporan Triwulan (Komite Mutu dan Direktur; Admin Sistem tidak
+ * membaca Insiden), menurut waktu insiden, tanpa Bukan Insiden dan tanpa identitas pasien maupun Pembuat Laporan:
+ * jumlah per jenis × warna grading terakhir (+ `semuaJenis`), per Unit, per tipe insiden, per akibat terhadap pasien,
+ * penanganan (Selesai, berjalan, lewat tenggat), dan daftar Insiden yang pernah masuk RCA.
  */
 export async function rekapInsiden(aktor: Pengguna | null, triwulan: string, sekarang = new Date()) {
-  wajibPeran(aktor, PELIHAT_RS, "Rekap Insiden hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
+  wajibPeran(aktor, PEMBACA_SEMUA, "Rekap Insiden hanya untuk Komite Mutu dan Direktur.");
   wajibTriwulanSelesai(triwulan, sekarang);
   const bulan = bulanTriwulan(triwulan);
   const baris = await db
@@ -650,39 +660,45 @@ export async function rekapInsiden(aktor: Pengguna | null, triwulan: string, sek
   const perUnit = [...Map.groupBy(daftar, (i) => i.unit.id).values()]
     .map((g) => ({ unit: g[0].unit, jumlah: g.length }))
     .sort((a, b) => b.jumlah - a.jumlah || a.unit.nama.localeCompare(b.unit.nama, "id"));
+  const perWarna = (g: typeof daftar) => ({
+    perWarna: Object.fromEntries(WARNA_GRADING.map((w) => [w, g.filter((i) => i.warna === w).length])) as Record<WarnaGrading, number>,
+    belumDigrading: g.filter((i) => !i.warna).length,
+    jumlah: g.length,
+  });
+  // Tipe insiden dihitung dari investigasi yang sudah dikirim atau ditutup, bukan dari isian yang baru disimpan.
+  const diinvestigasi = daftar.filter((i) => i.tipeInsiden && (i.status === "ditinjau" || i.status === "selesai"));
   return {
     triwulan,
     jumlah: daftar.length,
-    perJenis: JENIS_INSIDEN.map((jenis) => {
-      const g = daftar.filter((i) => i.jenis === jenis);
-      const perWarna = Object.fromEntries(WARNA_GRADING.map((w) => [w, g.filter((i) => i.warna === w).length])) as Record<WarnaGrading, number>;
-      return { jenis, jumlah: g.length, perWarna, belumDigrading: g.filter((i) => !i.warna).length };
-    }),
+    perJenis: JENIS_INSIDEN.map((jenis) => ({ jenis, ...perWarna(daftar.filter((i) => i.jenis === jenis)) })),
+    semuaJenis: perWarna(daftar),
     perUnit,
-    perTipe: hitungPer(TIPE_INSIDEN, daftar.map((i) => i.tipeInsiden)),
-    belumDiinvestigasi: daftar.filter((i) => !i.tipeInsiden).length,
+    perTipe: hitungPer(TIPE_INSIDEN, diinvestigasi.map((i) => i.tipeInsiden)),
+    belumDiinvestigasi: daftar.length - diinvestigasi.length,
     perAkibat: hitungPer(AKIBAT_INSIDEN, daftar.map((i) => i.akibat)),
     penanganan: {
       selesai: daftar.filter((i) => i.status === "selesai").length,
       berjalan: daftar.filter((i) => i.status !== "selesai").length,
       lewatTenggat: daftar.filter((i) => i.lewatTenggat).length,
     },
+    // Hanya tanggal insiden (tanpa jam), dan akar masalah serta rekomendasi hanya dari RCA yang sudah Selesai.
     rca: daftar
       .filter((i) => pernahRca.has(i.id))
-      .map(({ id, judul, waktuInsiden, jenis, status, warna, unit: u, tipeInsiden, akarMasalah, rekomendasi, lewatTenggat }) => ({
-        id,
-        judul,
-        waktuInsiden,
-        jenis,
-        status,
-        warna,
-        unit: u,
-        tipeInsiden,
-        akarMasalah,
-        rekomendasi,
-        lewatTenggat,
-      })),
+      .map(({ id, judul, waktuInsiden, jenis, status, warna, unit: u, tipeInsiden, akarMasalah, rekomendasi, lewatTenggat }) => {
+        const selesai = status === "selesai";
+        return {
+          id,
+          judul,
+          tanggal: hariIni(waktuInsiden),
+          jenis,
+          status,
+          warna,
+          unit: u,
+          tipeInsiden: selesai ? tipeInsiden : null,
+          akarMasalah: selesai ? akarMasalah : null,
+          rekomendasi: selesai ? rekomendasi : null,
+          lewatTenggat,
+        };
+      }),
   };
 }
-
-export type RekapInsiden = Awaited<ReturnType<typeof rekapInsiden>>;

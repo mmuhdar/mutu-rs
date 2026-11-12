@@ -7,7 +7,7 @@ import { TANDA_ARAH } from "@/lib/indikator";
 import { HARI_MENDEKATI_TENGGAT, LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATUS_TINDAK_LANJUT } from "@/lib/perbaikan";
 import { melihatCapaianRs, ringkasanCapaian, trenRingkasan } from "@/modules/capaian/service";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
-import { menanganiInsiden, ringkasanInsiden } from "@/modules/insiden/service";
+import { bacaSemuaInsiden, menanganiInsiden, ringkasanInsiden } from "@/modules/insiden/service";
 import { rekapSimar } from "@/modules/laporan/service";
 import { antreanVerifikasi, bolehIsiPengukuran, bolehVerifikasi, pengukuranDikembalikan } from "@/modules/pengukuran/service";
 import { belumDianalisis, bolehTulisLingkup, daftarPdsa, daftarTindakLanjut } from "@/modules/perbaikan/service";
@@ -144,7 +144,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             href: "/insiden",
           },
         ]
-      : pengguna.peran === "direktur"
+      : bacaSemuaInsiden(pengguna)
         ? [
             {
               label: "Insiden terbuka",

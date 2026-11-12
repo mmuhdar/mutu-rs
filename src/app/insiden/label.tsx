@@ -1,5 +1,6 @@
 import { LABEL_STATUS_INSIDEN, LABEL_WARNA_GRADING, type StatusInsiden, type WarnaGrading } from "@/lib/insiden";
 
+import { Pemberitahuan } from "../pengukuran/status";
 import { Pil, type Nada } from "../ui";
 
 /*
@@ -16,15 +17,8 @@ const NADA_STATUS: Record<StatusInsiden, Nada> = {
   bukanInsiden: "redup",
 };
 
-export const NADA_WARNA: Record<WarnaGrading, Nada> = { biru: "ukur", hijau: "pos", kuning: "warn", merah: "neg" };
+const NADA_WARNA: Record<WarnaGrading, Nada> = { biru: "ukur", hijau: "pos", kuning: "warn", merah: "neg" };
 
-/** Kelas sel matriks per warna grading (latar lembut + teks), sama dengan `Pil` nada itu. */
-export const SEL_WARNA: Record<WarnaGrading, string> = {
-  biru: "bg-cool-soft text-cool",
-  hijau: "bg-ok-soft text-ok",
-  kuning: "bg-signal-soft text-signal",
-  merah: "bg-bad-soft text-bad",
-};
 
 export function LabelStatusInsiden({ status }: { status: StatusInsiden }) {
   return <Pil nada={NADA_STATUS[status]}>{LABEL_STATUS_INSIDEN[status]}</Pil>;
@@ -34,4 +28,14 @@ export function LabelStatusInsiden({ status }: { status: StatusInsiden }) {
 export function LabelWarna({ warna }: { warna: WarnaGrading | null }) {
   if (!warna) return <span className="text-[13px] whitespace-nowrap text-ink-3">belum digrading</span>;
   return <Pil nada={NADA_WARNA[warna]}>{LABEL_WARNA_GRADING[warna]}</Pil>;
+}
+
+/** Pengingat PMK 11/2017 Pasal 23 di bawah pilihan jenis insiden. */
+export function PengingatSentinel() {
+  return (
+    <Pemberitahuan>
+      Kejadian Sentinel yang berdampak luas (diberitakan media, menyangkut tokoh publik, atau melibatkan fasilitas lain) juga dilaporkan lewat
+      telepon ke Kemenkes paling lama 1 jam setelah diketahui.
+    </Pemberitahuan>
+  );
 }

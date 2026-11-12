@@ -12,7 +12,7 @@ import type { Peran } from "@/lib/peran";
 import { wajibPeran, type Pengguna } from "@/modules/auth/service";
 import { capaianTriwulan, PELIHAT_RS, ringkasanCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
-import { rekapInsiden } from "@/modules/insiden/service";
+import { bacaSemuaInsiden, rekapInsiden } from "@/modules/insiden/service";
 import { analisisPada, daftarPdsa } from "@/modules/perbaikan/service";
 
 /*
@@ -33,7 +33,8 @@ export const bolehTulisRekomendasi = (aktor: Pengguna) => PENULIS.includes(aktor
  *   ada Unit Pelapor bulan itu; IMP-Unit: setiap Unit Pelapor-nya bulan itu), dengan Analisis beserta Tindak
  *   Lanjut-nya, atau null = Belum dianalisis;
  * - `pdsa`: PDSA semua Lingkup yang periode uji cobanya bersinggungan dengan Triwulan itu;
- * - `insiden`: rekap Insiden Keselamatan Pasien Triwulan itu tanpa identitas (`rekapInsiden`, modul Insiden);
+ * - `insiden`: rekap Insiden Keselamatan Pasien Triwulan itu tanpa identitas (`rekapInsiden`, modul Insiden); null
+ *   untuk Admin Sistem;
  * - `rekomendasi` (null = belum ditulis) dan `bolehTulis` (Rekomendasi).
  */
 export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string, sekarang = new Date()) {
@@ -51,7 +52,8 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
       sekarang,
     ),
     daftarPdsa(aktor, { semua: true, periode: { mulai: bulan[0], akhir: bulan[2] } }),
-    rekapInsiden(aktor, triwulan, sekarang),
+    // Admin Sistem tidak membaca Insiden, jadi Laporan Triwulan-nya tanpa bagian ini.
+    bacaSemuaInsiden(aktor) ? rekapInsiden(aktor, triwulan, sekarang) : null,
     db
       .select({ teks: rekomendasi.teks, diubahOleh: pengguna.nama, diubahPada: rekomendasi.diubahPada })
       .from(rekomendasi)

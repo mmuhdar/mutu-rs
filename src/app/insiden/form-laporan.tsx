@@ -26,12 +26,14 @@ import {
   TINDAKAN_OLEH,
 } from "@/lib/insiden";
 
+import type { IsianLaporan } from "@/modules/insiden/service";
+
 import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { PilihCari } from "../pilih-cari";
 import { laporAction, ubahLaporanAction } from "./actions";
 
 /** Isian awal form laporan: nama field → nilai teks (dari laporan tersimpan atau dari isian yang ditolak). */
-export type AwalLaporan = Partial<Record<string, string>>;
+export type AwalLaporan = Partial<Record<keyof IsianLaporan, string>>;
 
 const opsi = <K extends string>(daftar: readonly K[], label: Record<K, string>) => daftar.map((k) => ({ nilai: k, label: label[k] }));
 
@@ -70,7 +72,14 @@ function Bagian({ judul, sub, children }: { judul: string; sub?: string; childre
  * `PilihCari`, pilihan sedikit = `Segmen`. Data pasien tidak `required` di browser karena KPC boleh tanpa data pasien;
  * service yang memeriksanya.
  */
-export function FormLaporan(p: { id?: string; unit: { id: string; label: string }[]; awal: AwalLaporan; maksWaktu: string }) {
+export function FormLaporan(p: {
+  id?: string;
+  unit: { id: string; label: string }[];
+  awal: AwalLaporan;
+  maksWaktu: string;
+  /** Pengingat Kejadian Sentinel berdampak luas (`Pemberitahuan` dari halaman), di bawah pilihan jenis. */
+  pengingatSentinel: React.ReactNode;
+}) {
   const [state, action, pending] = useActionState(p.id ? ubahLaporanAction : laporAction, {});
   const a = { ...p.awal, ...state.nilai };
   const pilihUnit = p.unit.map((u) => ({ nilai: u.id, label: u.label }));
@@ -89,7 +98,7 @@ export function FormLaporan(p: { id?: string; unit: { id: string; label: string 
         <Baris label="Insiden" htmlFor="judul" petunjuk="Singkat, tanpa nama pasien. Mis. Pasien jatuh dari tempat tidur.">
           <Input id="judul" name="judul" required maxLength={200} defaultValue={a.judul} className="text-[16px]" />
         </Baris>
-        <Baris label="Kronologi" htmlFor="kronologi" petunjuk="Urutan kejadian sebenarnya, bukan pendapat atau asumsi pelapor.">
+        <Baris label="Kronologi" htmlFor="kronologi" petunjuk="Urutan peristiwa sebenarnya, bukan pendapat atau asumsi pembuat laporan.">
           <Textarea id="kronologi" name="kronologi" rows={5} required maxLength={4000} defaultValue={a.kronologi} className="leading-6" />
         </Baris>
         <Baris label="Jenis insiden" petunjuk="Menurut PMK 11/2017 Pasal 14 dan 15.">
@@ -101,10 +110,7 @@ export function FormLaporan(p: { id?: string; unit: { id: string; label: string 
               </div>
             ))}
           </dl>
-          <p className="rounded-md border border-warning-border bg-warning-soft px-3 py-2 text-[13px] leading-5 text-ink">
-            Kejadian Sentinel yang berdampak luas (diberitakan media, menyangkut tokoh publik, atau melibatkan fasilitas lain) juga
-            dilaporkan lewat telepon ke Kemenkes paling lama 1 jam setelah diketahui.
-          </p>
+          {p.pengingatSentinel}
         </Baris>
         <Baris label="Akibat terhadap pasien" htmlFor="akibat" petunjuk="KPC, KNC, dan KTC tidak menimbulkan cedera.">
           <PilihCari
@@ -125,7 +131,7 @@ export function FormLaporan(p: { id?: string; unit: { id: string; label: string 
             nama="orangPertama"
             wajib
             nilai={a.orangPertama}
-            placeholder="Pilih pelapor pertama"
+            placeholder="Pilih orang pertama"
             cari="Cari…"
             pilihan={opsi(ORANG_PERTAMA, LABEL_ORANG_PERTAMA)}
           />

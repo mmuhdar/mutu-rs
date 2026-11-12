@@ -1,6 +1,6 @@
 # Spec: Pelaporan Insiden Keselamatan Pasien
 
-Status: berjalan (branch `insiden-kp`, dari `rilis-4-pindah`)
+Status: selesai (2026-11-12, branch `insiden-kp`, dari `rilis-4-pindah`)
 
 Riset: `docs/research/insiden-keselamatan-pasien.md`. Keputusan user Q1–Q12 (12 November 2026) tercatat di bagian "Keputusan".
 
@@ -74,7 +74,7 @@ Modul **Insiden** di MutuRS:
 
 - **`insiden`:**
   - Data laporan: Unit tempat insiden (FK, wajib), Unit penyebab (FK, opsional), waktu insiden, judul (butir 2 Formulir 1), kronologi, jenis, orang pertama yang melapor, tempat.
-  - Data pasien: inisial, No. RM, ruangan, umur dalam bulan, jenis kelamin, penanggung biaya, kategori pasien, spesialisasi, tanggal masuk. Wajib kecuali untuk KPC; CHECK di database.
+  - Data pasien: inisial, No. RM, umur dalam bulan, jenis kelamin, penanggung biaya, kategori pasien, spesialisasi (wajib kecuali untuk KPC; CHECK di database), ruangan dan tanggal masuk (opsional: tidak berlaku untuk semua pasien rawat jalan dan UGD).
   - Tindakan: akibat, tindakan segera, tindakan oleh, pernah terjadi di unit lain beserta keterangannya.
   - Pembuat Laporan dan waktu laporan dibuat.
   - Status, grading (dampak dan probabilitas; keduanya kosong atau keduanya terisi), dan tenggat investigasi.
@@ -115,15 +115,16 @@ Pembuat Laporan yang tidak punya hak baca lain baru melihat hasil investigasi se
   - `ambilInsiden`: detail + riwayat + hak tampilan per aksi.
   - `daftarInsiden({ status })`: bawaan terbuka; yang lewat tenggat di atas, lalu yang terbaru.
   - `ringkasanInsiden`: Dashboard.
-  - `rekapInsiden(triwulan)`: Laporan Triwulan; `PELIHAT_RS`; menurut waktu insiden; tanpa Bukan Insiden.
-- Setiap perpindahan status lewat satu fungsi `pindah` (baris dikunci `for update`, status asal diperiksa, satu baris riwayat), seperti `pindahStatus` Pengukuran.
+  - `rekapInsiden(triwulan)`: Laporan Triwulan; Komite Mutu dan Direktur saja (Q4: Admin Sistem tidak membaca Insiden, jadi Laporan Triwulan-nya tanpa bagian ini); menurut waktu insiden; tanpa Bukan Insiden; daftar RCA hanya tanggal insiden, dan akar masalah/rekomendasi hanya dari RCA yang sudah Selesai.
+- Setiap perpindahan status lewat satu fungsi `pindah` (baris sudah dikunci `for update` dan status asalnya diperiksa pemanggil lewat `wajibStatus`; `pindah` menulis status, grading, dan satu baris riwayat), seperti `pindahStatus` Pengukuran.
+- Pembuat Laporan yang bukan pembaca penuh baru melihat hasil investigasi dan catatan Komite Mutu di Riwayat Status setelah Insiden ditutup.
 
 ### Tampilan
 
 - **Menu** "Insiden" (kelompok Data, semua peran), ikon `insiden`.
 - **`/insiden?status=`:**
   - Pita jumlah per status terbuka.
-  - Tabel Insiden: judul dan waktu, jenis, grading, Unit, status, tenggat.
+  - Tabel Insiden: judul dan waktu, jenis (KTD/Sentinel tanpa tanggal e-report ditandai "Belum e-report"), grading, Unit, status, tenggat.
   - Tombol "Laporkan Insiden".
 - **`/insiden/lapor` dan `/insiden/[id]/ubah`:** form Formulir 1. Bagian data pasien diberi catatan bahwa untuk KPC boleh kosong, dan ada catatan K3 RS untuk insiden pada non-pasien. Pengingat sentinel ditampilkan di bawah pilihan jenis.
 - **`/insiden/[id]`:**

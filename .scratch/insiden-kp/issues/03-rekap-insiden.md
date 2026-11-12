@@ -4,10 +4,10 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** selesai (2026-11-12)
 
-- [ ] Service: `ringkasanInsiden` (Dashboard), `rekapInsiden` (Laporan Triwulan, `PELIHAT_RS`).
-- [ ] Dashboard: baris "Perlu tindakan" Insiden.
-- [ ] Laporan Triwulan: kartu "Insiden Keselamatan Pasien"; CSV: tabel jenis × warna dan daftar RCA.
-- [ ] Data dummy: beberapa Insiden di berbagai status.
-- [ ] Tes: ringkasan dan rekap triwulan (tahun 2013).
+- [x] Service: `ringkasanInsiden` (Dashboard), `rekapInsiden` (Laporan Triwulan, `PELIHAT_RS`).
+- [x] Dashboard: baris "Perlu tindakan" Insiden.
+- [x] Laporan Triwulan: kartu "Insiden Keselamatan Pasien"; CSV: tabel jenis × warna dan daftar RCA.
+- [x] Data dummy: beberapa Insiden di berbagai status.
+- [x] Tes: ringkasan dan rekap triwulan (tahun 2013).

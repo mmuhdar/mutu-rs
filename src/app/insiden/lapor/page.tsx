@@ -6,10 +6,11 @@ import { requireUser } from "@/server/sesi";
 
 import { Halaman, KepalaHalaman } from "../../ui";
 import { FormLaporan } from "../form-laporan";
+import { PengingatSentinel } from "../label";
 
 export const metadata: Metadata = { title: "Laporkan Insiden" };
 
-/** Laporan Insiden baru (semua Pengguna). Unit tempat insiden terisi Unit milik pelapor bila ia hanya punya satu Unit aktif. */
+/** Laporan Insiden baru (semua Pengguna). Unit tempat insiden terisi Unit milik Pembuat Laporan bila ia hanya punya satu Unit aktif. */
 export default async function HalamanLaporInsiden() {
   const pengguna = await requireUser();
   const unit = await pilihanUnit(pengguna);
@@ -26,6 +27,7 @@ export default async function HalamanLaporInsiden() {
           unit={unit.map((u) => ({ id: u.id, label: u.nama }))}
           awal={{ unitId: unitSaya.length === 1 ? unitSaya[0].id : undefined }}
           maksWaktu={waktuSetempat(new Date())}
+          pengingatSentinel={<PengingatSentinel />}
         />
       </section>
     </Halaman>

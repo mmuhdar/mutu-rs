@@ -191,7 +191,7 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
         )}
       </Kartu>
 
-      <RekapInsiden lap={lap} />
+      {lap.insiden && <BagianInsiden lap={lap} r={lap.insiden} />}
 
       <Kartu judul="Rekomendasi" sub={`Kesimpulan dan saran perbaikan Komite Mutu untuk ${labelTriwulan(lap.triwulan)}.`}>
         <div className="grid gap-3 px-5 pb-5">
@@ -451,12 +451,11 @@ function DaftarHitung({ judul, isi }: { judul: string; isi: { label: string; jum
  * per tipe insiden, per akibat, penanganan, dan Insiden yang diinvestigasi dengan RCA. Tanpa identitas pasien maupun
  * Pembuat Laporan; semua dari `rekapInsiden`.
  */
-function RekapInsiden({ lap }: { lap: LaporanTriwulan }) {
-  const r = lap.insiden;
+function BagianInsiden({ lap, r }: { lap: LaporanTriwulan; r: NonNullable<LaporanTriwulan["insiden"]> }) {
   return (
     <Kartu
       judul="Insiden Keselamatan Pasien"
-      sub="Menurut waktu insiden, tanpa Bukan Insiden; tanpa identitas pasien maupun Pembuat Laporan. Grading = grading terakhir."
+      sub="Menurut waktu insiden, tanpa Bukan Insiden; tanpa identitas pasien maupun Pembuat Laporan. Grading = grading terakhir. Bagian ini tidak tampil untuk Admin Sistem."
     >
       {r.jumlah === 0 ? (
         <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada Insiden pada {labelTriwulan(lap.triwulan)}.</p>
@@ -492,11 +491,11 @@ function RekapInsiden({ lap }: { lap: LaporanTriwulan }) {
                 <TableCell className="font-medium">Semua jenis</TableCell>
                 {WARNA_GRADING.map((w) => (
                   <TableCell key={w} className="terukur text-right text-ink">
-                    {r.perJenis.reduce((n, j) => n + j.perWarna[w], 0)}
+                    {r.semuaJenis.perWarna[w]}
                   </TableCell>
                 ))}
-                <TableCell className="terukur text-right text-ink">{r.perJenis.reduce((n, j) => n + j.belumDigrading, 0)}</TableCell>
-                <TableCell className="terukur border-l border-rule text-right text-[15px] text-ink">{r.jumlah}</TableCell>
+                <TableCell className="terukur text-right text-ink">{r.semuaJenis.belumDigrading}</TableCell>
+                <TableCell className="terukur border-l border-rule text-right text-[15px] text-ink">{r.semuaJenis.jumlah}</TableCell>
               </TableRow>
             </TableBody>
           </Tabel>
@@ -512,8 +511,8 @@ function RekapInsiden({ lap }: { lap: LaporanTriwulan }) {
             .
           </p>
 
-          {/* Tiga hitungan berdampingan: satu permukaan dibagi garis rambut. */}
-          <div className="mx-5 grid gap-px overflow-hidden rounded-card border border-rule bg-rule md:grid-cols-3 print:grid-cols-3">
+          {/* Tiga hitungan berdampingan: satu pita di dalam panel, dibagi garis rambut (bukan kartu di dalam kartu). */}
+          <div className="grid gap-px border-y border-rule bg-rule md:grid-cols-3 print:grid-cols-3">
             <DaftarHitung judul="Per Unit" isi={r.perUnit.map((u) => ({ label: u.unit.nama, jumlah: u.jumlah }))} />
             <DaftarHitung
               judul="Per tipe insiden"
@@ -541,15 +540,17 @@ function RekapInsiden({ lap }: { lap: LaporanTriwulan }) {
                       {i.lewatTenggat && <Pil nada="neg">Lewat tenggat</Pil>}
                     </span>
                     <span className="text-[14px] text-ink-3">
-                      {LABEL_JENIS_INSIDEN[i.jenis]}, Unit {i.unit.nama}, <span className="terukur text-[13px] text-cool">{formatWaktu(i.waktuInsiden)}</span>,{" "}
+                      {LABEL_JENIS_INSIDEN[i.jenis]}, Unit {i.unit.nama}, <span className="terukur text-[13px] text-cool">{labelTanggal(i.tanggal)}</span>,{" "}
                       {LABEL_STATUS_INSIDEN[i.status]}
                       {i.tipeInsiden && `, ${LABEL_TIPE_INSIDEN[i.tipeInsiden]}`}
                     </span>
-                    {i.akarMasalah && (
+                    {i.akarMasalah ? (
                       <dl className="grid gap-2 pt-1">
                         <Teks label="Akar masalah">{i.akarMasalah}</Teks>
                         <Teks label="Rekomendasi">{i.rekomendasi}</Teks>
                       </dl>
+                    ) : (
+                      <span className="text-[14px] text-ink-3">Hasil RCA dimuat setelah Selesai.</span>
                     )}
                   </li>
                 ))}

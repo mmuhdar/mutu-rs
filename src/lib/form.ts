@@ -18,6 +18,9 @@ export const ditolak = (formData: FormData, error: string): StateForm => ({
   nilai: Object.fromEntries(formData) as Record<string, string>,
 });
 
+/** Bilangan bulat dari isian form: hanya angka 0–9; kosong atau berformat lain ("1,5", "1.000", "-1") = NaN, ditolak service. */
+export const bilanganBulat = (isian: string) => (/^\d+$/.test(isian.trim()) ? Number(isian.trim()) : Number.NaN);
+
 /** Untuk service: teks wajib dari isian, dirapikan, tidak kosong, dan dibatasi panjangnya. */
 export function wajibTeks(nilai: unknown, label: string, maks: number) {
   const teks = typeof nilai === "string" ? nilai.trim() : "";
