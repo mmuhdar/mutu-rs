@@ -413,6 +413,33 @@ export const rekomendasi = pgTable(
   ],
 );
 
+/**
+ * Umpan Balik Dewan Pengawas atas Laporan Triwulan (KMK 1596/2024 TKRS 1): umpan balik tertulis dari pertemuan
+ * pembahasan laporan itu, dan tindak lanjutnya yang dievaluasi pada pertemuan berikutnya (Laporan Triwulan sesudahnya).
+ * Unik per tahun + Triwulan; menulis ulang mengubah baris yang sama; tidak pernah dihapus.
+ */
+export const umpanBalikDewanPengawas = pgTable(
+  "umpan_balik_dewan_pengawas",
+  {
+    id: id(),
+    tahun: integer("tahun").notNull(),
+    triwulan: integer("triwulan").notNull(),
+    teks: text("teks").notNull(),
+    diterimaPada: date("diterima_pada", { mode: "string" }).notNull(),
+    /** Tindak lanjut yang dilakukan; kosong = belum dievaluasi. */
+    tindakLanjut: text("tindak_lanjut").notNull().default(""),
+    diubahOlehId: uuid("diubah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("umpan_balik_dewan_pengawas_tahun_triwulan_unique").on(t.tahun, t.triwulan),
+    check("umpan_balik_dewan_pengawas_triwulan_check", sql`${t.triwulan} between 1 and 4`),
+  ],
+);
+
 /** CHECK: tingkat dampak/probabilitas 1–5 (null = belum digrading). */
 const tingkat = (kolom: AnyPgColumn) => sql`${kolom} between 1 and 5`;
 

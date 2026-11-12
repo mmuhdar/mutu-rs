@@ -1,10 +1,23 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
-import { pengguna, rekomendasi } from "@/db/schema";
-import { bulanLalu, bulanTriwulan, triwulanLalu, uraiTriwulan, wajibBulanBerjalan, wajibTriwulanSelesai } from "@/lib/bulan";
+import { pengguna, rekomendasi, umpanBalikDewanPengawas } from "@/db/schema";
+import {
+  bulanLalu,
+  bulanTriwulan,
+  geserBulan,
+  hariIni,
+  tanggalValid,
+  triwulanDari,
+  triwulanLalu,
+  triwulanValid,
+  uraiTriwulan,
+  wajibBulanBerjalan,
+  wajibTriwulanSelesai,
+} from "@/lib/bulan";
 import { ringkasStatus } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
+import { wajibTeks } from "@/lib/form";
 import { diukurPadaBulan, urutKelompok } from "@/lib/indikator";
 import { jadwalSimar, MAKS_REKOMENDASI, tandaSimar, teksRencanaTindakLanjut } from "@/lib/laporan";
 import { punyaLingkupRs } from "@/lib/perbaikan";
@@ -25,6 +38,30 @@ const PENULIS: readonly Peran[] = ["komiteMutu", "adminSistem"];
 /** Menulis Rekomendasi: Komite Mutu dan Admin Sistem. Juga untuk tampilan. */
 export const bolehTulisRekomendasi = (aktor: Pengguna) => PENULIS.includes(aktor.peran);
 
+/** Mencatat Umpan Balik Dewan Pengawas dan tindak lanjutnya: penulis Rekomendasi ditambah Direktur, yang menerima umpan balik itu. */
+const PENCATAT_UMPAN_BALIK: readonly Peran[] = [...PENULIS, "direktur"];
+export const bolehCatatUmpanBalik = (aktor: Pengguna) => PENCATAT_UMPAN_BALIK.includes(aktor.peran);
+
+/** Triwulan sebelum `triwulan` ("YYYY-T"): "2026-1" → "2025-4". */
+const triwulanSebelum = (triwulan: string) => triwulanDari(geserBulan(bulanTriwulan(triwulan)[0], -3));
+
+/** Umpan Balik Dewan Pengawas satu Triwulan beserta pencatat terakhirnya; null = belum dicatat. */
+async function umpanBalikPada(triwulan: string) {
+  const { tahun, nomor } = uraiTriwulan(triwulan);
+  const [ub] = await db
+    .select({
+      teks: umpanBalikDewanPengawas.teks,
+      diterimaPada: umpanBalikDewanPengawas.diterimaPada,
+      tindakLanjut: umpanBalikDewanPengawas.tindakLanjut,
+      diubahOleh: pengguna.nama,
+      diubahPada: umpanBalikDewanPengawas.diubahPada,
+    })
+    .from(umpanBalikDewanPengawas)
+    .innerJoin(pengguna, eq(pengguna.id, umpanBalikDewanPengawas.diubahOlehId))
+    .where(and(eq(umpanBalikDewanPengawas.tahun, tahun), eq(umpanBalikDewanPengawas.triwulan, nomor)));
+  return ub ? { triwulan, ...ub } : null;
+}
+
 /**
  * Laporan Triwulan ("YYYY-T"; tanpa = Triwulan lalu), hanya Triwulan yang sudah selesai dan hanya untuk yang melihat
  * Capaian RS. Selalu dari data terkini:
@@ -35,7 +72,9 @@ export const bolehTulisRekomendasi = (aktor: Pengguna) => PENULIS.includes(aktor
  * - `pdsa`: PDSA semua Lingkup yang periode uji cobanya bersinggungan dengan Triwulan itu;
  * - `insiden`: rekap Insiden Keselamatan Pasien Triwulan itu tanpa identitas (`rekapInsiden`, modul Insiden); null
  *   untuk Admin Sistem;
- * - `rekomendasi` (null = belum ditulis) dan `bolehTulis` (Rekomendasi).
+ * - `rekomendasi` (null = belum ditulis) dan `bolehTulis` (Rekomendasi);
+ * - `umpanBalik`: Umpan Balik Dewan Pengawas atas laporan ini, dan `umpanBalikSebelumnya`: atas laporan Triwulan
+ *   sebelumnya beserta tindak lanjutnya, yang dievaluasi pada pertemuan laporan ini (TKRS 1); `bolehCatatUmpanBalik`.
  */
 export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string, sekarang = new Date()) {
   wajibPeran(aktor, PELIHAT_RS, "Laporan Triwulan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
@@ -44,7 +83,7 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
   const capaian = (await capaianTriwulan(aktor, triwulan, sekarang)).sort((a, b) => urutKelompok(a.indikator, b.indikator));
   const bulan = bulanTriwulan(triwulan);
   const { tahun, nomor } = uraiTriwulan(triwulan);
-  const [ada, pdsa, insiden, [rek]] = await Promise.all([
+  const [ada, pdsa, insiden, [rek], umpanBalik, umpanBalikSebelumnya] = await Promise.all([
     analisisPada(
       aktor,
       capaian.map((c) => c.indikator.id),
@@ -59,6 +98,8 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
       .from(rekomendasi)
       .innerJoin(pengguna, eq(pengguna.id, rekomendasi.diubahOlehId))
       .where(and(eq(rekomendasi.tahun, tahun), eq(rekomendasi.triwulan, nomor))),
+    umpanBalikPada(triwulan),
+    umpanBalikPada(triwulanSebelum(triwulan)),
   ]);
 
   const analisis = capaian.flatMap((c) =>
@@ -81,6 +122,9 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
     insiden,
     rekomendasi: rek ?? null,
     bolehTulis: bolehTulisRekomendasi(aktor),
+    umpanBalik,
+    umpanBalikSebelumnya,
+    bolehCatatUmpanBalik: bolehCatatUmpanBalik(aktor),
   };
 }
 
@@ -102,6 +146,46 @@ export async function simpanRekomendasi(aktor: Pengguna | null, isian: { triwula
     .insert(rekomendasi)
     .values({ tahun, triwulan: nomor, ...data })
     .onConflictDoUpdate({ target: [rekomendasi.tahun, rekomendasi.triwulan], set: data });
+}
+
+/**
+ * Mencatat Umpan Balik Dewan Pengawas atas Laporan Triwulan yang sudah selesai (TKRS 1); mencatat ulang mengubah yang
+ * sama. Teks wajib; tanggal diterima ("YYYY-MM-DD") tidak sebelum Triwulan itu berakhir dan tidak di masa depan.
+ */
+export async function simpanUmpanBalik(
+  aktor: Pengguna | null,
+  isian: { triwulan: string; teks: string; diterimaPada: string },
+  sekarang = new Date(),
+) {
+  wajibPeran(aktor, PENCATAT_UMPAN_BALIK, "Umpan Balik Dewan Pengawas hanya dicatat Komite Mutu, Direktur, dan Admin Sistem.");
+  wajibTriwulanSelesai(isian.triwulan, sekarang);
+  const teks = wajibTeks(isian.teks, "Umpan balik", MAKS_REKOMENDASI);
+  const tanggal = isian.diterimaPada;
+  if (typeof tanggal !== "string" || !tanggalValid(tanggal)) throw new ServiceError(400, "Tanggal diterima harus tanggal yang valid.");
+  if (tanggal < `${geserBulan(bulanTriwulan(isian.triwulan)[2], 1)}-01`) {
+    throw new ServiceError(400, "Tanggal diterima tidak boleh sebelum Triwulan itu berakhir.");
+  }
+  if (tanggal > hariIni(sekarang)) throw new ServiceError(400, "Tanggal diterima tidak boleh di masa depan.");
+  const data = { teks, diterimaPada: tanggal, diubahOlehId: aktor.id, diubahPada: new Date() };
+  const { tahun, nomor } = uraiTriwulan(isian.triwulan);
+  await db
+    .insert(umpanBalikDewanPengawas)
+    .values({ tahun, triwulan: nomor, ...data })
+    .onConflictDoUpdate({ target: [umpanBalikDewanPengawas.tahun, umpanBalikDewanPengawas.triwulan], set: data });
+}
+
+/** Tindak lanjut Umpan Balik Dewan Pengawas satu Triwulan, untuk dievaluasi pada pertemuan berikutnya; umpan baliknya harus sudah dicatat. */
+export async function simpanTindakLanjutUmpanBalik(aktor: Pengguna | null, isian: { triwulan: string; tindakLanjut: string }) {
+  wajibPeran(aktor, PENCATAT_UMPAN_BALIK, "Tindak lanjut umpan balik hanya dicatat Komite Mutu, Direktur, dan Admin Sistem.");
+  if (typeof isian.triwulan !== "string" || !triwulanValid(isian.triwulan)) throw new ServiceError(400, "Triwulan tidak valid.");
+  const tindakLanjut = wajibTeks(isian.tindakLanjut, "Tindak lanjut", MAKS_REKOMENDASI);
+  const { tahun, nomor } = uraiTriwulan(isian.triwulan);
+  const diubah = await db
+    .update(umpanBalikDewanPengawas)
+    .set({ tindakLanjut, diubahOlehId: aktor.id, diubahPada: new Date() })
+    .where(and(eq(umpanBalikDewanPengawas.tahun, tahun), eq(umpanBalikDewanPengawas.triwulan, nomor)))
+    .returning({ id: umpanBalikDewanPengawas.id });
+  if (diubah.length === 0) throw new ServiceError(404, "Catat Umpan Balik Dewan Pengawas Triwulan itu dulu.");
 }
 
 /**

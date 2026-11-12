@@ -37,7 +37,7 @@ import { LabelTahap } from "../pdsa/tahap";
 import { PilihCari } from "../pilih-cari";
 import { formatWaktu, LabelCapaian, LabelTindakLanjut, Pemberitahuan, Pesan, pesanAtau } from "../pengukuran/status";
 import { BarKemajuan, Halaman, Kartu, KepalaHalaman, Pil, Rincian, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui";
-import { FormRekomendasi, TombolCetak } from "./klien";
+import { FormRekomendasi, FormTindakLanjutUmpanBalik, FormUmpanBalik, TombolCetak } from "./klien";
 
 export const metadata: Metadata = { title: "Laporan Triwulan" };
 
@@ -215,6 +215,8 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
           )}
         </div>
       </Kartu>
+
+      <UmpanBalik lap={lap} />
 
       {/* Kolom tanda tangan, hanya di hasil cetak. */}
       <div className="hidden grid-cols-2 gap-8 pt-4 text-center print:grid print:break-inside-avoid">
@@ -559,6 +561,70 @@ function BagianInsiden({ lap, r }: { lap: LaporanTriwulan; r: NonNullable<Lapora
           </section>
         </div>
       )}
+    </Kartu>
+  );
+}
+
+/**
+ * Umpan Balik Dewan Pengawas (KMK 1596/2024 TKRS 1): tindak lanjut atas umpan balik Triwulan sebelumnya (dievaluasi pada
+ * pertemuan laporan ini), lalu umpan balik atas laporan ini (dicatat setelah pertemuannya). Di hasil cetak hanya teksnya.
+ */
+function UmpanBalik({ lap }: { lap: LaporanTriwulan }) {
+  const { umpanBalik: ub, umpanBalikSebelumnya: ubs } = lap;
+  const pencatat = (u: NonNullable<typeof ub>) => (
+    <p className="text-[13px] text-ink-3">
+      Diterima {labelTanggal(u.diterimaPada)}; dicatat oleh <span className="text-signal">{u.diubahOleh}</span>,{" "}
+      <span className="terukur text-cool">{formatWaktu(u.diubahPada)}</span>
+    </p>
+  );
+  // Setiap simpan mengubah `diubahPada`, jadi form dibuat ulang dan pesan penolakan lama hilang.
+  const versi = `${ub?.diubahPada.toISOString()}|${ubs?.diubahPada.toISOString()}`;
+  return (
+    <Kartu judul="Umpan Balik Dewan Pengawas" sub="Umpan balik tertulis atas laporan triwulan dan evaluasi tindak lanjutnya pada pertemuan berikutnya.">
+      <div className="grid">
+        <section aria-labelledby="ub-sebelumnya" className="grid gap-3 border-t border-rule px-5 py-4 print:break-inside-avoid">
+          <h3 id="ub-sebelumnya" className="font-display text-[16px] font-medium">
+            Tindak lanjut umpan balik {ubs ? labelTriwulan(ubs.triwulan) : "Triwulan sebelumnya"}
+          </h3>
+          {!ubs ? (
+            <p className="text-[15px] text-ink-3">Tidak ada umpan balik tercatat untuk Triwulan sebelumnya.</p>
+          ) : (
+            <>
+              <dl className="grid gap-2">
+                <Teks label="Umpan balik">{ubs.teks}</Teks>
+                {/* Pencatat mengisi lewat form; teks tersimpan hanya di hasil cetak supaya tidak tampil dua kali. */}
+                <div className={lap.bolehCatatUmpanBalik ? "hidden print:block" : undefined}>
+                  <Teks label="Tindak lanjut">{ubs.tindakLanjut || <span className="text-ink-3">belum dicatat</span>}</Teks>
+                </div>
+              </dl>
+              {lap.bolehCatatUmpanBalik && (
+                <div className="print:hidden">
+                  <FormTindakLanjutUmpanBalik key={versi} triwulan={ubs.triwulan} tindakLanjut={ubs.tindakLanjut} />
+                </div>
+              )}
+              {pencatat(ubs)}
+            </>
+          )}
+        </section>
+        <section aria-labelledby="ub-ini" className="grid gap-3 border-t border-rule px-5 py-4 print:break-inside-avoid">
+          <h3 id="ub-ini" className="font-display text-[16px] font-medium">
+            Umpan balik atas laporan {labelTriwulan(lap.triwulan)}
+          </h3>
+          {ub && (
+            <dl className={lap.bolehCatatUmpanBalik ? "hidden print:grid print:gap-2" : "grid gap-2"}>
+              <Teks label="Umpan balik">{ub.teks}</Teks>
+            </dl>
+          )}
+          {lap.bolehCatatUmpanBalik ? (
+            <div className="print:hidden">
+              <FormUmpanBalik key={versi} triwulan={lap.triwulan} teks={ub?.teks ?? ""} diterimaPada={ub?.diterimaPada ?? ""} maks={hariIni()} />
+            </div>
+          ) : (
+            !ub && <p className="text-[15px] text-ink-3">Belum dicatat; diisi setelah laporan ini dibahas bersama Dewan Pengawas.</p>
+          )}
+          {ub && pencatat(ub)}
+        </section>
+      </div>
     </Kartu>
   );
 }
