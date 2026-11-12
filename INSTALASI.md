@@ -25,6 +25,41 @@ Petunjuk untuk IT RS. MutuRS berjalan dengan docker compose di satu server RS, b
 
 **Pembaruan versi:** picu backup segera (lihat di bawah), ganti isi folder aplikasi dengan versi baru (`.env` dan folder backup tetap), lalu jalankan lagi `docker compose up -d --build`.
 
+## Impor pengaturan dari aplikasi mutu lama (sekali, saat pemasangan)
+
+Unit, Indikator (beserta definisi dan Target), dan Unit Pelapor dari modul Mutu aplikasi kepegawaian lama bisa dipindahkan, supaya Komite Mutu tidak mengetik ulang. Isian, bukti, dan akun pengguna lama tidak ikut. Impor dikerjakan di komputer yang punya kode MutuRS dan Node.js, bukan di server (image server tidak berisi skrip), lalu hasilnya dipasang di server sebagai database awal.
+
+1. Unduh dump database aplikasi lama dari Hostinger (phpMyAdmin, Ekspor, format SQL; `.sql` atau `.sql.gz`). Dump ini berisi data kepegawaian: simpan di luar folder MutuRS dan hapus setelah selesai.
+2. Siapkan database MutuRS kosong di komputer itu, lalu buat `.env.impor` dari `.env.example` dengan `DATABASE_URL=postgres://mutu:impor@127.0.0.1:55499/mutu` dan `ADMIN_USERNAME`/`ADMIN_PASSWORD` **sama dengan `.env` server** (Admin Sistem awal ikut pindah):
+
+   ```bash
+   docker run -d --name mutu-impor -e POSTGRES_USER=mutu -e POSTGRES_PASSWORD=impor -e POSTGRES_DB=mutu \
+     -p 127.0.0.1:55499:5432 postgres:17-alpine
+   ```
+
+3. Pratinjau (tidak ada yang disimpan), lalu serahkan `daftar-periksa.md` ke Komite Mutu. Bulan peralihan bawaan Januari 2027; ganti dengan `--mulai YYYY-MM`.
+
+   ```bash
+   npx tsx --env-file=.env.impor scripts/impor-v1.ts /path/dump.sql > daftar-periksa.md
+   ```
+
+4. Setelah disetujui, jalankan dengan `--jalankan` (aman diulang: yang sudah ada dilewati):
+
+   ```bash
+   npx tsx --env-file=.env.impor scripts/impor-v1.ts /path/dump.sql --jalankan > daftar-periksa.md
+   ```
+
+5. Pindahkan hasilnya ke server sebagai database awal, lalu hapus database sementara:
+
+   ```bash
+   docker exec mutu-impor pg_dump -U mutu --clean --if-exists mutu > mutu-awal.sql
+   docker rm -f mutu-impor
+   ```
+
+   Salin `mutu-awal.sql` ke folder backup server, lalu ikuti [Memulihkan ke database kosong](#memulihkan-ke-database-kosong) dengan berkas itu.
+
+6. Komite Mutu melengkapi yang ditandai "Belum diisi (dari aplikasi lama)" (Sumber Data, dan definisi yang kosong) di halaman Indikator sebelum isian pertama bulan peralihan, karena definisi N dan D terkunci setelah ada Pengukuran.
+
 ## Backup harian
 
 - Layanan `backup` membuat dump seluruh database MutuRS setiap hari pukul 01.00 menurut zona waktu `APP_TIMEZONE`.
