@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { analisis, indikator, pdsa, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
 import { bulanBerjalan, bulanLalu, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan, wajibBulanBerjalan } from "@/lib/bulan";
 import { kodePg, ServiceError } from "@/lib/errors";
+import { wajibTeks } from "@/lib/form";
 import { diukurPadaBulan } from "@/lib/indikator";
 import {
   KEPUTUSAN_PDSA,
@@ -77,14 +78,6 @@ function wajibTulis(aktor: Pengguna | null, unitId: Lingkup): asserts aktor is P
       ? "Lingkup RS hanya ditulis Komite Mutu dan Admin Sistem."
       : "Lingkup Unit hanya ditulis Komite Mutu, Admin Sistem, dan Kepala Unit dari Unit itu.",
   );
-}
-
-/** Teks wajib dari isian: dirapikan, tidak kosong, dan dibatasi panjangnya. */
-function wajibTeks(nilai: unknown, label: string, maks: number) {
-  const teks = typeof nilai === "string" ? nilai.trim() : "";
-  if (!teks) throw new ServiceError(400, `${label} wajib diisi.`);
-  if (teks.length > maks) throw new ServiceError(400, `${label} maksimal ${maks} karakter.`);
-  return teks;
 }
 
 /** `db` atau transaksi yang sedang berjalan. */

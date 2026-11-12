@@ -6,6 +6,7 @@ import {
   bulanDariAlamat,
   bulanLalu,
   bulanTriwulan,
+  dariWaktuSetempat,
   hariIni,
   labelTriwulan,
   salam,
@@ -16,6 +17,7 @@ import {
   triwulanLalu,
   triwulanValid,
   wajibTriwulanSelesai,
+  waktuSetempat,
 } from "@/lib/bulan";
 
 // Tes dijalankan dengan zona waktu Asia/Makassar (WITA, UTC+8), lihat scripts/test.sh.
@@ -143,5 +145,20 @@ describe("tambah hari", () => {
     assert.equal(tambahHari("2026-12-28", 7), "2027-01-04");
     assert.equal(tambahHari("2028-02-25", 4), "2028-02-29");
     assert.equal(tambahHari("2026-03-01", -1), "2026-02-28");
+  });
+});
+
+describe("waktu setempat", () => {
+  it("datetime-local menurut zona waktu konfigurasi (Asia/Makassar = UTC+8) bolak-balik", () => {
+    assert.equal(dariWaktuSetempat("2026-06-14T08:30")?.toISOString(), "2026-06-14T00:30:00.000Z");
+    assert.equal(dariWaktuSetempat("2027-01-01T00:00")?.toISOString(), "2026-12-31T16:00:00.000Z");
+    assert.equal(waktuSetempat(new Date("2026-12-31T16:00:00Z")), "2027-01-01T00:00");
+    assert.equal(waktuSetempat(dariWaktuSetempat("2026-03-05T23:59")!), "2026-03-05T23:59");
+  });
+
+  it("menolak waktu yang tidak ada di kalender atau berformat lain", () => {
+    for (const t of ["2026-02-30T08:00", "2026-06-14T24:00", "2026-06-14T08:60", "2026-06-14 08:30", "2026-06-14", ""]) {
+      assert.equal(dariWaktuSetempat(t), null, t);
+    }
   });
 });

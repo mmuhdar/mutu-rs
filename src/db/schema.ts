@@ -21,6 +21,30 @@ import {
 
 import { JENIS_BUKTI, MAKS_UKURAN_BUKTI, type JenisBukti } from "../lib/bukti";
 import { ARAH, FREKUENSI, KELOMPOK, type Arah, type Frekuensi, type Kelompok } from "../lib/indikator";
+import {
+  AKIBAT_INSIDEN,
+  FAKTOR_KONTRIBUTOR,
+  JENIS_INSIDEN,
+  JENIS_KELAMIN,
+  KATEGORI_PASIEN,
+  ORANG_PERTAMA,
+  PENANGGUNG_BIAYA,
+  SPESIALISASI,
+  STATUS_INSIDEN,
+  TINDAKAN_OLEH,
+  TIPE_INSIDEN,
+  type AkibatInsiden,
+  type FaktorKontributor,
+  type JenisInsiden,
+  type JenisKelamin,
+  type KategoriPasien,
+  type OrangPertama,
+  type PenanggungBiaya,
+  type Spesialisasi,
+  type StatusInsiden,
+  type TindakanOleh,
+  type TipeInsiden,
+} from "../lib/insiden";
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
 import {
   KEPUTUSAN_PDSA,
@@ -386,5 +410,125 @@ export const rekomendasi = pgTable(
   (t) => [
     unique("rekomendasi_tahun_triwulan_unique").on(t.tahun, t.triwulan),
     check("rekomendasi_triwulan_check", sql`${t.triwulan} between 1 and 4`),
+  ],
+);
+
+/** CHECK: tingkat dampak/probabilitas 1–5 (null = belum digrading). */
+const tingkat = (kolom: AnyPgColumn) => sql`${kolom} between 1 and 5`;
+
+/**
+ * Insiden Keselamatan Pasien: satu laporan internal (isian Formulir 1 PMK 11/2017) beserta grading, investigasi, dan
+ * statusnya. Data pasien wajib kecuali untuk KPC. Tidak pernah dihapus; laporan yang ternyata bukan insiden berstatus
+ * Bukan Insiden. Aturan alur, hak akses, dan isian diperiksa di service.
+ */
+export const insiden = pgTable(
+  "insiden",
+  {
+    id: id(),
+    /** Unit tempat insiden dilaporkan; Kepala Unit-nya = atasan langsung yang menggrading. */
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => unit.id),
+    /** Unit/departemen terkait yang menyebabkan insiden (Formulir 1 butir 10), opsional. */
+    unitPenyebabId: uuid("unit_penyebab_id").references(() => unit.id),
+    waktuInsiden: timestamp("waktu_insiden", { withTimezone: true }).notNull(),
+    /** Insiden singkat (Formulir 1 butir 2), mis. "Pasien jatuh dari tempat tidur". */
+    judul: varchar("judul", { length: 200 }).notNull(),
+    kronologi: text("kronologi").notNull(),
+    jenis: varchar("jenis", { length: 16 }).$type<JenisInsiden>().notNull(),
+    orangPertama: varchar("orang_pertama", { length: 16 }).$type<OrangPertama>().notNull(),
+    tempat: varchar("tempat", { length: 120 }).notNull(),
+    pasienInisial: varchar("pasien_inisial", { length: 20 }),
+    pasienNoRm: varchar("pasien_no_rm", { length: 30 }),
+    pasienRuangan: varchar("pasien_ruangan", { length: 80 }).notNull().default(""),
+    pasienUmurBulan: integer("pasien_umur_bulan"),
+    pasienJenisKelamin: varchar("pasien_jenis_kelamin", { length: 1 }).$type<JenisKelamin>(),
+    penanggungBiaya: varchar("penanggung_biaya", { length: 16 }).$type<PenanggungBiaya>(),
+    kategoriPasien: varchar("kategori_pasien", { length: 16 }).$type<KategoriPasien>(),
+    spesialisasi: varchar("spesialisasi", { length: 24 }).$type<Spesialisasi>(),
+    tanggalMasuk: timestamp("tanggal_masuk", { withTimezone: true }),
+    akibat: varchar("akibat", { length: 16 }).$type<AkibatInsiden>().notNull(),
+    tindakanSegera: text("tindakan_segera").notNull(),
+    tindakanOleh: varchar("tindakan_oleh", { length: 16 }).$type<TindakanOleh>().notNull(),
+    /** Kejadian yang sama pernah terjadi di unit kerja lain (Formulir 1 butir 14) + kapan dan langkahnya. */
+    pernahTerjadi: boolean("pernah_terjadi").notNull(),
+    pernahTerjadiKeterangan: text("pernah_terjadi_keterangan").notNull().default(""),
+    /** Pembuat Laporan: Pengguna yang memasukkan laporan; diambil dari sesi. */
+    dilaporkanOlehId: uuid("dilaporkan_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    dilaporkanPada: timestamp("dilaporkan_pada", { withTimezone: true }).notNull(),
+    status: varchar("status", { length: 16 }).$type<StatusInsiden>().notNull(),
+    /** Grading terakhir (awal oleh Kepala Unit, akhir oleh Komite Mutu); riwayatnya di `riwayat_status_insiden`. */
+    dampak: integer("dampak"),
+    probabilitas: integer("probabilitas"),
+    /** Tenggat investigasi, ditetapkan saat grading. */
+    tenggat: date("tenggat", { mode: "string" }),
+    tipeInsiden: varchar("tipe_insiden", { length: 24 }).$type<TipeInsiden>(),
+    faktorKontributor: text("faktor_kontributor").array().$type<FaktorKontributor[]>().notNull().default(sql`'{}'`),
+    penyebabLangsung: text("penyebab_langsung").notNull().default(""),
+    akarMasalah: text("akar_masalah").notNull().default(""),
+    rekomendasi: text("rekomendasi").notNull().default(""),
+    /** Tanggal laporan dikirim ke e-report Kemenkes (KTD dan Kejadian Sentinel); dicatat Komite Mutu. */
+    ereportPada: date("ereport_pada", { mode: "string" }),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("insiden_unit_idx").on(t.unitId),
+    index("insiden_status_idx").on(t.status),
+    index("insiden_waktu_idx").on(t.waktuInsiden),
+    check("insiden_jenis_check", salahSatu(t.jenis, JENIS_INSIDEN)),
+    check("insiden_status_check", salahSatu(t.status, STATUS_INSIDEN)),
+    check("insiden_orang_pertama_check", salahSatu(t.orangPertama, ORANG_PERTAMA)),
+    check("insiden_jenis_kelamin_check", salahSatu(t.pasienJenisKelamin, JENIS_KELAMIN)),
+    check("insiden_penanggung_biaya_check", salahSatu(t.penanggungBiaya, PENANGGUNG_BIAYA)),
+    check("insiden_kategori_pasien_check", salahSatu(t.kategoriPasien, KATEGORI_PASIEN)),
+    check("insiden_spesialisasi_check", salahSatu(t.spesialisasi, SPESIALISASI)),
+    check("insiden_akibat_check", salahSatu(t.akibat, AKIBAT_INSIDEN)),
+    check("insiden_tindakan_oleh_check", salahSatu(t.tindakanOleh, TINDAKAN_OLEH)),
+    check("insiden_tipe_check", salahSatu(t.tipeInsiden, TIPE_INSIDEN)),
+    check(
+      "insiden_faktor_check",
+      sql`${t.faktorKontributor} <@ array[${sql.raw(FAKTOR_KONTRIBUTOR.map((f) => `'${f}'`).join(", "))}]::text[]`,
+    ),
+    check("insiden_umur_check", sql`${t.pasienUmurBulan} between 0 and 1800`),
+    check(
+      "insiden_pasien_check",
+      sql`${t.jenis} = 'kpc' or (${t.pasienInisial} is not null and ${t.pasienNoRm} is not null and ${t.pasienUmurBulan} is not null and ${t.pasienJenisKelamin} is not null and ${t.penanggungBiaya} is not null and ${t.kategoriPasien} is not null and ${t.spesialisasi} is not null)`,
+    ),
+    check("insiden_dampak_check", tingkat(t.dampak)),
+    check("insiden_probabilitas_check", tingkat(t.probabilitas)),
+    check("insiden_grading_check", sql`(${t.dampak} is null) = (${t.probabilitas} is null)`),
+  ],
+);
+
+/**
+ * Riwayat Status Insiden: laporan dibuat (status asal null) dan setiap perpindahan status, beserta grading yang
+ * ditetapkan pada perpindahan itu dan catatan (catatan tinjauan atau alasan Bukan Insiden).
+ */
+export const riwayatStatusInsiden = pgTable(
+  "riwayat_status_insiden",
+  {
+    id: id(),
+    insidenId: uuid("insiden_id")
+      .notNull()
+      .references(() => insiden.id),
+    statusAsal: varchar("status_asal", { length: 16 }).$type<StatusInsiden>(),
+    statusTujuan: varchar("status_tujuan", { length: 16 }).$type<StatusInsiden>().notNull(),
+    olehId: uuid("oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    waktu: timestamp("waktu", { withTimezone: true }).notNull().default(sql`clock_timestamp()`),
+    dampak: integer("dampak"),
+    probabilitas: integer("probabilitas"),
+    catatan: text("catatan"),
+  },
+  (t) => [
+    index("riwayat_status_insiden_idx").on(t.insidenId, t.waktu),
+    check("riwayat_status_insiden_asal_check", salahSatu(t.statusAsal, STATUS_INSIDEN)),
+    check("riwayat_status_insiden_tujuan_check", salahSatu(t.statusTujuan, STATUS_INSIDEN)),
+    check("riwayat_status_insiden_dampak_check", tingkat(t.dampak)),
+    check("riwayat_status_insiden_probabilitas_check", tingkat(t.probabilitas)),
   ],
 );

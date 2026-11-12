@@ -1,16 +1,37 @@
 import { config } from "./config";
 import { ServiceError } from "./errors";
 
-/** Tanggal hari ini ("YYYY-MM-DD") menurut zona waktu konfigurasi, bukan zona waktu server. */
-export function hariIni(sekarang = new Date()): string {
+/** Tanggal ("YYYY-MM-DD") dan jam ("HH:mm") sebuah waktu menurut zona waktu konfigurasi, bukan zona waktu server. */
+function bagianSetempat(waktu: Date) {
   const bagian = new Intl.DateTimeFormat("en", {
     timeZone: config.zonaWaktu,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(sekarang);
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(waktu);
   const ambil = (jenis: string) => bagian.find((b) => b.type === jenis)!.value;
-  return `${ambil("year")}-${ambil("month")}-${ambil("day")}`;
+  return { tanggal: `${ambil("year")}-${ambil("month")}-${ambil("day")}`, jam: `${ambil("hour")}:${ambil("minute")}` };
+}
+
+/** Tanggal hari ini ("YYYY-MM-DD") menurut zona waktu konfigurasi, bukan zona waktu server. */
+export const hariIni = (sekarang = new Date()): string => bagianSetempat(sekarang).tanggal;
+
+/** Waktu "YYYY-MM-DDTHH:mm" menurut zona waktu konfigurasi, bentuk nilai `<input type="datetime-local">`. */
+export function waktuSetempat(waktu: Date) {
+  const { tanggal, jam } = bagianSetempat(waktu);
+  return `${tanggal}T${jam}`;
+}
+
+/** Kebalikan `waktuSetempat`: "YYYY-MM-DDTHH:mm" waktu setempat menjadi Date; null bila bukan waktu yang ada di kalender. */
+export function dariWaktuSetempat(teks: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/.test(teks) || !tanggalValid(teks.slice(0, 10))) return null;
+  const kira = Date.parse(`${teks}:00Z`);
+  // Selisih zona = waktu setempat tebakan dikurangi tebakan itu; zona Indonesia tanpa DST, jadi selisihnya tetap.
+  const selisih = Date.parse(`${waktuSetempat(new Date(kira))}:00Z`) - kira;
+  return new Date(kira - selisih);
 }
 
 /** Salam menurut jam di zona waktu konfigurasi: pagi 04.00–10.59, siang 11.00–14.59, sore 15.00–17.59, lalu malam. */
