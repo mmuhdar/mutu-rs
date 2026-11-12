@@ -46,6 +46,7 @@ import {
   type TipeInsiden,
 } from "../lib/insiden";
 import { ENTITAS_JEJAK, type EntitasJejak } from "../lib/jejak";
+import { PEMICU_VALIDASI, PENYEBAB_TIDAK_VALID, type PemicuValidasi, type PenyebabTidakValid } from "../lib/validasi";
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
 import {
   JENIS_SUMBER_DAYA,
@@ -606,5 +607,51 @@ export const jejakAudit = pgTable(
     index("jejak_audit_waktu_idx").on(t.waktu),
     index("jejak_audit_entitas_idx").on(t.entitas, t.entitasId),
     check("jejak_audit_entitas_check", salahSatu(t.entitas, ENTITAS_JEJAK)),
+  ],
+);
+
+/**
+ * Validasi Data (PMKP 5): pengukuran ulang sampel data satu Indikator di satu Unit Pelapor untuk satu bulan oleh orang
+ * yang berbeda dari pengumpul data. Validasi ulang = baris baru untuk Indikator + Unit + bulan yang sama. Aturan Unit
+ * Pelapor, sampel minimal, dan isian wajib diperiksa di service; tidak pernah dihapus.
+ */
+export const validasiData = pgTable(
+  "validasi_data",
+  {
+    id: id(),
+    indikatorId: uuid("indikator_id")
+      .notNull()
+      .references(() => indikator.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => unit.id),
+    /** Bulan data yang divalidasi (tanggal 1). */
+    bulan: date("bulan", { mode: "string" }).notNull(),
+    pemicu: varchar("pemicu", { length: 24 }).$type<PemicuValidasi>().notNull(),
+    tanggal: date("tanggal", { mode: "string" }).notNull(),
+    /** Nama, bukan akun: pengumpul data dan validator belum tentu Pengguna MutuRS. */
+    pengumpulData: varchar("pengumpul_data", { length: 120 }).notNull(),
+    validator: varchar("validator", { length: 120 }).notNull(),
+    populasi: integer("populasi").notNull(),
+    sampel: integer("sampel").notNull(),
+    sesuai: integer("sesuai").notNull(),
+    penyebab: text("penyebab").array().$type<PenyebabTidakValid[]>().notNull().default(sql`'{}'`),
+    perbaikan: text("perbaikan").notNull().default(""),
+    catatan: text("catatan").notNull().default(""),
+    diubahOlehId: uuid("diubah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("validasi_data_indikator_unit_bulan_idx").on(t.indikatorId, t.unitId, t.bulan),
+    check("validasi_data_bulan_check", sql`extract(day from ${t.bulan}) = 1`),
+    check("validasi_data_pemicu_check", salahSatu(t.pemicu, PEMICU_VALIDASI)),
+    check(
+      "validasi_data_penyebab_check",
+      sql`${t.penyebab} <@ array[${sql.raw(PENYEBAB_TIDAK_VALID.map((f) => `'${f}'`).join(", "))}]::text[]`,
+    ),
+    check("validasi_data_sampel_check", sql`${t.populasi} >= 1 and ${t.sampel} between 1 and ${t.populasi} and ${t.sesuai} between 0 and ${t.sampel}`),
   ],
 );

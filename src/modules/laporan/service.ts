@@ -29,6 +29,7 @@ import { daftarIndikator } from "@/modules/indikator/service";
 import { catatJejak } from "@/modules/jejak/catat";
 import { bacaSemuaInsiden, rekapInsiden } from "@/modules/insiden/service";
 import { analisisPada, daftarPdsa } from "@/modules/perbaikan/service";
+import { daftarValidasi, rentangBulan } from "@/modules/validasi/service";
 
 /*
  * Modul Laporan: Laporan Triwulan (Komite Mutu ke Direktur) dan Rekap SIMAR (isian INM bulanan ke Kemenkes). Angka
@@ -72,6 +73,7 @@ async function umpanBalikPada(triwulan: string) {
  *   ada Unit Pelapor bulan itu; IMP-Unit: setiap Unit Pelapor-nya bulan itu), dengan Analisis beserta Tindak
  *   Lanjut-nya, atau null = Belum dianalisis;
  * - `pdsa`: PDSA semua Lingkup yang periode uji cobanya bersinggungan dengan Triwulan itu;
+ * - `validasi`: Validasi Data yang tanggalnya di Triwulan itu (PMKP 1: laporan memuat validasi);
  * - `insiden`: rekap Insiden Keselamatan Pasien Triwulan itu tanpa identitas (`rekapInsiden`, modul Insiden); null
  *   untuk Admin Sistem;
  * - `rekomendasi` (null = belum ditulis) dan `bolehTulis` (Rekomendasi);
@@ -85,7 +87,7 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
   const capaian = (await capaianTriwulan(aktor, triwulan, sekarang)).sort((a, b) => urutKelompok(a.indikator, b.indikator));
   const bulan = bulanTriwulan(triwulan);
   const { tahun, nomor } = uraiTriwulan(triwulan);
-  const [ada, pdsa, insiden, [rek], umpanBalik, umpanBalikSebelumnya] = await Promise.all([
+  const [ada, pdsa, insiden, [rek], umpanBalik, umpanBalikSebelumnya, validasi] = await Promise.all([
     analisisPada(
       aktor,
       capaian.map((c) => c.indikator.id),
@@ -102,6 +104,7 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
       .where(and(eq(rekomendasi.tahun, tahun), eq(rekomendasi.triwulan, nomor))),
     umpanBalikPada(triwulan),
     umpanBalikPada(triwulanSebelum(triwulan)),
+    daftarValidasi(aktor, { tanggal: rentangBulan(bulan[0], bulan[2]) }),
   ]);
 
   const analisis = capaian.flatMap((c) =>
@@ -121,6 +124,7 @@ export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string,
     capaian,
     analisis,
     pdsa,
+    validasi,
     insiden,
     rekomendasi: rek ?? null,
     bolehTulis: bolehTulisRekomendasi(aktor),
