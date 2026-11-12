@@ -165,6 +165,43 @@ describe("rencana impor", () => {
   });
 });
 
+describe("rencana impor: nama yang hanya berbeda di dalam kurung", () => {
+  it("tetap dua Indikator, dan rencana ulang memetakan masing-masing ke kodenya sendiri", () => {
+    const baris = [
+      v1({ master: "Waktu Tunggu (IGD)", unit: "IGD" }),
+      v1({ master: "Waktu Tunggu (Rawat Jalan)", unit: "Poli Anak" }),
+      v1({ nama: "Kepatuhan Hand Hygiene (ICU)", unit: "ICU" }),
+      v1({ nama: "Kepatuhan Hand Hygiene (IGD)", unit: "IGD" }),
+    ];
+    const pertama = susunRencana(baris, { mulai: "2027-01", ada: inm, targetInm });
+    const kode = Object.fromEntries(pertama.indikator.map((i) => [i.nama, i.kode]));
+    assert.equal(pertama.indikator.length, 4);
+
+    const ada = [...inm, ...pertama.indikator.map((i) => ({ kode: i.kode, nama: i.nama, kelompok: i.kelompok }))];
+    const ulang = susunRencana(baris, { mulai: "2027-01", ada, targetInm });
+    assert.deepEqual(
+      ulang.indikator.map((i) => [i.kode, i.sudahAda, i.unit]),
+      pertama.indikator.map((i) => [kode[i.nama], true, i.unit]),
+    );
+  });
+
+  it("Arah dan Target dari baris yang sama: Target terbanyak di antara baris ber-Arah terbanyak", () => {
+    const r = susunRencana(
+      [
+        v1({ nama: "Insiden", unit: "A", arah: "makinRendah", target: 0 }),
+        v1({ nama: "Insiden", unit: "B", arah: "makinRendah", target: 5 }),
+        v1({ nama: "Insiden", unit: "C", arah: "makinRendah", target: 0 }),
+        v1({ nama: "Insiden", unit: "D", arah: "makinTinggi", target: 100 }),
+        v1({ nama: "Insiden", unit: "E", arah: "makinTinggi", target: 100 }),
+      ],
+      { mulai: "2027-01", ada: inm, targetInm },
+    );
+    const [i] = r.indikator;
+    assert.deepEqual([i.isian.arah, i.target], ["makinRendah", 0]);
+    assert.match(i.catatan.join(), /dipakai ≤ 0/);
+  });
+});
+
 describe("menjalankan impor", () => {
   const nama = unik("Impor");
   const unitIcu = `${nama} ICU`;
@@ -191,7 +228,7 @@ describe("menjalankan impor", () => {
     const rencanaUntuk = async () =>
       susunRencana(baris, {
         mulai: "2031-01",
-        ada: (await daftarIndikator(admin)).map((i) => ({ kode: i.kode, nama: i.nama, kelompok: i.kelompok })),
+        ada: await daftarIndikator(admin),
         targetInm,
       });
 

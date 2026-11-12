@@ -258,7 +258,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         judul="Capaian per Indikator"
         sub={`${labelBulan(ringkasan.bulan)}. Garis tegak = Target; Belum Tercapai di atas.`}
         aksi={
-          <span className="flex flex-wrap gap-2">
+          // Di HP bertumpuk supaya judul kartu tetap selebar sebelum ada tombol kedua.
+          <span className="flex flex-col items-end gap-2 sm:flex-row">
             {!perUnit && (
               // Tautan biasa, bukan `Link`: tujuannya route handler yang mengunduh berkas.
               <Button asChild variant="outline" size="sm">

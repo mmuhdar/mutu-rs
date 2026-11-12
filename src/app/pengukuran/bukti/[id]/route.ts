@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-import { ServiceError } from "@/lib/errors";
+import { responsPenolakan } from "@/lib/errors";
 import { ambilBerkasBukti } from "@/modules/pengukuran/service";
 import { getSessionUser } from "@/server/sesi";
 
@@ -20,9 +20,6 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/pengukuran/
       },
     });
   } catch (error) {
-    if (error instanceof ServiceError) {
-      return new Response(error.message, { status: error.status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-    }
-    throw error;
+    return responsPenolakan(error);
   }
 }

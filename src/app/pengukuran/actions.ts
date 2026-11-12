@@ -59,7 +59,7 @@ export async function unggahBuktiAction(_prev: StatePengukuran, formData: FormDa
   const pengukuranId = teks(formData, "pengukuranId");
   // Input berkas yang tidak diisi mengirim satu File kosong tanpa nama.
   const berkas = formData.getAll("berkas").filter((f): f is File => f instanceof File && (f.size > 0 || f.name !== ""));
-  if (berkas.length === 0) return { error: "Pilih berkas bukti." };
+  if (berkas.length === 0) return { error: "Pilih berkas Bukti." };
   const ditolak: string[] = [];
   for (const f of berkas) {
     const hasil = await hasilAtauError(tambahBukti(aktor, pengukuranId, { nama: f.name, isi: new Uint8Array(await f.arrayBuffer()) }));

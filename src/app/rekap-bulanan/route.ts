@@ -2,8 +2,9 @@ import type { NextRequest } from "next/server";
 
 import { LABEL_STATUS_CAPAIAN } from "@/lib/capaian";
 import { keCsv, type SelCsv } from "@/lib/csv";
-import { ServiceError } from "@/lib/errors";
+import { responsPenolakan } from "@/lib/errors";
 import { TANDA_ARAH } from "@/lib/indikator";
+import { labelLingkup } from "@/lib/perbaikan";
 import { rekapBulanan, type RekapBulanan } from "@/modules/capaian/service";
 import { getSessionUser } from "@/server/sesi";
 
@@ -29,7 +30,7 @@ function barisCsv(rekap: RekapBulanan): SelCsv[][] {
       i.kelompok,
       i.kode,
       i.nama,
-      unit?.nama ?? "RS",
+      labelLingkup(unit),
       i.satuan,
       TANDA_ARAH[i.arah],
       c.target,
@@ -54,9 +55,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (error instanceof ServiceError) {
-      return new Response(error.message, { status: error.status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-    }
-    throw error;
+    return responsPenolakan(error);
   }
 }

@@ -1,5 +1,6 @@
 import { labelBulan } from "@/lib/bulan";
-import { KELOMPOK, TANDA_ARAH, type Arah, type Kelompok } from "@/lib/indikator";
+import { formatAngka } from "@/lib/capaian";
+import { KELOMPOK, TANDA_ARAH, urutKelompok, type Arah, type Kelompok } from "@/lib/indikator";
 import type { IsianIndikator } from "@/modules/indikator/service";
 
 import type { IsiDump } from "./dump";
@@ -74,16 +75,19 @@ export type RencanaIndikator = {
 
 export type Rencana = { mulai: string; unit: string[]; indikator: RencanaIndikator[] };
 
-const kunciNama = (s: string) => s.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9]/g, "");
+/** Kunci nama yang sama: huruf kecil, tanpa spasi dan tanda baca; isi kurung tetap ("Waktu Tunggu (IGD)" ≠ "(Rawat Jalan)"). */
+const kunciNama = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+/** Hanya untuk mencocokkan INM: isi kurung juga dibuang, mis. "... Diri (APD)" = "... Diri". */
+const kunciInm = (s: string) => kunciNama(s.replace(/\([^)]*\)/g, " "));
 const kata = (s: string) => new Set(s.toLowerCase().replace(/[()]/g, " ").split(/[^a-z0-9]+/).filter(Boolean));
 
 /**
- * INM MutuRS untuk nama INM aplikasi lama: nama yang sama setelah dinormalkan (huruf kecil, tanpa isi kurung dan tanda
- * baca), atau bila tidak ada, kata-kata nama yang lebih pendek hampir semuanya (≥ 75%) ada di nama yang lain, mis.
+ * INM MutuRS untuk nama INM aplikasi lama: nama yang sama setelah dinormalkan (`kunciInm`: huruf kecil, tanpa isi kurung
+ * dan tanda baca), atau bila tidak ada, kata-kata nama yang lebih pendek hampir semuanya (≥ 75%) ada di nama yang lain, mis.
  * "Kepatuhan Penggunaan APD". Yang kedua ditandai `mirip` untuk diperiksa Komite Mutu.
  */
 export function cocokkanInm(nama: string, inm: IndikatorAda[]) {
-  const sama = inm.find((i) => kunciNama(i.nama) === kunciNama(nama));
+  const sama = inm.find((i) => kunciInm(i.nama) === kunciInm(nama));
   if (sama) return { inm: sama, mirip: false };
   const a = kata(nama);
   const skor = (i: IndikatorAda) => {
@@ -113,7 +117,7 @@ const teksTerbanyak = (nilai: string[]) => {
 };
 
 const AWALAN_KODE: Record<Exclude<Kelompok, "INM">, string> = { "IMP-RS": "IMP-RS-", "IMP-Unit": "IMP-UNIT-", SPM: "SPM-" };
-const labelTarget = (arah: Arah, nilai: number) => `${TANDA_ARAH[arah]} ${String(nilai).replace(".", ",")}`;
+const labelTarget = (arah: Arah, nilai: number) => `${TANDA_ARAH[arah]} ${formatAngka(nilai)}`;
 
 /**
  * Menyusun rencana dari baris aplikasi lama. Baris dikelompokkan per master nama (cadangan: nama yang dinormalkan).
@@ -126,6 +130,14 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
   const kelompokBaris = Map.groupBy(baris, (b) => (b.master ? `m:${b.master.toLowerCase()}` : `n:${kunciNama(b.nama)}`));
   const hasil = new Map<string, RencanaIndikator>();
   const baru: RencanaIndikator[] = [];
+  /** Beberapa nama lama yang jatuh ke Indikator yang sama (mis. dua ejaan satu INM) digabung Unit dan catatannya. */
+  const gabung = (r: RencanaIndikator) => {
+    const sebelumnya = hasil.get(r.kode);
+    if (!sebelumnya) return void hasil.set(r.kode, r);
+    sebelumnya.unit = [...new Map([...sebelumnya.unit, ...r.unit].map((u) => [u.toLowerCase(), u])).values()];
+    sebelumnya.namaV1 = [...new Set([...sebelumnya.namaV1, ...r.namaV1])];
+    sebelumnya.catatan.push(...r.catatan);
+  };
 
   for (const grup of kelompokBaris.values()) {
     const nama = grup[0].master ?? terbanyak(grup.map((b) => b.nama)).nilai;
@@ -154,11 +166,13 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
       if (jenis.nilai !== "IMP RS") catatan.push(`Jenis "${jenis.nilai}" tidak dikenal; dijadikan IMP-RS.`);
     }
 
-    const arah = terbanyak(grup.map((b) => b.arah));
-    const target = terbanyak(grup, (b) => `${b.arah}|${b.target}`);
-    if (target.semua.length > 1) {
+    // Arah terbanyak, lalu Target terbanyak di antara baris ber-Arah itu, supaya keduanya dari baris yang sama.
+    const arah = terbanyak(grup.map((b) => b.arah)).nilai;
+    const target = terbanyak(grup.filter((b) => b.arah === arah).map((b) => b.target)).nilai;
+    const varian = terbanyak(grup, (b) => `${b.arah}|${b.target}`).semua;
+    if (varian.length > 1) {
       catatan.push(
-        `Target aplikasi lama berbeda antar-Unit (${target.semua.map((t) => `${labelTarget(t.nilai.arah, t.nilai.target)} di ${t.n} Unit`).join(", ")}); dipakai yang terbanyak.`,
+        `Target aplikasi lama berbeda antar-Unit (${varian.map((t) => `${labelTarget(t.nilai.arah, t.nilai.target)} di ${t.n} Unit`).join(", ")}); dipakai ${labelTarget(arah, target)}.`,
       );
     }
     const satuanLain = [...new Set(grup.map((b) => b.satuan).filter((s) => s !== "%"))];
@@ -191,11 +205,11 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
         sumberData: BELUM_DIISI,
         faktor: 100,
         satuan: "%",
-        arah: arah.nilai,
+        arah,
         frekuensi: "bulanan",
         pic: "",
       },
-      target: target.nilai.target,
+      target,
       unit,
       namaV1: [...new Set(grup.map((b) => b.nama))],
       catatan,
@@ -204,24 +218,15 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
     if (inmCocok) {
       const t = opsi.targetInm[inmCocok.kode];
       if (t !== undefined && t !== r.target) {
-        catatan.push(`Target aplikasi lama ${labelTarget(target.nilai.arah, r.target)}; MutuRS tetap memakai Target PMK ${t}.`);
+        catatan.push(`Target aplikasi lama ${labelTarget(arah, r.target)}; MutuRS tetap memakai Target PMK ${formatAngka(t)}.`);
       }
-      // Dua nama lama yang cocok ke INM yang sama digabung.
-      const sebelumnya = hasil.get(inmCocok.kode);
-      if (sebelumnya) {
-        sebelumnya.unit = [...new Map([...sebelumnya.unit, ...unit].map((u) => [u.toLowerCase(), u])).values()];
-        sebelumnya.namaV1 = [...new Set([...sebelumnya.namaV1, ...r.namaV1])];
-        sebelumnya.catatan.push(...catatan);
-        continue;
-      }
-      hasil.set(inmCocok.kode, r);
+      gabung(r);
       continue;
     }
+    // Rencana ulang atas database yang sudah diimpor: Indikator bernama sama dipakai ulang dengan kodenya.
     const ada = opsi.ada.find((i) => i.kelompok !== "INM" && kunciNama(i.nama) === kunciNama(namaMutuRs));
-    if (ada) {
-      Object.assign(r, { kode: ada.kode, kelompok: ada.kelompok, sudahAda: true });
-      hasil.set(ada.kode, r);
-    } else baru.push(r);
+    if (ada) gabung(Object.assign(r, { kode: ada.kode, kelompok: ada.kelompok, sudahAda: true }));
+    else baru.push(r);
   }
 
   // Kode baru: urut nama per kelompok, melanjutkan nomor tertinggi yang sudah dipakai.
@@ -234,9 +239,7 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
     }
   }
 
-  const indikator = [...hasil.values()].sort(
-    (a, b) => KELOMPOK.indexOf(a.kelompok) - KELOMPOK.indexOf(b.kelompok) || a.kode.localeCompare(b.kode, "id", { numeric: true }),
-  );
+  const indikator = [...hasil.values()].sort(urutKelompok);
   for (const r of indikator) r.unit.sort((a, b) => a.localeCompare(b, "id"));
   const unit = [...new Map(indikator.flatMap((r) => r.unit).map((u) => [u.toLowerCase(), u])).values()].sort((a, b) => a.localeCompare(b, "id"));
   return { mulai: opsi.mulai, unit, indikator };

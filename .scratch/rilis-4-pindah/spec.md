@@ -77,6 +77,7 @@ Selain itu, pengaturan v1 (52 nama Indikator di 53 ruangan, beserta definisi dan
   - `/pengukuran/isi`: bagian "Bukti" di bawah form. Bagian ini hanya tampil bila Pengukuran sudah ada sebagai Draf; sebelum itu tertulis "Simpan sebagai Draf dulu untuk melampirkan bukti".
     - Form unggah (`multiple`) dan tombol Hapus per berkas lewat server action.
     - Unggah banyak berkas = beberapa panggilan `tambahBukti`. Berkas yang sudah lolos tetap tersimpan, dan pesan menyebut berkas yang ditolak.
+    - Pilihan yang pasti ditolak (lebih dari 5 berkas sekaligus, atau satu berkas di atas 10 MB) sudah diperiksa di browser sebelum dikirim, supaya kiriman tidak melewati batas body dan pesannya tetap jelas.
   - `/pengukuran/[id]`: daftar bukti baca-saja.
   - Berkas dibuka lewat route handler `/pengukuran/bukti/[id]`:
     - `Content-Type` dari kolom `jenis`.
@@ -90,6 +91,7 @@ Selain itu, pengaturan v1 (52 nama Indikator di 53 ruangan, beserta definisi dan
 - `KELOMPOK` = `INM`, `IMP-RS`, `IMP-Unit`, `SPM` (urutan tampil). Migrasi CHECK `indikator_kelompok_check`.
 - `tambahIndikator` menerima IMP-RS, IMP-Unit, dan SPM; INM tetap hanya dari data awal.
 - Lingkup sudah terpusat di `punyaLingkupRs` (selain IMP-Unit punya Lingkup RS), jadi Analisis, Belum dianalisis, Laporan Triwulan, dan Monitoring otomatis berlaku untuk SPM. Rekap SIMAR hanya INM.
+- Urutan tampil kelompok lalu kode = `urutKelompok` (`src/lib/indikator.ts`), dipakai Laporan Triwulan, Rekap Bulanan, pemilih Indikator Monitoring, dan rencana impor.
 - Form Indikator: pilihan kelompok ditambah SPM; judul halaman tambah menjadi "Tambah Indikator". Teks halaman yang menyebut daftar kelompok diperbarui.
 - Glosarium: entri **SPM (Standar Pelayanan Minimal)**.
 
@@ -102,7 +104,7 @@ Selain itu, pengaturan v1 (52 nama Indikator di 53 ruangan, beserta definisi dan
   - Per Indikator: satu baris Capaian RS (`unit` null; tidak ada untuk IMP-Unit, yang hanya punya Lingkup Unit), lalu satu baris per Unit Pelapor (urut nama).
   - Urutan Indikator: kelompok, lalu kode.
 - Route handler `/rekap-bulanan?bulan=` (`src/app/rekap-bulanan/route.ts`), CSV lewat `keCsv`. Kolom:
-  - Kelompok, Kode, Indikator, Lingkup ("RS" atau nama Unit), Satuan, Arah
+  - Kelompok, Kode, Indikator, Lingkup (`labelLingkup`: "Lingkup RS" atau "Unit ICU"), Satuan, Arah
   - Target, N, D, Capaian, Status Capaian
   - Pengukuran Terverifikasi, Pengukuran wajib (dua kolom angka, sama dengan Laporan Triwulan)
 - Nama berkas `rekap-bulanan-YYYY-MM.csv`. Tombol "Unduh CSV" di kepala tabel Capaian per Indikator Dashboard, hanya untuk `melihatCapaianRs`.
@@ -121,7 +123,7 @@ Selain itu, pengaturan v1 (52 nama Indikator di 53 ruangan, beserta definisi dan
 - **Rencana** (`scripts/impor-v1/rencana.ts`, murni):
   - Hanya baris Indikator yang `is_active` dan tidak `deleted_at`. Baris dikelompokkan per master (cadangan: nama yang dirapikan).
   - **Kelompok:**
-    - `INM` dicocokkan dengan 13 INM MutuRS menurut nama yang dinormalkan (huruf kecil, hanya huruf dan angka), ditambah alias untuk ejaan v1 yang berbeda.
+    - `INM` dicocokkan dengan 13 INM MutuRS menurut nama yang dinormalkan (huruf kecil, hanya huruf dan angka, tanpa isi kurung). Bila tidak sama persis, kata-kata nama yang lebih pendek ≥ 75% ada di nama INM (mis. "Kepatuhan Penggunaan APD"); kecocokan ini ditandai "menurut kemiripan nama" di daftar periksa. Alias khusus ditambahkan bila dump asli memerlukannya.
     - `IMP RS` menjadi IMP-RS.
     - `IMP Unit` di satu ruangan tetap IMP-Unit; di lebih dari satu ruangan menjadi IMP-RS (keputusan Q5 perbandingan).
     - `SPM` menjadi SPM.
@@ -133,15 +135,17 @@ Selain itu, pengaturan v1 (52 nama Indikator di 53 ruangan, beserta definisi dan
     - Definisi N/D diambil dari teks terbanyak yang tidak kosong.
     - Yang kosong, juga Sumber Data, diisi `BELUM_DIISI` = "Belum diisi (dari aplikasi lama)".
     - Faktor 100, satuan %, Frekuensi Bulanan, PIC kosong.
-    - Arah dari operator terbanyak.
+    - Arah dari operator terbanyak; Target = nilai terbanyak di antara baris ber-Arah itu (keduanya dari baris yang sama).
     - Nama dipotong ke 200 karakter bila perlu (dicatat).
     - INM tidak diubah sama sekali (definisi dan Target PMK tetap); perbedaan Target v1 dicatat.
-  - **Target:** satu per Indikator, berlaku mulai bulan peralihan; nilai terbanyak, dan perbedaannya dicatat.
+  - **Target:** satu per Indikator, berlaku mulai bulan peralihan; nilai terbanyak (lihat Arah), dan perbedaannya dicatat.
   - **Unit:** hanya ruangan yang punya baris di atas, nama dirapikan spasinya.
   - **Unit Pelapor:** setiap pasangan Indikator-ruangan, mulai bulan peralihan, tanpa bulan berhenti.
 - **Pelaksana** (`scripts/impor-v1/jalankan.ts`, lewat service):
   - Unit dicari menurut nama tanpa membedakan huruf besar/kecil (`daftarUnit`), atau ditambah.
   - Indikator dicari menurut kode, atau ditambah (`tambahIndikator`). Indikator yang kodenya sudah ada tidak diubah.
+  - Supaya rencana ulang atas database yang sudah diimpor memberi kode yang sama, rencana memakai ulang Indikator non-INM yang namanya sama (kunci nama: huruf kecil, hanya huruf dan angka, isi kurung tetap dihitung) beserta kodenya, dan kode baru melanjutkan nomor tertinggi. Pengelompokan baris tanpa master memakai kunci yang sama, jadi "Waktu Tunggu (IGD)" dan "Waktu Tunggu (Rawat Jalan)" tetap dua Indikator.
+  - Penolakan service saat menambah Indikator atau Unit Pelapor dicatat sebagai gagal di daftar periksa; impor tetap berlanjut dan aman diulang.
   - Unit Pelapor ditambah bila Unit itu belum menjadi Unit Pelapor yang bersinggungan dengan bulan peralihan (`unitPelaporAktif`).
   - Hasilnya dihitung: dibuat dan dilewati.
 - Akun pengguna, isian, dan bukti v1 tidak diimpor.

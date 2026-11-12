@@ -1,6 +1,7 @@
 /** Jenis berkas Bukti yang diterima, ditentukan dari isi berkas (bukan nama atau tipe kiriman browser). */
 export const JENIS_BUKTI = ["application/pdf", "image/jpeg", "image/png"] as const;
 export type JenisBukti = (typeof JENIS_BUKTI)[number];
+export const LABEL_JENIS_BUKTI: Record<JenisBukti, string> = { "application/pdf": "PDF", "image/jpeg": "JPG", "image/png": "PNG" };
 
 /** Paling banyak 5 berkas Bukti per Pengukuran, masing-masing paling besar 10 MB. */
 export const MAKS_BUKTI = 5;

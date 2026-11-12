@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
 import type { Pengguna } from "@/modules/auth/service";
-import { rekapBulanan } from "@/modules/capaian/service";
+import { rekapBulanan, type RekapBulanan } from "@/modules/capaian/service";
 import { aturAktifIndikator } from "@/modules/indikator/service";
 import { ajukanPengukuran } from "@/modules/pengukuran/service";
 
@@ -39,7 +39,7 @@ before(async () => {
   await terverifikasi(imu, unitC.id, "2017-03", 5, 10);
 });
 
-const milikTes = (baris: Awaited<ReturnType<typeof rekapBulanan>>["baris"]) =>
+const milikTes = (baris: RekapBulanan["baris"]) =>
   baris.filter((b) => Object.values(kode).includes(b.indikator.kode));
 
 describe("Rekap Bulanan", () => {

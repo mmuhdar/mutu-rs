@@ -1,6 +1,9 @@
 /** Kelompok Indikator, dalam urutan tampil. Nilainya sekaligus label (istilah glosarium). */
 export const KELOMPOK = ["INM", "IMP-RS", "IMP-Unit", "SPM"] as const;
 export type Kelompok = (typeof KELOMPOK)[number];
+/** Urutan tampil Indikator: kelompok (urutan `KELOMPOK`), lalu kode (angka dibandingkan sebagai angka). */
+export const urutKelompok = (a: { kelompok: Kelompok; kode: string }, b: { kelompok: Kelompok; kode: string }) =>
+  KELOMPOK.indexOf(a.kelompok) - KELOMPOK.indexOf(b.kelompok) || a.kode.localeCompare(b.kode, "id", { numeric: true });
 /** Kelompok yang bisa ditambah Komite Mutu / Admin Sistem; INM hanya dari data awal (PMK 30/2022). */
 export const KELOMPOK_BISA_DITAMBAH = KELOMPOK.filter((k): k is Exclude<Kelompok, "INM"> => k !== "INM");
 

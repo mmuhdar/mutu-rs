@@ -23,3 +23,11 @@ export async function hasilAtauError<T>(janji: Promise<T>): Promise<{ hasil: T }
     throw error;
   }
 }
+
+/** Untuk route handler: penolakan service (`ServiceError`) menjadi respons teks berstatus; error lain tetap dilempar. */
+export function responsPenolakan(error: unknown): Response {
+  if (error instanceof ServiceError) {
+    return new Response(error.message, { status: error.status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  }
+  throw error;
+}

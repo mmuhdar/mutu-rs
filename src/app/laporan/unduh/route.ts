@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { labelBulan } from "@/lib/bulan";
 import { LABEL_STATUS_CAPAIAN } from "@/lib/capaian";
 import { keCsv, type SelCsv } from "@/lib/csv";
-import { ServiceError } from "@/lib/errors";
+import { responsPenolakan } from "@/lib/errors";
 import { TANDA_ARAH } from "@/lib/indikator";
 import { laporanTriwulan, type LaporanTriwulan } from "@/modules/laporan/service";
 import { getSessionUser } from "@/server/sesi";
@@ -60,9 +60,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    if (error instanceof ServiceError) {
-      return new Response(error.message, { status: error.status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-    }
-    throw error;
+    return responsPenolakan(error);
   }
 }

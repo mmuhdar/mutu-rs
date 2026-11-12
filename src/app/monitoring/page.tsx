@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { bulanBerjalan, bulanDariAlamat, bulanLalu, INPUT_BULAN, labelBulan } from "@/lib/bulan";
 import { formatCapaian } from "@/lib/capaian";
 import { teksAlamat } from "@/lib/form";
-import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH } from "@/lib/indikator";
+import { LABEL_ARAH, LABEL_FREKUENSI, TANDA_ARAH, urutKelompok } from "@/lib/indikator";
 import { punyaLingkupRs } from "@/lib/perbaikan";
 import { trenCapaian, type TitikCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
@@ -155,7 +155,8 @@ export default async function HalamanMonitoring({ searchParams }: PageProps<"/mo
   const sp = await searchParams;
   const dariAlamat = bulanDariAlamat(sp.bulan);
   const bulan = dariAlamat.bulan ?? bulanLalu();
-  const daftar = await daftarIndikator(pengguna);
+  // Urut kelompok (INM, IMP-RS, IMP-Unit, SPM) supaya judul kelompok di pemilih Indikator tidak berulang.
+  const daftar = (await daftarIndikator(pengguna)).sort(urutKelompok);
   const indikatorId = teksAlamat(sp, "indikator") || daftar[0]?.id;
   const tren = indikatorId ? await pesanAtau(trenCapaian(pengguna, indikatorId, bulan)) : "Belum ada Indikator.";
   const ada =

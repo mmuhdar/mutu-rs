@@ -5,7 +5,7 @@ import { indikator, pengukuran, unit, unitPelapor } from "@/db/schema";
 import { bulanLalu, bulanTriwulan, geserBulan, keTanggal, wajibBulanBerjalan, wajibTriwulanSelesai } from "@/lib/bulan";
 import { capaianDari, ringkasStatus } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
-import { diukurPadaBulan, KELOMPOK, targetPadaBulan } from "@/lib/indikator";
+import { diukurPadaBulan, targetPadaBulan, urutKelompok } from "@/lib/indikator";
 import { punyaLingkupRs } from "@/lib/perbaikan";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
@@ -67,6 +67,16 @@ const unitPelaporBulan = (bulan: string, saring: SQL | undefined) =>
     )
     .where(and(bersinggungan(bulan, bulan), saring))
     .orderBy(asc(indikator.kode), asc(unit.nama));
+
+/**
+ * Bahan Capaian satu bulan: Unit Pelapor yang Indikator-nya diukur bulan itu (`unitPelaporBulan`), daftar Indikator-nya
+ * tanpa ganda, dan Target yang berlaku.
+ */
+async function pelaporDinilai(bulan: string, saring: SQL | undefined) {
+  const pelapor = (await unitPelaporBulan(bulan, saring)).filter((p) => diukurPadaBulan(p.indikator.frekuensi, bulan));
+  const daftar = [...new Map(pelapor.map((p) => [p.indikator.id, p.indikator])).values()];
+  return { pelapor, daftar, targetPada: await targetUntuk(daftar.map((i) => i.id)) };
+}
 
 /** Riwayat Target beberapa Indikator dibaca sekali; hasilnya = Target yang berlaku untuk Indikator pada suatu bulan. */
 async function targetUntuk(indikatorIds: string[]) {
@@ -133,11 +143,7 @@ export async function ringkasanCapaian(aktor: Pengguna | null, bulan?: string, s
   wajibPengguna(aktor);
   bulan ||= bulanLalu(sekarang);
   wajibBulanBerjalan(bulan, sekarang);
-  const pelapor = (await unitPelaporBulan(bulan, and(eq(indikator.aktif, true), saringUnit(aktor)))).filter((p) =>
-    diukurPadaBulan(p.indikator.frekuensi, bulan),
-  );
-  const daftar = [...new Map(pelapor.map((p) => [p.indikator.id, p.indikator])).values()];
-  const targetPada = await targetUntuk(daftar.map((i) => i.id));
+  const { pelapor, daftar, targetPada } = await pelaporDinilai(bulan, and(eq(indikator.aktif, true), saringUnit(aktor)));
   const barisCapaian = (ind: (typeof daftar)[number], dari: typeof pelapor) => ({
     indikator: ind,
     bulan,
@@ -168,14 +174,8 @@ export async function rekapBulanan(aktor: Pengguna | null, bulan?: string, sekar
   wajibPeran(aktor, PELIHAT_RS, "Rekap Bulanan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
   bulan ||= bulanLalu(sekarang);
   wajibBulanBerjalan(bulan, sekarang);
-  const pelapor = (await unitPelaporBulan(bulan, eq(indikator.aktif, true))).filter((p) =>
-    diukurPadaBulan(p.indikator.frekuensi, bulan),
-  );
-  const daftar = [...new Map(pelapor.map((p) => [p.indikator.id, p.indikator])).values()].sort(
-    (a, b) => KELOMPOK.indexOf(a.kelompok) - KELOMPOK.indexOf(b.kelompok) || a.kode.localeCompare(b.kode),
-  );
-  const targetPada = await targetUntuk(daftar.map((i) => i.id));
-  const baris = daftar.flatMap((ind) => {
+  const { pelapor, daftar, targetPada } = await pelaporDinilai(bulan, eq(indikator.aktif, true));
+  const baris = daftar.sort(urutKelompok).flatMap((ind) => {
     const milik = pelapor.filter((p) => p.indikator.id === ind.id);
     const target = targetPada(ind.id, bulan);
     const rs = punyaLingkupRs(ind.kelompok) ? [{ indikator: ind, unit: null, ...capaianDari(milik, ind, target) }] : [];

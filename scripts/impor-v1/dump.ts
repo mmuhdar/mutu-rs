@@ -7,10 +7,10 @@ import { createGunzip } from "node:zlib";
  * mutu yang diurai; tabel lain (termasuk data kepegawaian) dilewati baris per baris tanpa disimpan.
  */
 
-export const TABEL_V1 = ["units", "master_indikator_mutus", "indikator_mutus"] as const;
-export type TabelV1 = (typeof TABEL_V1)[number];
+const TABEL_V1 = ["units", "master_indikator_mutus", "indikator_mutus"] as const;
+type TabelV1 = (typeof TABEL_V1)[number];
 /** Satu baris tabel: nama kolom → nilai teks apa adanya (angka juga teks), NULL = null. */
-export type BarisV1 = Record<string, string | null>;
+type BarisV1 = Record<string, string | null>;
 export type IsiDump = Record<TabelV1, BarisV1[]>;
 
 const ESCAPE: Record<string, string> = { "0": "\0", b: "\b", n: "\n", r: "\r", t: "\t", Z: "\x1a" };

@@ -1,4 +1,4 @@
-import { labelUkuran, type JenisBukti } from "@/lib/bukti";
+import { LABEL_JENIS_BUKTI, labelUkuran, type JenisBukti } from "@/lib/bukti";
 
 import { Ikon } from "../ikon";
 import { Kartu } from "../ui";
@@ -6,8 +6,6 @@ import { FormUnggahBukti, TombolHapusBukti } from "./kelola-bukti";
 import { formatWaktu } from "./status";
 
 type Bukti = { id: string; nama: string; jenis: JenisBukti; ukuran: number; diunggahOleh: string; diunggahPada: Date };
-
-const LABEL_JENIS: Record<JenisBukti, string> = { "application/pdf": "PDF", "image/jpeg": "JPG", "image/png": "PNG" };
 
 /**
  * Bukti satu Pengukuran. Setiap berkas dibuka di tab baru lewat `/pengukuran/bukti/[id]`. Dengan `ubah` (isian Draf):
@@ -18,9 +16,9 @@ export function DaftarBukti(p: { bukti: Bukti[]; ubah?: boolean; pengukuranId?: 
   return (
     <Kartu judul="Bukti" sub="Foto atau PDF asal angka N dan D, dibuka Kepala Unit saat Verifikasi.">
       {p.ubah && !p.pengukuranId ? (
-        <p className="px-5 pb-5 text-[15px] text-ink-2">Simpan sebagai Draf dulu untuk melampirkan bukti.</p>
+        <p className="px-5 pb-5 text-[15px] text-ink-2">Simpan sebagai Draf dulu untuk melampirkan Bukti.</p>
       ) : p.bukti.length === 0 ? (
-        <p className="px-5 pb-5 text-[15px] text-ink-2">{p.ubah ? "Belum ada bukti." : "Tidak ada bukti dilampirkan."}</p>
+        <p className="px-5 pb-5 text-[15px] text-ink-2">{p.ubah ? "Belum ada Bukti." : "Tidak ada Bukti dilampirkan."}</p>
       ) : (
         <ul className="mx-5 mb-5 grid border-t border-rule">
           {p.bukti.map((b) => (
@@ -32,7 +30,7 @@ export function DaftarBukti(p: { bukti: Bukti[]; ubah?: boolean; pengukuranId?: 
                   {b.nama}
                 </a>
                 <span className="text-[13px] text-ink-3">
-                  {LABEL_JENIS[b.jenis]}, <span className="terukur">{labelUkuran(b.ukuran)}</span>,{" "}
+                  {LABEL_JENIS_BUKTI[b.jenis]}, <span className="terukur">{labelUkuran(b.ukuran)}</span>,{" "}
                   <span className="text-signal">{b.diunggahOleh}</span>{" "}
                   <span className="terukur text-cool">{formatWaktu(b.diunggahPada)}</span>
                 </span>

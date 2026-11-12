@@ -5,7 +5,7 @@ import { pengguna, rekomendasi } from "@/db/schema";
 import { bulanLalu, bulanTriwulan, triwulanLalu, uraiTriwulan, wajibBulanBerjalan, wajibTriwulanSelesai } from "@/lib/bulan";
 import { ringkasStatus } from "@/lib/capaian";
 import { ServiceError } from "@/lib/errors";
-import { diukurPadaBulan, KELOMPOK } from "@/lib/indikator";
+import { diukurPadaBulan, urutKelompok } from "@/lib/indikator";
 import { jadwalSimar, MAKS_REKOMENDASI, tandaSimar, teksRencanaTindakLanjut } from "@/lib/laporan";
 import { punyaLingkupRs } from "@/lib/perbaikan";
 import type { Peran } from "@/lib/peran";
@@ -37,10 +37,8 @@ export const bolehTulisRekomendasi = (aktor: Pengguna) => PENULIS.includes(aktor
 export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string, sekarang = new Date()) {
   wajibPeran(aktor, PELIHAT_RS, "Laporan Triwulan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
   triwulan ||= triwulanLalu(sekarang);
-  // Triwulan diperiksa modul Capaian. Urutan laporan: per kelompok (urutan `KELOMPOK`), lalu kode.
-  const capaian = (await capaianTriwulan(aktor, triwulan, sekarang)).sort(
-    (a, b) => KELOMPOK.indexOf(a.indikator.kelompok) - KELOMPOK.indexOf(b.indikator.kelompok) || a.indikator.kode.localeCompare(b.indikator.kode),
-  );
+  // Triwulan diperiksa modul Capaian. Urutan laporan: per kelompok, lalu kode.
+  const capaian = (await capaianTriwulan(aktor, triwulan, sekarang)).sort((a, b) => urutKelompok(a.indikator, b.indikator));
   const bulan = bulanTriwulan(triwulan);
   const { tahun, nomor } = uraiTriwulan(triwulan);
   const [ada, pdsa, [rek]] = await Promise.all([

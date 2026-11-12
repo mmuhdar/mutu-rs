@@ -41,8 +41,7 @@ async function main() {
   const admin = await penggunaDariToken(token);
   if (!admin) throw new Error("Sesi Admin Sistem awal tidak termuat.");
 
-  const ada = (await daftarIndikator(admin)).map((i) => ({ kode: i.kode, nama: i.nama, kelompok: i.kelompok }));
-  const rencana = susunRencana(baris, { mulai, ada, targetInm: Object.fromEntries(INM.map((i) => [i.kode, i.target])) });
+  const rencana = susunRencana(baris, { mulai, ada: await daftarIndikator(admin), targetInm: Object.fromEntries(INM.map((i) => [i.kode, i.target])) });
   let hasil: HasilImpor | undefined;
   if (argumen.includes("--jalankan")) hasil = await jalankanRencana(admin, rencana);
 
