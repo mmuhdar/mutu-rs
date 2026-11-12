@@ -8,6 +8,7 @@ import { HARI_MENDEKATI_TENGGAT, LABEL_STATUS_TINDAK_LANJUT, labelLingkup, STATU
 import { melihatCapaianRs, ringkasanCapaian, trenRingkasan } from "@/modules/capaian/service";
 import { bolehKelolaIndikator } from "@/modules/indikator/service";
 import { bacaSemuaInsiden, menanganiInsiden, ringkasanInsiden } from "@/modules/insiden/service";
+import { bolehCatatValidasi, daftarValidasi } from "@/modules/validasi/service";
 import { rekapSimar } from "@/modules/laporan/service";
 import { antreanVerifikasi, bolehIsiPengukuran, bolehVerifikasi, pengukuranDikembalikan } from "@/modules/pengukuran/service";
 import { belumDianalisis, bolehTulisLingkup, daftarPdsa, daftarTindakLanjut } from "@/modules/perbaikan/service";
@@ -50,7 +51,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   // Bulan tidak valid atau belum berjalan diganti bulan bawaan (ditentukan service) dengan pemberitahuan.
   const { bulan, pemberitahuan } = bulanDariAlamat((await searchParams).bulan);
   const perUnit = !melihatCapaianRs(pengguna);
-  const [ringkasan, tren, antrean, dikembalikan, belum, tindakLanjut, pdsa, simar, insiden] = await Promise.all([
+  const [ringkasan, tren, antrean, dikembalikan, belum, tindakLanjut, pdsa, simar, insiden, validasiBelum] = await Promise.all([
     pesanAtau(ringkasanCapaian(pengguna, bulan)),
     pesanAtau(trenRingkasan(pengguna, bulan)),
     bolehVerifikasi(pengguna) ? antreanVerifikasi(pengguna) : null,
@@ -61,6 +62,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     // Kesiapan SIMAR bulan lalu untuk pengelola Indikator (yang melapor ke SIMAR).
     bolehKelolaIndikator(pengguna) ? rekapSimar(pengguna) : null,
     ringkasanInsiden(pengguna),
+    bolehCatatValidasi(pengguna) ? daftarValidasi(pengguna, { belumValid: true }) : null,
   ]);
   const lewatTenggat = tindakLanjut.filter((t) => t.lewatTenggat).length;
   const mendekatiTenggat = tindakLanjut.filter((t) => t.mendekatiTenggat).length;
@@ -165,6 +167,18 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             ikon: "insiden" as const,
             nada: "warn" as const,
             href: "/insiden?status=semua",
+          },
+        ]
+      : []),
+    ...(validasiBelum
+      ? [
+          {
+            label: "Validasi belum valid",
+            nilai: validasiBelum.length,
+            keterangan: "perlu perbaikan lalu validasi ulang",
+            ikon: "validasi" as const,
+            nada: validasiBelum.length > 0 ? ("neg" as const) : ("ukur" as const),
+            href: "/validasi?status=belum",
           },
         ]
       : []),

@@ -26,11 +26,13 @@ import {
   WARNA_GRADING,
 } from "@/lib/insiden";
 import { formatRupiah, LABEL_KEPUTUSAN_PDSA, labelLingkup } from "@/lib/perbaikan";
+import { LABEL_PEMICU_VALIDASI } from "@/lib/validasi";
 import { laporanTriwulan, type LaporanTriwulan } from "@/modules/laporan/service";
 import { requireUser } from "@/server/sesi";
 
 import { tautanAnalisis } from "../analisis/tautan";
 import { LabelWarna } from "../insiden/label";
+import { Kesesuaian, LabelHasilValidasi } from "../validasi/label";
 import { Kolom } from "../form";
 import { Ikon } from "../ikon";
 import { LabelTahap } from "../pdsa/tahap";
@@ -206,6 +208,44 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
       </Kartu>
 
       {lap.insiden && <BagianInsiden lap={lap} r={lap.insiden} />}
+
+      <Kartu judul="Validasi Data" sub="Validasi yang dilakukan pada Triwulan ini (PMKP 5); valid bila kesesuaian mencapai 90%.">
+        {lap.validasi.length === 0 ? (
+          <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada validasi data pada {labelTriwulan(lap.triwulan)}.</p>
+        ) : (
+          <Tabel label="Validasi Data" lebarMin="min-w-[48rem]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Indikator</TableHead>
+                <TableHead>Unit dan bulan data</TableHead>
+                <TableHead>Pemicu</TableHead>
+                <TableHead className="text-right">Kesesuaian</TableHead>
+                <TableHead>Hasil</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lap.validasi.map((v) => (
+                <TableRow key={v.id} className="print:break-inside-avoid">
+                  <TableCell className="min-w-48 whitespace-normal">
+                    <span className="block text-[14px]">{v.indikator.nama}</span>
+                    <span className="terukur text-[12px] text-ink-3">{v.indikator.kode}</span>
+                  </TableCell>
+                  <TableCell className="text-[14px] whitespace-nowrap">
+                    {v.unit.nama}, {labelBulan(v.bulan, { pendek: true })}
+                  </TableCell>
+                  <TableCell className="min-w-40 text-[14px] whitespace-normal text-ink-2">{LABEL_PEMICU_VALIDASI[v.pemicu]}</TableCell>
+                  <TableCell className="text-right">
+                    <Kesesuaian persen={v.kesesuaian} sesuai={v.sesuai} sampel={v.sampel} />
+                  </TableCell>
+                  <TableCell>
+                    <LabelHasilValidasi valid={v.valid} belumValid={v.belumValid} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Tabel>
+        )}
+      </Kartu>
 
       <Kartu judul="Rekomendasi" sub={`Kesimpulan dan saran perbaikan Komite Mutu untuk ${labelTriwulan(lap.triwulan)}.`}>
         <div className="grid gap-3 px-5 pb-5">

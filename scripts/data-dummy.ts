@@ -2,7 +2,17 @@
 // 12 bulan sampai bulan lalu (berbagai status), Analisis, Tindak Lanjut, PDSA, Rekomendasi, dan Insiden. Jalankan sekali:
 //   npx tsx --env-file=.env scripts/data-dummy.ts
 // Semua Pengguna dummy bersandi SANDI. Tanpa top-level await: tsx menjalankan .ts sebagai CJS.
-import { bulanBerjalan, bulanLalu, bulanTriwulan, dariWaktuSetempat, geserBulan, hariIni, tambahHari, triwulanLalu } from "@/lib/bulan";
+import {
+  bulanBerjalan,
+  bulanLalu,
+  bulanTriwulan,
+  dariWaktuSetempat,
+  geserBulan,
+  hariIni,
+  tambahHari,
+  triwulanDari,
+  triwulanLalu,
+} from "@/lib/bulan";
 import { config } from "@/lib/config";
 import { diukurPadaBulan } from "@/lib/indikator";
 import { getPool } from "@/db";
@@ -20,10 +30,11 @@ import {
   type IsianInvestigasi,
   type IsianLaporan,
 } from "@/modules/insiden/service";
-import { simpanRekomendasi } from "@/modules/laporan/service";
+import { simpanRekomendasi, simpanTindakLanjutUmpanBalik, simpanUmpanBalik } from "@/modules/laporan/service";
 import { daftarPengguna, tambahPengguna } from "@/modules/pengguna/service";
 import { ajukanPengukuran, kembalikanPengukuran, simpanPengukuran, verifikasiPengukuran } from "@/modules/pengukuran/service";
-import { buatPdsa, simpanAnalisis, simpanTahapPdsa, tambahTindakLanjut, ubahTindakLanjut } from "@/modules/perbaikan/service";
+import { buatPdsa, daftarPdsa, simpanAnalisis, simpanEfisiensiPdsa, simpanTahapPdsa, tambahTindakLanjut, ubahTindakLanjut } from "@/modules/perbaikan/service";
+import { daftarValidasi, simpanValidasi, type IsianValidasi } from "@/modules/validasi/service";
 import { daftarUnit, tambahUnit } from "@/modules/unit/service";
 
 const SANDI = "mutu12345";
@@ -432,20 +443,112 @@ async function insidenContoh(unitId: Record<KodeUnit, string>) {
   await tinjauInsiden(komite, resep, { dampak: 1, probabilitas: 2, catatan: "" }, new Date(`${tambahHari(t2, 7)}T02:00:00Z`));
 }
 
+/**
+ * Contoh Rilis 5: Validasi Data (valid, tidak valid lalu diulang, dan satu yang belum valid), Umpan Balik Dewan Pengawas
+ * dua Triwulan terakhir, dan Analisis Efisiensi PDSA IGD yang sudah Selesai. Jejak Audit terisi sendiri lewat service.
+ */
+async function contohRilis5(unitId: Record<KodeUnit, string>) {
+  const komite = await sesi("komite", SANDI);
+  const inm = new Map((await daftarIndikator(komite)).map((i) => [i.kode, i.id]));
+  const hari = hariIni();
+  const validasi = (ubahan: Partial<IsianValidasi>): IsianValidasi => ({
+    indikatorId: inm.get("INM-01")!,
+    unitId: unitId.icu,
+    bulan: b(-1),
+    pemicu: "perubahanPengukuran",
+    tanggal: tambahHari(hari, -10),
+    pengumpulData: ORANG.icu[1],
+    validator: "Ns. Dewi Anggraini",
+    populasi: 210,
+    sampel: 48,
+    sesuai: 46,
+    penyebab: [],
+    perbaikan: "",
+    catatan: "Lembar observasi kebersihan tangan; sampel acak dari 210 peluang.",
+    ...ubahan,
+  });
+  await simpanValidasi(komite, validasi({}));
+  await simpanValidasi(
+    komite,
+    validasi({
+      unitId: unitId.mawar,
+      pengumpulData: ORANG.mawar[1],
+      tanggal: tambahHari(hari, -20),
+      sesuai: 40,
+      penyebab: ["definisi", "waktu"],
+      perbaikan: "Sosialisasi ulang 5 momen kebersihan tangan; observasi tidak lagi dilakukan saat serah terima shift.",
+    }),
+  );
+  await simpanValidasi(komite, validasi({ unitId: unitId.mawar, pengumpulData: ORANG.mawar[1], tanggal: tambahHari(hari, -5), sesuai: 45 }));
+  await simpanValidasi(
+    await sesi("kepala.igd", SANDI),
+    validasi({
+      indikatorId: inm.get("INM-02")!,
+      unitId: unitId.igd,
+      pemicu: "indikatorBaru",
+      pengumpulData: ORANG.igd[1],
+      validator: ORANG.igd[0],
+      populasi: 60,
+      sampel: 16,
+      sesuai: 13,
+      penyebab: ["formulir"],
+      perbaikan: "Formulir observasi APD direvisi: kolom indikasi kontak, droplet, dan airborne dipisah.",
+    }),
+  );
+
+  const [awal] = bulanTriwulan(triwulanLalu());
+  const sebelumnya = triwulanDari(geserBulan(awal, -3));
+  await simpanUmpanBalik(komite, {
+    triwulan: sebelumnya,
+    teks: "Percepat perbaikan Kepatuhan APD di IGD; laporkan hasilnya pada pertemuan berikutnya.",
+    diterimaPada: `${geserBulan(awal, 0)}-15`,
+  });
+  await simpanTindakLanjutUmpanBalik(komite, {
+    triwulan: sebelumnya,
+    tindakLanjut: "Formulir observasi APD direvisi dan audit APD mingguan di IGD berjalan sejak bulan berikutnya.",
+  });
+  await simpanUmpanBalik(komite, {
+    triwulan: triwulanLalu(),
+    teks: "Pertahankan kebersihan tangan; minta Analisis Efisiensi untuk proyek dokter triase IGD.",
+    // Tanggal 20 bulan sesudah Triwulan itu, atau hari ini bila belum sampai.
+    diterimaPada: [`${geserBulan(awal, 3)}-20`, hari].sort()[0],
+  });
+
+  const igd = (await daftarPdsa(komite, { semua: true })).find((p) => p.unit?.id === unitId.igd && p.tahap === "selesai");
+  if (igd) {
+    await simpanEfisiensiPdsa(komite, igd.id, {
+      baris: [
+        { jenis: "tenaga", sebelum: 18_000_000, sesudah: 21_600_000, keterangan: "Tambahan dokter triase sore" },
+        { jenis: "waktu", sebelum: 9_500_000, sesudah: 5_200_000, keterangan: "Pasien pulang paksa dan rujukan ulang berkurang" },
+        { jenis: "bahan", sebelum: 4_000_000, sesudah: 3_700_000, keterangan: "" },
+      ],
+      kesimpulan: "Per bulan, tiga bulan sebelum dibanding tiga bulan sesudah uji coba. Biaya tenaga naik, tetapi biaya akibat waktu tunggu turun lebih besar.",
+    });
+  }
+}
+
 async function main() {
   const admin = await sesi(config.adminAwal.username, config.adminAwal.sandi);
   if ((await daftarPengguna(admin)).some((p) => p.username === "komite")) {
-    // Database dev dari sebelum ada modul Insiden: tambahkan Insiden contoh sekali saja.
+    const ada = await daftarUnit(admin);
+    const unitIdAda = Object.fromEntries(
+      (Object.entries(UNIT) as [KodeUnit, string][]).map(([k, nama]) => [k, ada.find((u) => u.nama === nama)!.id]),
+    ) as Record<KodeUnit, string>;
+    // Database dev dari sebelum modul tertentu ada: tambahkan contohnya sekali saja.
+    const ditambah: string[] = [];
     if ((await daftarInsiden(await sesi("komite", SANDI), { status: "semua" })).length === 0) {
-      const ada = await daftarUnit(admin);
-      const unitId = Object.fromEntries(
-        (Object.entries(UNIT) as [KodeUnit, string][]).map(([k, nama]) => [k, ada.find((u) => u.nama === nama)!.id]),
-      ) as Record<KodeUnit, string>;
-      await insidenContoh(unitId);
-      console.log("Data dummy sudah ada; Insiden contoh ditambahkan.");
-      return;
+      await insidenContoh(unitIdAda);
+      ditambah.push("Insiden");
     }
-    console.log("Data dummy sudah ada (Pengguna komite ditemukan); tidak ada yang diubah.");
+    if ((await daftarValidasi(await sesi("komite", SANDI))).length === 0) {
+      await contohRilis5(unitIdAda);
+      ditambah.push("Validasi Data, Umpan Balik Dewan Pengawas, Analisis Efisiensi");
+    }
+    console.log(
+      ditambah.length
+        ? `Data dummy sudah ada; contoh ${ditambah.join("; ")} ditambahkan.`
+        : "Data dummy sudah ada (Pengguna komite ditemukan); tidak ada yang diubah.",
+    );
     return;
   }
 
@@ -655,6 +758,7 @@ async function main() {
   });
 
   await insidenContoh(unitId);
+  await contohRilis5(unitId);
 
   console.log(
     `Selesai: ${Object.keys(UNIT).length} Unit, ${2 + 2 * Object.keys(UNIT).length} Pengguna, ${IMP.length} IMP, ` +

@@ -76,6 +76,10 @@ _Avoid_: memenuhi target, merah/hijau
 Foto atau PDF asal N dan D yang dilampirkan pengisi ke Pengukuran Draf (paling banyak 5 berkas, masing-masing 10 MB); terkunci setelah Diajukan dan dibuka Kepala Unit saat Verifikasi.
 _Avoid_: lampiran, dokumen pendukung
 
+**Validasi Data**:
+Pengukuran ulang sampel data satu Indikator di satu Unit Pelapor untuk satu bulan oleh validator yang berbeda dari pengumpul data, dengan sumber data dan formulir yang sama, setiap ada pemicu PMKP 5 (Indikator baru, data akan dipublikasikan, perubahan pengukuran, hasil berubah tanpa sebab, sumber data berubah, subjek data berubah). Kesesuaian = data sesuai / sampel validator × 100%; valid bila mencapai 90%. Yang tidak valid diperbaiki lalu divalidasi ulang dengan sampel baru. Berbeda dari Verifikasi.
+_Avoid_: validasi bulanan, audit data
+
 **Verifikasi**:
 Pemeriksaan Pengukuran oleh Kepala Unit; hanya Pengukuran Terverifikasi yang dihitung dalam Capaian.
 
@@ -95,6 +99,9 @@ _Avoid_: Evaluasi, analisa capaian
 Satu tindakan perbaikan konkret hasil sebuah Analisis, dengan PIC, tenggat, status (Direncanakan, Berjalan, Selesai, Dibatalkan), dan catatan hasil; lewat tenggat bila tenggatnya sudah lewat sedangkan statusnya Direncanakan atau Berjalan, mendekati tenggat bila tenggatnya hari ini sampai 7 hari lagi dengan status yang sama.
 _Avoid_: RTL, rencana tindak lanjut
 
+**Analisis Efisiensi**:
+Biaya per jenis sumber daya (tenaga, bahan, alat, waktu, lain-lain) sebelum dan sesudah perbaikan, dengan kesimpulannya, pada satu PDSA; untuk satu proyek prioritas perbaikan per tahun (PMKP 4 g).
+
 **PDSA**:
 Siklus uji coba perbaikan untuk satu Indikator dalam satu Lingkup selama periode uji coba (bulan mulai s.d. bulan akhir), diisi berurutan: Plan (rencana perubahan dan prediksinya), Do (uji coba skala kecil), Study (hasil dibandingkan dengan prediksi, berdampingan dengan Capaian sebelum dan selama uji coba), Act (adopsi, adaptasi, atau tinggalkan); siklus berikutnya bisa dimulai dari Act.
 _Avoid_: PDCA
@@ -110,8 +117,11 @@ Capaian RS satu Indikator selama satu Triwulan: ΣN/ΣD Pengukuran Terverifikasi
 _Avoid_: rata-rata triwulan
 
 **Laporan Triwulan**:
-Laporan Komite Mutu kepada Direktur (lalu diteruskan ke Dewan Pengawas) untuk satu Triwulan yang sudah selesai: Capaian Triwulan semua Indikator, Analisis dan Tindak Lanjut, PDSA, rekap Insiden tanpa identitas, dan Rekomendasi. Selalu disusun dari data terkini; yang dikirim adalah hasil cetaknya.
+Laporan Komite Mutu kepada Direktur (lalu diteruskan ke Dewan Pengawas) untuk satu Triwulan yang sudah selesai: Capaian Triwulan semua Indikator, Analisis dan Tindak Lanjut, PDSA (dengan Analisis Efisiensi), Validasi Data, rekap Insiden tanpa identitas, Rekomendasi, dan Umpan Balik Dewan Pengawas. Selalu disusun dari data terkini; yang dikirim adalah hasil cetaknya.
 _Avoid_: laporan PMKP, evaluasi triwulan
+
+**Umpan Balik Dewan Pengawas**:
+Umpan balik tertulis Dewan Pengawas atas Laporan Triwulan setelah dibahas, dan tindak lanjutnya yang dievaluasi pada pertemuan Laporan Triwulan berikutnya (TKRS 1). Dewan Pengawas tidak punya akun; dicatat Komite Mutu, Direktur, atau Admin Sistem.
 
 **Rekomendasi**:
 Kesimpulan dan saran perbaikan Komite Mutu untuk satu Triwulan, bagian akhir Laporan Triwulan.
@@ -147,6 +157,12 @@ Root Cause Analysis: investigasi Insiden kuning, merah, dan semua Kejadian Senti
 
 **Status Insiden**:
 Dilaporkan (menunggu grading; laporan masih bisa diubah Pembuat Laporan), Investigasi Sederhana, Ditinjau (menunggu Komite Mutu), RCA, Selesai, atau Bukan Insiden (ditutup Komite Mutu dengan alasan). Lewat tenggat bila tenggat investigasi sudah lewat sedangkan statusnya Investigasi Sederhana atau RCA.
+
+## Sistem
+
+**Jejak Audit**:
+Catatan siapa mengubah data apa dan kapan, ditulis setiap kali data diubah lewat aplikasi (juga percobaan masuk yang gagal); hanya ditambah, tidak pernah diubah atau dihapus. Dibaca Admin Sistem dan Komite Mutu.
+_Avoid_: log, riwayat perubahan
 
 ## Peran
 

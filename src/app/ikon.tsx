@@ -1,4 +1,5 @@
 import {
+  BadgeCheck,
   Building2,
   ChartLine,
   Check,
@@ -82,6 +83,7 @@ const BENTUK = {
   gelap: Moon,
   insiden: ShieldAlert,
   jejak: History,
+  validasi: BadgeCheck,
 } as const;
 
 export type NamaIkon = keyof typeof BENTUK;
