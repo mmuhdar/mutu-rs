@@ -17,6 +17,7 @@ import {
   KATEGORI_PASIEN,
   LABEL_JENIS_INSIDEN,
   LABEL_STATUS_INSIDEN,
+  LABEL_WARNA_GRADING,
   lewatTenggatInsiden,
   mendekatiTenggatInsiden,
   perluEreport,
@@ -40,6 +41,7 @@ import {
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
+import { catatJejak } from "@/modules/jejak/catat";
 
 /*
  * Modul Insiden: laporan Insiden Keselamatan Pasien (Formulir 1 PMK 11/2017), grading, Investigasi Sederhana, RCA, dan
@@ -200,6 +202,7 @@ export async function laporkanInsiden(aktor: Pengguna | null, isian: IsianLapora
       .insert(insiden)
       .values({ ...data, dilaporkanOlehId: aktor.id, dilaporkanPada: sekarang, status: "dilaporkan" })
       .returning({ id: insiden.id });
+    await catatJejak(tx, aktor, "insiden", baru.id, `Melaporkan Insiden (${LABEL_JENIS_INSIDEN[data.jenis]})`);
     // Waktu "laporan dibuat" di Riwayat Status = waktu laporan, bukan jam database.
     await tx.insert(riwayatStatusInsiden).values({ insidenId: baru.id, statusAsal: null, statusTujuan: "dilaporkan", olehId: aktor.id, waktu: sekarang });
     return { id: baru.id };
@@ -264,6 +267,9 @@ async function pindah(
     .set({ ...perubahan, ...nilaiGrading, status: ke, diubahPada: new Date() })
     .where(eq(insiden.id, i.id));
   await tx.insert(riwayatStatusInsiden).values({ insidenId: i.id, statusAsal: i.status, statusTujuan: ke, olehId: aktor.id, ...nilaiGrading, catatan });
+  // Jejak Audit tanpa isi laporan: hanya perpindahan status dan warna grading.
+  const warna = grading ? `, grading ${LABEL_WARNA_GRADING[warnaGrading(grading.dampak, grading.probabilitas)]}` : "";
+  await catatJejak(tx, aktor, "insiden", i.id, `Insiden ${LABEL_STATUS_INSIDEN[i.status]} menjadi ${LABEL_STATUS_INSIDEN[ke]}${warna}`);
 }
 
 /** Mengubah laporan: hanya Pembuat Laporan, selama masih Dilaporkan (belum digrading). Aturan isian sama dengan melapor. */
@@ -277,6 +283,7 @@ export async function ubahLaporan(aktor: Pengguna | null, id: string, isian: Isi
       .update(insiden)
       .set({ ...data, diubahPada: new Date() })
       .where(eq(insiden.id, i.id));
+    await catatJejak(tx, aktor, "insiden", i.id, "Mengubah laporan Insiden");
   });
 }
 
@@ -355,6 +362,7 @@ export async function simpanInvestigasi(aktor: Pengguna | null, id: string, isia
         .update(insiden)
         .set({ ...data, diubahPada: new Date() })
         .where(eq(insiden.id, i.id));
+      await catatJejak(tx, aktor, "insiden", i.id, `Menyimpan isian ${LABEL_STATUS_INSIDEN[i.status]}`);
     }
   });
 }
@@ -416,6 +424,7 @@ export async function catatEreport(aktor: Pengguna | null, id: string, tanggal: 
       .update(insiden)
       .set({ ereportPada: tanggal || null, diubahPada: new Date() })
       .where(eq(insiden.id, i.id));
+    await catatJejak(tx, aktor, "insiden", i.id, tanggal ? `Mencatat tanggal e-report Kemenkes ${tanggal}` : "Menghapus tanggal e-report Kemenkes");
   });
 }
 

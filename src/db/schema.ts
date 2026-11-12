@@ -45,6 +45,7 @@ import {
   type TindakanOleh,
   type TipeInsiden,
 } from "../lib/insiden";
+import { ENTITAS_JEJAK, type EntitasJejak } from "../lib/jejak";
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
 import {
   JENIS_SUMBER_DAYA,
@@ -583,5 +584,27 @@ export const riwayatStatusInsiden = pgTable(
     check("riwayat_status_insiden_tujuan_check", salahSatu(t.statusTujuan, STATUS_INSIDEN)),
     check("riwayat_status_insiden_dampak_check", tingkat(t.dampak)),
     check("riwayat_status_insiden_probabilitas_check", tingkat(t.probabilitas)),
+  ],
+);
+
+/**
+ * Jejak Audit: satu baris per perubahan data lewat service (siapa, kapan, apa), ditulis dalam transaksi yang sama
+ * dengan perubahannya. Hanya ditambah, tidak pernah diubah atau dihapus. Pengguna null = percobaan masuk yang gagal.
+ */
+export const jejakAudit = pgTable(
+  "jejak_audit",
+  {
+    id: id(),
+    waktu: timestamp("waktu", { withTimezone: true }).notNull().default(sql`clock_timestamp()`),
+    penggunaId: uuid("pengguna_id").references(() => pengguna.id),
+    entitas: varchar("entitas", { length: 16 }).$type<EntitasJejak>().notNull(),
+    /** Id data yang berubah (mis. Pengukuran, Indikator); null bila tidak satu baris tertentu. */
+    entitasId: uuid("entitas_id"),
+    ringkasan: text("ringkasan").notNull(),
+  },
+  (t) => [
+    index("jejak_audit_waktu_idx").on(t.waktu),
+    index("jejak_audit_entitas_idx").on(t.entitas, t.entitasId),
+    check("jejak_audit_entitas_check", salahSatu(t.entitas, ENTITAS_JEJAK)),
   ],
 );

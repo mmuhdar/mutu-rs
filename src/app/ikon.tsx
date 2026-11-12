@@ -17,6 +17,7 @@ import {
   FileImage,
   FileText,
   FileUp,
+  History,
   Inbox,
   KeyRound,
   LayoutDashboard,
@@ -80,6 +81,7 @@ const BENTUK = {
   terang: Sun,
   gelap: Moon,
   insiden: ShieldAlert,
+  jejak: History,
 } as const;
 
 export type NamaIkon = keyof typeof BENTUK;

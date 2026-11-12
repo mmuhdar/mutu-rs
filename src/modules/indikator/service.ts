@@ -8,6 +8,7 @@ import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, KELOMPOK_BISA_DITAMBAH, targetPadaB
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
+import { catatJejak } from "@/modules/jejak/catat";
 
 import { INM, TARGET_INM_BERLAKU_MULAI } from "./inm";
 
@@ -174,6 +175,7 @@ export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: I
       );
     }
     await tx.update(indikator).set(data).where(eq(indikator.id, id));
+    await catatJejak(tx, aktor, "indikator", id, `Mengubah isian Indikator ${lama.kode}`);
   });
 }
 
@@ -181,9 +183,10 @@ export async function ubahIndikator(aktor: Pengguna | null, id: string, isian: I
 export async function aturAktifIndikator(aktor: Pengguna | null, id: string, aktif: boolean) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const [baris] = apakahUuid(id)
-    ? await db.update(indikator).set({ aktif }).where(eq(indikator.id, id)).returning({ id: indikator.id })
+    ? await db.update(indikator).set({ aktif }).where(eq(indikator.id, id)).returning({ id: indikator.id, kode: indikator.kode })
     : [];
   if (!baris) throw tidakDitemukan();
+  await catatJejak(db, aktor, "indikator", id, `${aktif ? "Mengaktifkan" : "Menonaktifkan"} Indikator ${baris.kode}`);
 }
 
 /** Menambah IMP-RS, IMP-Unit, atau SPM beserta Target awalnya. Mengembalikan id Indikator baru. */
@@ -202,6 +205,7 @@ export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBar
         .values({ ...data, kode, kelompok: baru.kelompok })
         .returning({ id: indikator.id });
       await tx.insert(target).values({ indikatorId: id, nilai, berlakuMulai: keTanggal(berlakuMulai) });
+      await catatJejak(tx, aktor, "indikator", id, `Menambah Indikator ${kode} (${baru.kelompok}), Target ${nilai} mulai ${labelBulan(berlakuMulai)}`);
       return id;
     });
   } catch (error) {
@@ -237,6 +241,8 @@ export async function tetapkanTarget(aktor: Pengguna | null, indikatorId: string
     if (kodePg(error) === "23503") throw tidakDitemukan();
     throw error;
   }
+  const [ind] = await db.select({ kode: indikator.kode }).from(indikator).where(eq(indikator.id, indikatorId));
+  await catatJejak(db, aktor, "indikator", indikatorId, `Menetapkan Target ${ind.kode} ${nilai} mulai ${labelBulan(berlakuMulai)}`);
 }
 
 /**
@@ -267,6 +273,16 @@ export const bersinggungan = (mulai: string, berhenti: string | null) =>
   );
 
 type Transaksi = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** "Unit Pelapor ICU pada INM-01" untuk Jejak Audit. */
+async function labelUnitPelapor(tx: Transaksi, indikatorId: string, unitId: string) {
+  const [x] = await tx
+    .select({ kode: indikator.kode, unit: unit.nama })
+    .from(indikator)
+    .innerJoin(unit, eq(unit.id, unitId))
+    .where(eq(indikator.id, indikatorId));
+  return `Unit Pelapor ${x.unit} pada ${x.kode}`;
+}
 
 /**
  * Menolak periode yang tumpang tindih dengan periode lain untuk Indikator dan Unit yang sama, atau dengan periode
@@ -337,6 +353,13 @@ export async function tambahUnitPelapor(aktor: Pengguna | null, indikatorId: str
       .insert(unitPelapor)
       .values({ indikatorId, unitId: u.id, bulanMulai: keTanggal(mulai), bulanBerhenti: berhenti && keTanggal(berhenti) })
       .returning({ id: unitPelapor.id });
+    await catatJejak(
+      tx,
+      aktor,
+      "indikator",
+      indikatorId,
+      `Menambah ${await labelUnitPelapor(tx, indikatorId, u.id)}, ${labelPeriode(mulai, berhenti)}`,
+    );
     return id;
   });
 }
@@ -403,6 +426,13 @@ export async function akhiriUnitPelapor(aktor: Pengguna | null, id: string, bula
       );
     }
     await tx.update(unitPelapor).set({ bulanBerhenti: keTanggal(berhenti) }).where(eq(unitPelapor.id, id));
+    await catatJejak(
+      tx,
+      aktor,
+      "indikator",
+      periode.indikatorId,
+      `Mengakhiri ${await labelUnitPelapor(tx, periode.indikatorId, periode.unitId)}, ${labelPeriode(mulai, berhenti)}`,
+    );
   });
 }
 
@@ -423,6 +453,14 @@ export async function hapusUnitPelapor(aktor: Pengguna | null, id: string) {
       );
     }
     await tx.delete(unitPelapor).where(eq(unitPelapor.id, id));
+    const periodeLama = labelPeriode(dariTanggal(periode.bulanMulai), periode.bulanBerhenti && dariTanggal(periode.bulanBerhenti));
+    await catatJejak(
+      tx,
+      aktor,
+      "indikator",
+      periode.indikatorId,
+      `Menghapus ${await labelUnitPelapor(tx, periode.indikatorId, periode.unitId)}, ${periodeLama}`,
+    );
   });
 }
 

@@ -67,6 +67,7 @@ const MENU: { judul: string; item: (ItemMenu & { peran: readonly Peran[] })[] }[
       { href: "/indikator", label: "Indikator", ikon: "indikator", peran: PERAN },
       { href: "/unit", label: "Unit", ikon: "unit", peran: ["adminSistem"] },
       { href: "/pengguna", label: "Pengguna", ikon: "pengguna", peran: ["adminSistem"] },
+      { href: "/jejak", label: "Jejak Audit", ikon: "jejak", peran: ["adminSistem", "komiteMutu"] },
     ],
   },
 ];

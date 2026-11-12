@@ -19,6 +19,7 @@ import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPeran, type Pengguna } from "@/modules/auth/service";
 import { bersinggungan } from "@/modules/indikator/service";
+import { catatJejak } from "@/modules/jejak/catat";
 
 /** Satu isian: Indikator, Unit, dan bulan "YYYY-MM". */
 export type KunciIsian = { indikatorId: string; unitId: string; bulan: string };
@@ -220,6 +221,17 @@ export async function ambilIsian(aktor: Pengguna | null, k: KunciIsian, sekarang
  * Menyimpan isian sebagai Draf (membuat Pengukuran bila belum ada), lalu bila `ajukan` memindahkannya ke Diajukan.
  * Hanya Draf yang bisa diubah. Simpan pertama dan pengajuan dicatat di Riwayat Status; pengisi = aktor.
  */
+/** "INM-01 Unit ICU Oktober 2026" untuk Jejak Audit. */
+async function labelPengukuran(tx: Transaksi, id: string) {
+  const [p] = await tx
+    .select({ kode: indikator.kode, unit: unit.nama, bulan: pengukuran.bulan })
+    .from(pengukuran)
+    .innerJoin(indikator, eq(indikator.id, pengukuran.indikatorId))
+    .innerJoin(unit, eq(unit.id, pengukuran.unitId))
+    .where(eq(pengukuran.id, id));
+  return `${p.kode} Unit ${p.unit} ${labelBulan(dariTanggal(p.bulan))}`;
+}
+
 async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: boolean, sekarang: Date) {
   return db.transaction(async (tx) => {
     const konteks = await periksaKonteks(tx, aktor, isian, sekarang);
@@ -234,6 +246,7 @@ async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: bo
       .onConflictDoNothing()
       .returning({ id: pengukuran.id });
     let id: string;
+    let sebelumnya = "";
     if (baru) {
       id = baru.id;
       await tx
@@ -241,7 +254,7 @@ async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: bo
         .values({ pengukuranId: id, statusAsal: null, statusTujuan: "draf", olehId: oleh });
     } else {
       const [lama] = await tx
-        .select({ id: pengukuran.id, status: pengukuran.status })
+        .select({ id: pengukuran.id, status: pengukuran.status, n: pengukuran.n, d: pengukuran.d })
         .from(pengukuran)
         .where(pengukuranUntuk(ind.id, u.id, isian.bulan))
         .for("update");
@@ -252,8 +265,16 @@ async function simpan(aktor: Pengguna | null, isian: IsianPengukuran, ajukan: bo
         );
       }
       id = lama.id;
+      if (lama.n !== data.n || lama.d !== data.d) sebelumnya = ` (sebelumnya N ${lama.n}, D ${lama.d})`;
       await tx.update(pengukuran).set(data).where(eq(pengukuran.id, id));
     }
+    await catatJejak(
+      tx,
+      aktor,
+      "pengukuran",
+      id,
+      `${ajukan ? "Menyimpan dan mengajukan" : "Menyimpan"} Pengukuran ${ind.kode} Unit ${u.nama} ${labelBulan(isian.bulan)}: N ${data.n}, D ${data.d}${sebelumnya}`,
+    );
 
     // Baris ini baru dibuat atau sudah dikunci di atas, dan statusnya Draf.
     const draf = { id, status: "draf" as StatusPengukuran };
@@ -414,6 +435,7 @@ export async function tambahBukti(aktor: Pengguna | null, pengukuranId: string, 
       .insert(buktiPengukuran)
       .values({ pengukuranId, nama, jenis, ukuran: isi.length, isi, diunggahOlehId: aktor!.id })
       .returning({ id: buktiPengukuran.id });
+    await catatJejak(tx, aktor, "pengukuran", pengukuranId, `Melampirkan Bukti ${nama} ke Pengukuran ${await labelPengukuran(tx, pengukuranId)}`);
     return id;
   });
 }
@@ -423,11 +445,15 @@ export async function hapusBukti(aktor: Pengguna | null, buktiId: string, sekara
   wajibPeran(aktor, PENGISI, HANYA_PENGISI);
   await db.transaction(async (tx) => {
     const [b] = apakahUuid(buktiId)
-      ? await tx.select({ pengukuranId: buktiPengukuran.pengukuranId }).from(buktiPengukuran).where(eq(buktiPengukuran.id, buktiId))
+      ? await tx
+          .select({ pengukuranId: buktiPengukuran.pengukuranId, nama: buktiPengukuran.nama })
+          .from(buktiPengukuran)
+          .where(eq(buktiPengukuran.id, buktiId))
       : [];
     if (!b) throw new ServiceError(404, "Bukti tidak ditemukan.");
     await drafUntukBukti(tx, aktor, b.pengukuranId, sekarang);
     await tx.delete(buktiPengukuran).where(eq(buktiPengukuran.id, buktiId));
+    await catatJejak(tx, aktor, "pengukuran", b.pengukuranId, `Menghapus Bukti ${b.nama} dari Pengukuran ${await labelPengukuran(tx, b.pengukuranId)}`);
   });
 }
 
@@ -522,7 +548,10 @@ export async function ubahStatusPengukuran(aktor: Pengguna | null, id: string, a
     if (!aktor.unitIds.includes(p.unitId)) {
       throw new ServiceError(403, "Anda hanya bisa memverifikasi Pengukuran Unit Anda sendiri.");
     }
-    return pindahStatus(tx, p, aksi, aktor.id, teks);
+    const hasil = await pindahStatus(tx, p, aksi, aktor.id, teks);
+    const kata = { verifikasi: "Memverifikasi", kembalikan: "Mengembalikan", bukaKembali: "Membuka kembali" }[aksi];
+    await catatJejak(tx, aktor, "pengukuran", p.id, `${kata} Pengukuran ${await labelPengukuran(tx, p.id)}`);
+    return hasil;
   });
 }
 

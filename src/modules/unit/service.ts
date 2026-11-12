@@ -7,6 +7,7 @@ import { kodePg, ServiceError } from "@/lib/errors";
 import { apakahUuid } from "@/lib/uuid";
 import { type Pengguna, wajibPengguna, wajibPeran } from "@/modules/auth/service";
 import { bersinggungan } from "@/modules/indikator/service";
+import { catatJejak } from "@/modules/jejak/catat";
 
 const HANYA_ADMIN = "Hanya Admin Sistem yang boleh mengelola Unit.";
 
@@ -53,13 +54,16 @@ export async function tambahUnit(aktor: Pengguna | null, input: { nama: string }
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
   const nama = rapikanNama(input.nama);
   const [baru] = await simpanNama(nama, () => db.insert(unit).values({ nama }).returning(kolom));
+  await catatJejak(db, aktor, "unit", baru.id, `Menambah Unit ${nama}`);
   return baru;
 }
 
 export async function gantiNamaUnit(aktor: Pengguna | null, id: string, input: { nama: string }) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
   const nama = rapikanNama(input.nama);
-  return simpanNama(nama, () => ubahUnit(id, { nama }));
+  const hasil = await simpanNama(nama, () => ubahUnit(id, { nama }));
+  await catatJejak(db, aktor, "unit", hasil.id, `Mengganti nama Unit menjadi ${nama}`);
+  return hasil;
 }
 
 /**
@@ -88,6 +92,7 @@ export async function aturAktifUnit(aktor: Pengguna | null, id: string, aktif: b
       }
     }
     const [hasil] = await tx.update(unit).set({ aktif }).where(eq(unit.id, id)).returning(kolom);
+    await catatJejak(tx, aktor, "unit", id, `${aktif ? "Mengaktifkan" : "Menonaktifkan"} Unit ${u.nama}`);
     return hasil;
   });
 }

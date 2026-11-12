@@ -6,6 +6,7 @@ import { kodePg, ServiceError } from "@/lib/errors";
 import { LABEL_PERAN, PERAN, PERAN_BER_UNIT } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { hashSandiBaru, type Pengguna, wajibPeran } from "@/modules/auth/service";
+import { catatJejak } from "@/modules/jejak/catat";
 
 const HANYA_ADMIN = "Hanya Admin Sistem yang boleh mengelola Pengguna.";
 
@@ -76,6 +77,7 @@ export async function tambahPengguna(
         .values({ ...data, username, hashSandi })
         .returning({ id: pengguna.id });
       if (unitIds.length) await tx.insert(penggunaUnit).values(unitIds.map((unitId) => ({ penggunaId: baru.id, unitId })));
+      await catatJejak(tx, aktor, "pengguna", baru.id, `Menambah Pengguna ${username} (${LABEL_PERAN[data.peran]})`);
       return baru;
     });
   } catch (error) {
@@ -86,10 +88,17 @@ export async function tambahPengguna(
 }
 
 /**
- * Menyimpan perubahan satu Pengguna; `unitIds` (bila ada) menggantikan seluruh Unit-nya.
- * Admin Sistem aktif yang terakhir tidak boleh dinonaktifkan atau diganti perannya, supaya tidak ada yang terkunci di luar aplikasi.
+ * Menyimpan perubahan satu Pengguna; `unitIds` (bila ada) menggantikan seluruh Unit-nya. `jejak` = ringkasan Jejak
+ * Audit dari username-nya. Admin Sistem aktif yang terakhir tidak boleh dinonaktifkan atau diganti perannya, supaya
+ * tidak ada yang terkunci di luar aplikasi.
  */
-async function simpan(id: string, ubah: Partial<typeof pengguna.$inferInsert>, unitIds?: string[]) {
+async function simpan(
+  aktor: Pengguna,
+  id: string,
+  ubah: Partial<typeof pengguna.$inferInsert>,
+  jejak: (username: string) => string,
+  unitIds?: string[],
+) {
   if (!apakahUuid(id)) throw new ServiceError(404, "Pengguna tidak ditemukan.");
   await db.transaction(async (tx) => {
     if (ubah.aktif === false || (ubah.peran && ubah.peran !== "adminSistem")) {
@@ -106,8 +115,13 @@ async function simpan(id: string, ubah: Partial<typeof pengguna.$inferInsert>, u
         );
       }
     }
-    const [hasil] = await tx.update(pengguna).set(ubah).where(eq(pengguna.id, id)).returning({ id: pengguna.id });
+    const [hasil] = await tx
+      .update(pengguna)
+      .set(ubah)
+      .where(eq(pengguna.id, id))
+      .returning({ id: pengguna.id, username: pengguna.username });
     if (!hasil) throw new ServiceError(404, "Pengguna tidak ditemukan.");
+    await catatJejak(tx, aktor, "pengguna", id, jejak(hasil.username));
     if (!unitIds) return;
     await tx.delete(penggunaUnit).where(eq(penggunaUnit.penggunaId, id));
     if (unitIds.length) await tx.insert(penggunaUnit).values(unitIds.map((unitId) => ({ penggunaId: id, unitId })));
@@ -118,7 +132,7 @@ async function simpan(id: string, ubah: Partial<typeof pengguna.$inferInsert>, u
 export async function ubahPengguna(aktor: Pengguna | null, id: string, input: DataPengguna) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
   const { unitIds, ...data } = await periksa(input);
-  await simpan(id, data, unitIds);
+  await simpan(aktor, id, data, (u) => `Mengubah nama, peran (${LABEL_PERAN[data.peran]}), dan Unit Pengguna ${u}`, unitIds);
 }
 
 /**
@@ -127,12 +141,12 @@ export async function ubahPengguna(aktor: Pengguna | null, id: string, input: Da
  */
 export async function aturAktifPengguna(aktor: Pengguna | null, id: string, aktif: boolean) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
-  await simpan(id, { aktif });
+  await simpan(aktor, id, { aktif }, (u) => `${aktif ? "Mengaktifkan" : "Menonaktifkan"} Pengguna ${u}`);
 }
 
 /** Sandi sementara untuk Pengguna yang lupa sandi. Sesi Pengguna itu diakhiri (kecuali sesi Admin yang mereset). */
 export async function resetSandi(aktor: Pengguna | null, id: string, sandi: string) {
   wajibPeran(aktor, ["adminSistem"], HANYA_ADMIN);
-  await simpan(id, { hashSandi: await hashSandiBaru(sandi) });
+  await simpan(aktor, id, { hashSandi: await hashSandiBaru(sandi) }, (u) => `Mereset sandi Pengguna ${u}`);
   await db.delete(sesi).where(and(eq(sesi.penggunaId, id), ne(sesi.id, aktor.sesiId)));
 }

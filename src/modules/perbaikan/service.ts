@@ -10,9 +10,11 @@ import {
   JENIS_SUMBER_DAYA,
   KEPUTUSAN_PDSA,
   LABEL_SUMBER_DAYA,
+  LABEL_STATUS_TINDAK_LANJUT,
   LABEL_TAHAP_PDSA,
   lewatTenggat,
   mendekatiTenggat,
+  labelLingkup,
   punyaLingkupRs,
   ringkasEfisiensi,
   STATUS_TERBUKA,
@@ -29,6 +31,7 @@ import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
 import { melihatCapaianRs, trenCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { bersinggungan } from "@/modules/indikator/service";
+import { catatJejak, kutip } from "@/modules/jejak/catat";
 
 /*
  * Modul Perbaikan: Analisis, Tindak Lanjut, dan PDSA (glosarium bagian Perbaikan). Lingkup = `unitId`; null = Lingkup
@@ -205,6 +208,7 @@ export async function simpanAnalisis(aktor: Pengguna | null, isian: KunciAnalisi
       .values({ indikatorId: l.indikator.id, unitId: l.unit?.id ?? null, bulan: keTanggal(isian.bulan), ...data })
       .onConflictDoUpdate({ target: [analisis.indikatorId, analisis.unitId, analisis.bulan], set: data })
       .returning({ id: analisis.id });
+    await catatJejak(tx, aktor, "perbaikan", baris.id, `Menulis Analisis ${l.indikator.kode} ${labelLingkup(l.unit)} ${labelBulan(isian.bulan)}`);
     return { id: baris.id };
   });
 }
@@ -335,14 +339,20 @@ function periksaTindakLanjut(isian: IsianTindakLanjut) {
 export async function tambahTindakLanjut(aktor: Pengguna | null, analisisId: string, isian: IsianTindakLanjut) {
   wajibPengguna(aktor);
   const [a] = apakahUuid(analisisId)
-    ? await db.select({ id: analisis.id, unitId: analisis.unitId }).from(analisis).where(eq(analisis.id, analisisId))
+    ? await db
+        .select({ id: analisis.id, unitId: analisis.unitId, kode: indikator.kode, bulan: analisis.bulan })
+        .from(analisis)
+        .innerJoin(indikator, eq(indikator.id, analisis.indikatorId))
+        .where(eq(analisis.id, analisisId))
     : [];
   if (!a) throw new ServiceError(404, "Analisis tidak ditemukan. Simpan Analisis dulu sebelum menambah Tindak Lanjut.");
   wajibTulis(aktor, a.unitId);
+  const data = periksaTindakLanjut(isian);
   const [baru] = await db
     .insert(tindakLanjut)
-    .values({ analisisId: a.id, ...periksaTindakLanjut(isian), status: "direncanakan", diubahOlehId: aktor.id })
+    .values({ analisisId: a.id, ...data, status: "direncanakan", diubahOlehId: aktor.id })
     .returning({ id: tindakLanjut.id });
+  await catatJejak(db, aktor, "perbaikan", baru.id, `Menambah Tindak Lanjut ${kutip(data.tindakan)} pada Analisis ${a.kode} ${labelBulan(dariTanggal(a.bulan))}`);
   return { id: baru.id };
 }
 
@@ -380,6 +390,7 @@ export async function ubahTindakLanjut(
     .update(tindakLanjut)
     .set({ ...data, status: isian.status, catatan, diubahOlehId: aktor.id, diubahPada: new Date() })
     .where(eq(tindakLanjut.id, tl.id));
+  await catatJejak(db, aktor, "perbaikan", tl.id, `Mengubah Tindak Lanjut ${kutip(data.tindakan)}, status ${LABEL_STATUS_TINDAK_LANJUT[isian.status]}`);
 }
 
 /** Saringan status daftar Tindak Lanjut: satu status, "terbuka" (Direncanakan + Berjalan, bawaan), atau "semua". */
@@ -519,6 +530,7 @@ export async function buatPdsa(
           diubahOlehId: aktor.id,
         })
         .returning({ id: pdsa.id });
+      await catatJejak(tx, aktor, "perbaikan", dibuat.id, `Memulai PDSA ${kutip(data.judul)} siklus ke-${baru.siklus}`);
       return { id: dibuat.id };
     } catch (error) {
       if (kodePg(error) === "23505") throw new ServiceError(409, "Siklus berikutnya dari PDSA ini sudah dimulai.");
@@ -544,7 +556,7 @@ export async function simpanTahapPdsa<T extends TahapIsianPdsa>(
   }
   await db.transaction(async (tx) => {
     const [p] = apakahUuid(id)
-      ? await tx.select({ id: pdsa.id, unitId: pdsa.unitId, tahap: pdsa.tahap }).from(pdsa).where(eq(pdsa.id, id)).for("update")
+      ? await tx.select({ id: pdsa.id, unitId: pdsa.unitId, tahap: pdsa.tahap, judul: pdsa.judul }).from(pdsa).where(eq(pdsa.id, id)).for("update")
       : [];
     if (!p) throw new ServiceError(404, "PDSA tidak ditemukan.");
     wajibTulis(aktor, p.unitId);
@@ -563,6 +575,7 @@ export async function simpanTahapPdsa<T extends TahapIsianPdsa>(
         diubahPada: new Date(),
       })
       .where(eq(pdsa.id, p.id));
+    await catatJejak(tx, aktor, "perbaikan", p.id, `Menyimpan ${LABEL_TAHAP_PDSA[tahap]}${lanjut ? " dan melanjutkan" : ""} PDSA ${kutip(p.judul)}`);
   });
 }
 
@@ -715,12 +728,15 @@ export async function simpanEfisiensiPdsa(aktor: Pengguna | null, id: string, is
   if (baris.length === 0) throw new ServiceError(400, "Isi biaya sebelum dan sesudah setidaknya satu jenis sumber daya.");
   if (new Set(baris.map((b) => b.jenis)).size !== baris.length) throw new ServiceError(400, "Setiap jenis sumber daya hanya sekali.");
   await db.transaction(async (tx) => {
-    const [p] = apakahUuid(id) ? await tx.select({ id: pdsa.id, unitId: pdsa.unitId }).from(pdsa).where(eq(pdsa.id, id)).for("update") : [];
+    const [p] = apakahUuid(id)
+      ? await tx.select({ id: pdsa.id, unitId: pdsa.unitId, judul: pdsa.judul }).from(pdsa).where(eq(pdsa.id, id)).for("update")
+      : [];
     if (!p) throw new ServiceError(404, "PDSA tidak ditemukan.");
     wajibTulis(aktor, p.unitId);
     await tx.delete(efisiensiPdsa).where(eq(efisiensiPdsa.pdsaId, p.id));
     await tx.insert(efisiensiPdsa).values(baris.map((b) => ({ pdsaId: p.id, ...b })));
     await tx.update(pdsa).set({ kesimpulanEfisiensi: kesimpulan, diubahOlehId: aktor.id, diubahPada: new Date() }).where(eq(pdsa.id, p.id));
+    await catatJejak(tx, aktor, "perbaikan", p.id, `Menyimpan Analisis Efisiensi PDSA ${kutip(p.judul)}`);
   });
 }
 

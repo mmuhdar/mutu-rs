@@ -7,6 +7,7 @@ import {
   bulanTriwulan,
   geserBulan,
   hariIni,
+  labelTriwulan,
   tanggalValid,
   triwulanDari,
   triwulanLalu,
@@ -25,6 +26,7 @@ import type { Peran } from "@/lib/peran";
 import { wajibPeran, type Pengguna } from "@/modules/auth/service";
 import { capaianTriwulan, PELIHAT_RS, ringkasanCapaian } from "@/modules/capaian/service";
 import { daftarIndikator } from "@/modules/indikator/service";
+import { catatJejak } from "@/modules/jejak/catat";
 import { bacaSemuaInsiden, rekapInsiden } from "@/modules/insiden/service";
 import { analisisPada, daftarPdsa } from "@/modules/perbaikan/service";
 
@@ -146,6 +148,7 @@ export async function simpanRekomendasi(aktor: Pengguna | null, isian: { triwula
     .insert(rekomendasi)
     .values({ tahun, triwulan: nomor, ...data })
     .onConflictDoUpdate({ target: [rekomendasi.tahun, rekomendasi.triwulan], set: data });
+  await catatJejak(db, aktor, "laporan", null, `Menulis Rekomendasi ${labelTriwulan(isian.triwulan)}`);
 }
 
 /**
@@ -172,6 +175,7 @@ export async function simpanUmpanBalik(
     .insert(umpanBalikDewanPengawas)
     .values({ tahun, triwulan: nomor, ...data })
     .onConflictDoUpdate({ target: [umpanBalikDewanPengawas.tahun, umpanBalikDewanPengawas.triwulan], set: data });
+  await catatJejak(db, aktor, "laporan", null, `Mencatat Umpan Balik Dewan Pengawas ${labelTriwulan(isian.triwulan)}`);
 }
 
 /** Tindak lanjut Umpan Balik Dewan Pengawas satu Triwulan, untuk dievaluasi pada pertemuan berikutnya; umpan baliknya harus sudah dicatat. */
@@ -186,6 +190,7 @@ export async function simpanTindakLanjutUmpanBalik(aktor: Pengguna | null, isian
     .where(and(eq(umpanBalikDewanPengawas.tahun, tahun), eq(umpanBalikDewanPengawas.triwulan, nomor)))
     .returning({ id: umpanBalikDewanPengawas.id });
   if (diubah.length === 0) throw new ServiceError(404, "Catat Umpan Balik Dewan Pengawas Triwulan itu dulu.");
+  await catatJejak(db, aktor, "laporan", null, `Mencatat tindak lanjut Umpan Balik Dewan Pengawas ${labelTriwulan(isian.triwulan)}`);
 }
 
 /**

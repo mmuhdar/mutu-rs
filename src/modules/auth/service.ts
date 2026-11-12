@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { pengguna, penggunaUnit, sesi } from "@/db/schema";
 import { ServiceError } from "@/lib/errors";
 import type { Peran } from "@/lib/peran";
+import { catatJejak } from "@/modules/jejak/catat";
 
 /**
  * Pengguna yang sedang bertindak; diteruskan ke setiap fungsi service.
@@ -88,6 +89,7 @@ export async function masuk(input: { username: string; sandi: string; ip: string
   const sandiBenar = await bcrypt.compare(input.sandi, akun?.hashSandi ?? (await (hashTiruan ??= hashSandi("tiruan"))));
   if (!akun || !sandiBenar) {
     kunci.forEach((k) => catatGagal(k, waktu));
+    await catatJejak(db, akun ?? null, "sesi", null, `Gagal masuk sebagai ${username.slice(0, 64)} dari ${input.ip}`);
     // Pesan sama untuk username yang tidak ada dan sandi salah.
     throw new ServiceError(401, "Username atau sandi salah.");
   }
@@ -103,6 +105,7 @@ export async function masuk(input: { username: string; sandi: string; ip: string
   });
   // Bersihkan sesi kedaluwarsa milik Pengguna ini sambil lalu.
   await db.delete(sesi).where(and(eq(sesi.penggunaId, akun.id), lt(sesi.expiresAt, sekarang)));
+  await catatJejak(db, akun, "sesi", null, `Masuk dari ${input.ip}`);
   return token;
 }
 
@@ -164,6 +167,7 @@ export async function gantiSandi(aktor: Pengguna | null, input: { sandiLama: str
   }
   await db.update(pengguna).set({ hashSandi: hashBaru }).where(eq(pengguna.id, aktor.id));
   await db.delete(sesi).where(and(eq(sesi.penggunaId, aktor.id), ne(sesi.id, aktor.sesiId)));
+  await catatJejak(db, aktor, "pengguna", aktor.id, "Mengganti sandinya sendiri");
 }
 
 /** Keluar: mengakhiri sesi yang sedang dipakai Pengguna. */
