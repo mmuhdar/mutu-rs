@@ -1,6 +1,6 @@
 # Spec: MutuRS Rilis 4 — pindah dari aplikasi mutu lama
 
-Status: dikerjakan (branch `rilis-4-pindah`)
+Status: selesai kecuali uji impor dengan dump asli (2026-11-12, branch `rilis-4-pindah`)
 
 ## Problem Statement
 
