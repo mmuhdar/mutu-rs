@@ -110,7 +110,7 @@ Capaian RS satu Indikator selama satu Triwulan: ΣN/ΣD Pengukuran Terverifikasi
 _Avoid_: rata-rata triwulan
 
 **Laporan Triwulan**:
-Laporan Komite Mutu kepada Direktur (lalu diteruskan ke Dewan Pengawas) untuk satu Triwulan yang sudah selesai: Capaian Triwulan semua Indikator, Analisis dan Tindak Lanjut, PDSA, dan Rekomendasi. Selalu disusun dari data terkini; yang dikirim adalah hasil cetaknya.
+Laporan Komite Mutu kepada Direktur (lalu diteruskan ke Dewan Pengawas) untuk satu Triwulan yang sudah selesai: Capaian Triwulan semua Indikator, Analisis dan Tindak Lanjut, PDSA, rekap Insiden tanpa identitas, dan Rekomendasi. Selalu disusun dari data terkini; yang dikirim adalah hasil cetaknya.
 _Avoid_: laporan PMKP, evaluasi triwulan
 
 **Rekomendasi**:
@@ -122,6 +122,32 @@ Unduhan CSV Capaian satu bulan dari Dashboard: per Indikator, Capaian RS (kecual
 **Rekap SIMAR**:
 Isian INM satu bulan untuk SIMAR Kemenkes, per INM: N dan D dari Capaian RS, "Analisa Capaian" dari Analisis Lingkup RS, dan "Rencana Tindak Lanjut" dari Tindak Lanjut-nya, ditandai bila belum siap; paling lambat tanggal 10 bulan berikutnya. "Analisa Capaian" dan "Rencana Tindak Lanjut" hanya dipakai sebagai nama isian SIMAR.
 
+## Keselamatan Pasien
+
+**Insiden**:
+Insiden Keselamatan Pasien: setiap kejadian tidak disengaja dan kondisi yang mengakibatkan atau berpotensi mengakibatkan cedera yang dapat dicegah pada pasien (PMK 11/2017). Di MutuRS = satu laporan internal (isian Formulir 1) beserta grading, investigasi, dan statusnya; insiden pada karyawan atau pengunjung tidak dicatat di sini (K3 RS).
+_Avoid_: IKP, kejadian, laporan kejadian
+
+**Jenis Insiden**:
+KPC (Kondisi Potensial Cedera, belum terjadi insiden), KNC (Kejadian Nyaris Cedera, belum terpapar ke pasien), KTC (Kejadian Tidak Cedera), KTD (Kejadian Tidak Diharapkan, mengakibatkan cedera), atau Kejadian Sentinel (KTD dengan kematian, cedera permanen, atau cedera berat sementara yang tidak terkait perjalanan penyakit).
+
+**Pembuat Laporan**:
+Pengguna yang memasukkan laporan Insiden; bisa berbeda dari orang pertama yang melaporkan insiden (staf tanpa akun melapor ke atasannya).
+_Avoid_: pelapor (bentrok dengan Unit Pelapor)
+
+**Grading**:
+Warna risiko Insiden (Biru, Hijau, Kuning, Merah) dari sel matriks dampak (1–5) × probabilitas (1–5) Pedoman KKP-RS 2008, bukan dari skornya. Grading awal oleh Kepala Unit dari Unit tempat insiden atau Komite Mutu; grading akhir oleh Komite Mutu saat meninjau atau menyelesaikan RCA.
+_Avoid_: derajat insiden, band
+
+**Investigasi Sederhana**:
+Investigasi Insiden biru (paling lama 7 hari) atau hijau (14 hari) oleh Kepala Unit dari Unit tempat insiden, lalu ditinjau Komite Mutu.
+
+**RCA**:
+Root Cause Analysis: investigasi Insiden kuning, merah, dan semua Kejadian Sentinel oleh Komite Mutu, paling lama 45 hari. Isiannya sama dengan Investigasi Sederhana: tipe insiden, faktor kontributor, penyebab langsung, akar masalah, rekomendasi.
+
+**Status Insiden**:
+Dilaporkan (menunggu grading; laporan masih bisa diubah Pembuat Laporan), Investigasi Sederhana, Ditinjau (menunggu Komite Mutu), RCA, Selesai, atau Bukan Insiden (ditutup Komite Mutu dengan alasan). Lewat tenggat bila tenggat investigasi sudah lewat sedangkan statusnya Investigasi Sederhana atau RCA.
+
 ## Peran
 
 **Petugas Input Data**:
@@ -132,7 +158,7 @@ _Avoid_: operator, penginput
 Pengguna yang memverifikasi Pengukuran Unit-nya, dan boleh mengisinya sendiri.
 
 **Komite Mutu**:
-Pengguna yang mengelola Indikator dan memantau Capaian seluruh rumah sakit.
+Pengguna yang mengelola Indikator dan memantau Capaian seluruh rumah sakit; juga bertindak sebagai Tim Keselamatan Pasien yang meninjau Insiden dan melakukan RCA.
 _Avoid_: Tim Mutu
 
 **Direktur**:
