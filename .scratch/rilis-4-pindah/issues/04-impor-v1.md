@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 (kelompok SPM)
 
-**Status:** selesai kecuali uji dengan dump asli (2026-11-12)
+**Status:** selesai (2026-11-12)
 
 - [x] Pengurai dump (`scripts/impor-v1/dump.ts`): mysqldump dan phpMyAdmin, hanya tiga tabel.
 - [x] Rencana murni (`scripts/impor-v1/rencana.ts`) + daftar periksa Markdown.
@@ -12,4 +12,4 @@
 - [x] Perintah `scripts/impor-v1.ts` (pratinjau / `--jalankan`, `--mulai`).
 - [x] Tes `tests/impor-v1.test.ts` (Unit Pelapor mulai 2031).
 - [x] `INSTALASI.md`: langkah impor saat pemasangan.
-- [ ] Uji dengan dump asli dari user (menunggu tarball).
+- [x] Uji dengan dump asli dari user (dump 10 November 2026: 52 Unit, 50 Indikator, 258 Unit Pelapor, 0 gagal; `daftar-periksa-impor.md`).

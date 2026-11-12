@@ -169,11 +169,11 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
     // Arah terbanyak, lalu Target terbanyak di antara baris ber-Arah itu, supaya keduanya dari baris yang sama.
     const arah = terbanyak(grup.map((b) => b.arah)).nilai;
     const target = terbanyak(grup.filter((b) => b.arah === arah).map((b) => b.target)).nilai;
+    // Dihitung per baris: aplikasi lama bisa punya beberapa baris Indikator yang sama di satu Unit.
     const varian = terbanyak(grup, (b) => `${b.arah}|${b.target}`).semua;
-    if (varian.length > 1) {
-      catatan.push(
-        `Target aplikasi lama berbeda antar-Unit (${varian.map((t) => `${labelTarget(t.nilai.arah, t.nilai.target)} di ${t.n} Unit`).join(", ")}); dipakai ${labelTarget(arah, target)}.`,
-      );
+    const daftarVarian = (v: typeof varian) => v.map((t) => `${labelTarget(t.nilai.arah, t.nilai.target)} pada ${t.n} baris`).join(", ");
+    if (varian.length > 1 && !inmCocok) {
+      catatan.push(`Target aplikasi lama tidak sama (${daftarVarian(varian)}); dipakai ${labelTarget(arah, target)}.`);
     }
     const satuanLain = [...new Set(grup.map((b) => b.satuan).filter((s) => s !== "%"))];
     if (satuanLain.length > 0) catatan.push(`Satuan aplikasi lama ${satuanLain.join(", ")}; diimpor sebagai % (faktor 100), periksa.`);
@@ -216,10 +216,10 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
       belumDiisi: inmCocok ? [] : belumDiisi,
     };
     if (inmCocok) {
+      // INM selalu memakai Target PMK; yang dicatat hanya Target aplikasi lama yang berbeda darinya.
       const t = opsi.targetInm[inmCocok.kode];
-      if (t !== undefined && t !== r.target) {
-        catatan.push(`Target aplikasi lama ${labelTarget(arah, r.target)}; MutuRS tetap memakai Target PMK ${formatAngka(t)}.`);
-      }
+      const beda = t === undefined ? [] : varian.filter((v) => v.nilai.target !== t);
+      if (beda.length > 0) catatan.push(`Target aplikasi lama ${daftarVarian(beda)}; MutuRS tetap memakai Target PMK ${formatAngka(t)}.`);
       gabung(r);
       continue;
     }

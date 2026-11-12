@@ -109,7 +109,7 @@ describe("rencana impor", () => {
     assert.deepEqual([a.kode, a.kelompok, a.sudahAda, a.unit], ["INM-02", "INM", true, ["ICU"]]);
     assert.match(a.catatan.join(), /kemiripan nama/);
     assert.deepEqual([b.kode, b.unit, b.belumDiisi], ["INM-03", ["ICU", "IGD"], []]);
-    assert.match(b.catatan.join(), /MutuRS tetap memakai Target PMK 100/);
+    assert.match(b.catatan.join(), /≥ 90 pada 2 baris; MutuRS tetap memakai Target PMK 100/);
     assert.deepEqual([c.kode, c.kelompok], ["IMP-RS-01", "IMP-RS"]);
     assert.match(c.catatan.join(), /tidak cocok dengan 13 INM/);
   });
@@ -148,7 +148,7 @@ describe("rencana impor", () => {
 
     const sbar = per["Zeta Kepatuhan SBAR"];
     assert.deepEqual([sbar.target, sbar.unit, sbar.isian.definisiNumerator, sbar.belumDiisi], [100, ["ICU", "IGD", "Lab"], "Jumlah N", []]);
-    assert.match(sbar.catatan.join(), /≥ 100 di 2 Unit, ≥ 90 di 1 Unit/);
+    assert.match(sbar.catatan.join(), /≥ 100 pada 2 baris, ≥ 90 pada 1 baris/);
 
     const alfa = per["Alfa Cuci Tangan"];
     assert.equal(alfa.isian.definisiOperasional, `${BELUM_DIISI}\n\nInklusi: Semua ruangan\n\nEksklusi: Ruang isolasi`);

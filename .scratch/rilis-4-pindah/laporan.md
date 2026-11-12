@@ -9,7 +9,7 @@ Branch `rilis-4-pindah` (dari `main` yang sudah berisi Rilis 3 dan desain Hallma
 | 01 Kelompok SPM | SPM jadi kelompok keempat, dinilai seperti IMP-RS (Capaian RS, Analisis Lingkup RS), tidak masuk Rekap SIMAR. |
 | 02 Rekap Bulanan | Tombol "Unduh CSV" di Dashboard (Komite Mutu, Direktur, Admin Sistem): Capaian RS per Indikator lalu tiap Unit Pelapor. |
 | 03 Bukti | Pengisi melampirkan PDF/JPG/PNG ke Pengukuran Draf; Kepala Unit membukanya di detail Pengukuran sebelum Verifikasi. |
-| 04 Impor v1 | `scripts/impor-v1.ts` membaca dump SQL aplikasi lama dan membuat Unit, Indikator, Target, Unit Pelapor; langkah pemasangan di `INSTALASI.md`. **Belum diuji dengan dump asli** (menunggu tarball dari Anda). |
+| 04 Impor v1 | `scripts/impor-v1.ts` membaca dump SQL aplikasi lama dan membuat Unit, Indikator, Target, Unit Pelapor; langkah pemasangan di `INSTALASI.md`. Sudah diuji dengan dump asli 10 November 2026; hasilnya di `daftar-periksa-impor.md`. |
 
 ## Cara mencoba
 
@@ -30,7 +30,7 @@ Server dev: `npx next dev -p 3456`, buka http://localhost:3456 (bukan 127.0.0.1)
    - Muncul di Katalog (bagian SPM) dan di pemilih Monitoring (kelompok SPM, setelah IMP-Unit).
    - Laporan Triwulan menampilkan tabel Capaian SPM setelah ada Pengukuran Terverifikasi.
 5. **Mode terang/gelap** di halaman isian dan detail yang kini berisi Bukti.
-6. **Impor aplikasi lama:** menunggu tarball. Setelah dikirim, saya jalankan pratinjau dan memberikan `daftar-periksa.md` untuk Komite Mutu (lihat bawah).
+6. **Impor aplikasi lama:** serahkan `daftar-periksa-impor.md` ke Komite Mutu (lihat "Hasil impor dump asli" di bawah).
 
 ## Keputusan yang saya ambil sendiri
 
@@ -60,6 +60,28 @@ Selain keputusan sesi tanya-jawab (Q1 s.d. Q18):
   - Kolom `type` yang kosong dianggap INM, sesuai nilai bawaan v1.
   - Dump boleh `.sql` atau `.sql.gz`.
 
+## Hasil impor dump asli
+
+Dump `u792262854_kepegawaian.20261110000307.sql.gz` (MariaDB, 10 November 2026) dibaca langsung dari Downloads, tanpa disalin atau dibongkar. Yang diurai hanya `units`, `master_indikator_mutus`, dan `indikator_mutus`; tabel kepegawaian dilewati.
+
+- **Ke database PostgreSQL kosong:**
+  - 287 baris Indikator aktif menjadi 52 Unit dan 50 Indikator: 13 INM, 13 IMP-RS, 20 IMP-Unit, 4 SPM.
+  - Ke-13 INM cocok persis menurut nama, tanpa pencocokan kemiripan.
+  - Dibuat 37 Indikator baru dan 258 Unit Pelapor, semuanya mulai Januari 2027. Tidak ada yang gagal.
+  - Dijalankan ulang, tidak ada yang dibuat lagi. Hasilnya bisa di-`pg_dump`. Database sementaranya sudah dihapus.
+- **287 baris menjadi 258 Unit Pelapor** karena v1 punya beberapa baris untuk Indikator dan ruangan yang sama (misalnya Distribusi Makanan tiga kali di Instalasi Gizi). Catatan Target di daftar periksa kini dihitung per baris.
+- **Yang perlu diputuskan Komite Mutu** (tidak saya ubah sendiri):
+  - `IMP-RS-02` bernama "Area non-klinis (mis. ruang administrasi, gudang, kantin) yang tidak memerlukan fasilitas kebersihan tangan klinis." Isinya tampak seperti kriteria eksklusi "Angka Kelengkapan Fasilitas Cuci Tangan" (`IMP-RS-01`) yang diketik sebagai Indikator di v1 (Poli Saraf, Poli TB Paru). Bila memang bukan Indikator, nonaktifkan setelah pemasangan.
+  - `IMP-UNIT-03` Kejadian Cedera Akibat Restrain: di v1 ada ≤ 0 dan ≥ 0; dipakai ≤ 0.
+  - `IMP-UNIT-01` Drop Out Rehabilitasi Medik: ≥ 60 dan ≥ 100; dipakai ≥ 60.
+  - `IMP-UNIT-15` Distribusi Makanan: ≥ 90 (2 baris) dan ≥ 100; dipakai ≥ 90.
+  - `INM-01` Target v1 ≥ 100, sedangkan MutuRS memakai Target PMK 85.
+  - `INM-02` satu ruangan ≥ 90, sedangkan MutuRS memakai Target PMK 100.
+  - Definisi N dan D `SPM-01` dan `SPM-04` kosong di v1. Sumber Data semua Indikator baru masih "Belum diisi".
+  - Nama Unit dan beberapa nama Indikator ditulis huruf kapital semua seperti di v1 (misalnya `IMP-UNIT-04`). Bisa diganti di MutuRS setelah pemasangan.
+  - Tiga Indikator IMP Unit yang di v1 dipakai beberapa ruangan menjadi IMP-RS (`IMP-RS-07`, `-09`, `-12`), sesuai keputusan sebelumnya.
+- **Impor final** tetap dijalankan saat pemasangan di server dengan dump terbaru, mengikuti `INSTALASI.md`.
+
 ## Pemeriksaan
 
 - **Proyek:** `npm run check` lulus (typecheck, lint, 210 tes; tes baru: `bukti`, `rekap-bulanan`, `impor-v1`, tambahan SPM).
@@ -81,7 +103,7 @@ Selain keputusan sesi tanya-jawab (Q1 s.d. Q18):
 
 ## Batasan
 
-- **Impor belum diuji dengan dump asli.** Bila format dump Hostinger berbeda (misalnya ekspor tanpa `CREATE TABLE` dan tanpa daftar kolom), pengurainya akan menyebut tabel mana yang tidak bisa dibaca, lalu saya sesuaikan.
+- **Format dump:** impor diuji dengan dump MariaDB dari Hostinger. Ekspor dengan format lain (misalnya tanpa `CREATE TABLE` dan tanpa daftar kolom) akan ditolak dengan menyebut tabelnya.
 - **Ukuran backup:** Bukti tersimpan di database, jadi backup harian membesar. Perkiraannya ada di `INSTALASI.md`.
 - **Tampilan Bukti:** tanpa pratinjau gambar kecil (thumbnail); berkas dibuka di tab baru.
 - **Demo produksi** di http://localhost:3917 belum dibangun ulang dengan Rilis 4.
@@ -89,6 +111,6 @@ Selain keputusan sesi tanya-jawab (Q1 s.d. Q18):
 
 ## Langkah berikutnya
 
-1. Kirim tarball backup database aplikasi lama. Saya ambil dump-nya, hanya membaca tiga tabel mutu, menjalankan pratinjau, lalu menyerahkan daftar periksa untuk Komite Mutu. Tarball dihapus setelah selesai.
+1. Komite Mutu memeriksa `daftar-periksa-impor.md` dan keputusan di "Hasil impor dump asli". Berkas dump di Downloads berisi data kepegawaian: hapus bila tidak dipakai lagi. Untuk pemasangan diperlukan dump terbaru.
 2. Setelah cek manual di atas oke: `git switch main && git merge --ff-only rilis-4-pindah`.
 3. Rilis 5 (kandidat): audit trail, notifikasi, umpan balik Dewan Pengawas, analisis efisiensi (PMKP 4 g), validasi data (PMKP 5).
