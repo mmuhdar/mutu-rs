@@ -192,7 +192,8 @@ export async function laporkanInsiden(aktor: Pengguna | null, isian: IsianLapora
       .insert(insiden)
       .values({ ...data, dilaporkanOlehId: aktor.id, dilaporkanPada: sekarang, status: "dilaporkan" })
       .returning({ id: insiden.id });
-    await tx.insert(riwayatStatusInsiden).values({ insidenId: baru.id, statusAsal: null, statusTujuan: "dilaporkan", olehId: aktor.id });
+    // Waktu "laporan dibuat" di Riwayat Status = waktu laporan, bukan jam database.
+    await tx.insert(riwayatStatusInsiden).values({ insidenId: baru.id, statusAsal: null, statusTujuan: "dilaporkan", olehId: aktor.id, waktu: sekarang });
     return { id: baru.id };
   });
 }

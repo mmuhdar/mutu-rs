@@ -28,6 +28,7 @@ import {
   Printer,
   RefreshCw,
   Search,
+  ShieldAlert,
   ShieldCheck,
   SquarePen,
   Sun,
@@ -78,6 +79,7 @@ const BENTUK = {
   salin: Copy,
   terang: Sun,
   gelap: Moon,
+  insiden: ShieldAlert,
 } as const;
 
 export type NamaIkon = keyof typeof BENTUK;

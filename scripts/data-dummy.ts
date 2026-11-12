@@ -1,13 +1,25 @@
 // Data dummy untuk database dev, semuanya lewat service: Unit, Pengguna per peran, IMP, Unit Pelapor, Pengukuran
-// 12 bulan sampai bulan lalu (berbagai status), Analisis, Tindak Lanjut, PDSA, dan Rekomendasi. Jalankan sekali:
+// 12 bulan sampai bulan lalu (berbagai status), Analisis, Tindak Lanjut, PDSA, Rekomendasi, dan Insiden. Jalankan sekali:
 //   npx tsx --env-file=.env scripts/data-dummy.ts
 // Semua Pengguna dummy bersandi SANDI. Tanpa top-level await: tsx menjalankan .ts sebagai CJS.
-import { bulanBerjalan, bulanLalu, geserBulan, triwulanLalu } from "@/lib/bulan";
+import { bulanBerjalan, bulanLalu, bulanTriwulan, dariWaktuSetempat, geserBulan, hariIni, tambahHari, triwulanLalu } from "@/lib/bulan";
 import { config } from "@/lib/config";
 import { diukurPadaBulan } from "@/lib/indikator";
 import { getPool } from "@/db";
 import { masuk, penggunaDariToken, type Pengguna } from "@/modules/auth/service";
 import { daftarIndikator, tambahIndikator, tambahUnitPelapor, type IndikatorBaru } from "@/modules/indikator/service";
+import {
+  catatEreport,
+  daftarInsiden,
+  gradingInsiden,
+  laporkanInsiden,
+  selesaikanRca,
+  simpanInvestigasi,
+  tandaiBukanInsiden,
+  tinjauInsiden,
+  type IsianInvestigasi,
+  type IsianLaporan,
+} from "@/modules/insiden/service";
 import { simpanRekomendasi } from "@/modules/laporan/service";
 import { daftarPengguna, tambahPengguna } from "@/modules/pengguna/service";
 import { ajukanPengukuran, kembalikanPengukuran, simpanPengukuran, verifikasiPengukuran } from "@/modules/pengukuran/service";
@@ -156,9 +168,283 @@ async function sesi(username: string, sandi: string) {
   return p;
 }
 
+/** Isian laporan Insiden contoh: KNC tanpa cedera di Unit `unitId`; `ubahan` menimpa field. */
+const laporan = (unitId: string, ubahan: Partial<IsianLaporan>): IsianLaporan => ({
+  unitId,
+  unitPenyebabId: "",
+  waktuInsiden: "",
+  judul: "",
+  kronologi: "",
+  jenis: "knc",
+  orangPertama: "perawat",
+  tempat: "",
+  pasienInisial: "Tn AR",
+  pasienNoRm: "204517",
+  pasienRuangan: "",
+  umurTahun: 58,
+  umurBulan: Number.NaN,
+  jenisKelamin: "L",
+  penanggungBiaya: "bpjs",
+  kategoriPasien: "rawatInap",
+  spesialisasi: "penyakitDalam",
+  tanggalMasuk: "",
+  akibat: "tidakAdaCedera",
+  tindakanSegera: "",
+  tindakanOleh: "perawat",
+  pernahTerjadi: false,
+  pernahTerjadiKeterangan: "",
+  ...ubahan,
+});
+
+/**
+ * Insiden contoh di semua status: menunggu grading (termasuk KPC yang terlambat dilaporkan), Investigasi Sederhana,
+ * Ditinjau, RCA, Selesai, Bukan Insiden, serta dua Insiden Triwulan lalu (Selesai, salah satunya KTD dengan e-report)
+ * untuk Laporan Triwulan. Waktu laporan dibuat (`sekarang`) dibuat dekat dengan waktu insidennya.
+ */
+async function insidenContoh(unitId: Record<KodeUnit, string>) {
+  const komite = await sesi("komite", SANDI);
+  const kepala = (k: KodeUnit) => sesi(`kepala.${k}`, SANDI);
+  const petugas = (k: KodeUnit) => sesi(`petugas.${k}`, SANDI);
+  const hari = hariIni();
+  /** Waktu setempat "YYYY-MM-DDTHH:mm". */
+  const pada = (tanggal: string, jam: string) => `${tanggal}T${jam}`;
+  /** Melapor `jamKemudian` jam setelah waktu insiden. */
+  const lapor = async (aktor: Pengguna, isian: IsianLaporan, jamKemudian = 3) =>
+    (await laporkanInsiden(aktor, isian, new Date(dariWaktuSetempat(isian.waktuInsiden)!.getTime() + jamKemudian * 3_600_000))).id;
+  const investigasi = (ubahan: Partial<IsianInvestigasi>): IsianInvestigasi => ({
+    tipeInsiden: "medikasi",
+    faktorKontributor: ["komunikasi", "petugas"],
+    penyebabLangsung: "",
+    akarMasalah: "",
+    rekomendasi: "",
+    ...ubahan,
+  });
+
+  await lapor(
+    await petugas("mawar"),
+    laporan(unitId.mawar, {
+      waktuInsiden: pada(tambahHari(hari, -1), "07:45"),
+      judul: "Obat oral hampir diberikan ke pasien sebelah",
+      kronologi: "Saat pembagian obat pagi, label obat dua pasien di kamar yang sama tertukar. Diketahui saat identifikasi dua penanda sebelum pemberian.",
+      tempat: "Kamar 204",
+      pasienRuangan: "Mawar 204",
+      tindakanSegera: "Obat ditahan, label diperbaiki, kedua pasien diidentifikasi ulang. Obat diberikan sesuai resep.",
+    }),
+  );
+  // KPC di Farmasi, dilaporkan 4 hari setelah diketahui (terlambat), tanpa data pasien.
+  await lapor(
+    await petugas("farmasi"),
+    laporan(unitId.farmasi, {
+      jenis: "kpc",
+      waktuInsiden: pada(tambahHari(hari, -5), "13:00"),
+      judul: "Suhu lemari pendingin obat di atas batas",
+      kronologi: "Termometer lemari pendingin vaksin dan insulin menunjukkan 11 °C saat pengecekan siang; batasnya 2 sampai 8 °C.",
+      orangPertama: "petugasLain",
+      tempat: "Gudang farmasi",
+      pasienInisial: "",
+      pasienNoRm: "",
+      umurTahun: Number.NaN,
+      jenisKelamin: "",
+      penanggungBiaya: "",
+      kategoriPasien: "",
+      spesialisasi: "",
+      tindakanSegera: "Obat dipindahkan ke lemari cadangan; teknisi dipanggil.",
+      tindakanOleh: "petugasLain",
+    }),
+    96,
+  );
+
+  const icu = await lapor(
+    await petugas("icu"),
+    laporan(unitId.icu, {
+      jenis: "ktc",
+      waktuInsiden: pada(tambahHari(hari, -3), "22:10"),
+      judul: "Cairan infus diberikan dengan kecepatan salah",
+      kronologi: "Pompa infus diatur 100 ml/jam, seharusnya 50 ml/jam. Diketahui saat serah terima 1 jam kemudian; pasien stabil.",
+      tempat: "Bed 3 ICU",
+      pasienInisial: "Ny SY",
+      pasienNoRm: "198342",
+      umurTahun: 67,
+      jenisKelamin: "P",
+      spesialisasi: "jantung",
+      tindakanSegera: "Kecepatan diperbaiki, tanda vital dipantau tiap 15 menit selama 2 jam.",
+    }),
+  );
+  await gradingInsiden(await kepala("icu"), icu, { dampak: 1, probabilitas: 2 });
+
+  const jatuh = await lapor(
+    await petugas("mawar"),
+    laporan(unitId.mawar, {
+      jenis: "ktd",
+      akibat: "cederaRingan",
+      waktuInsiden: pada(tambahHari(hari, -10), "03:20"),
+      judul: "Pasien jatuh saat ke kamar mandi",
+      kronologi: "Pasien berisiko tinggi jatuh berjalan sendiri ke kamar mandi pada malam hari, terpeleset, lutut lecet.",
+      tempat: "Kamar mandi kamar 207",
+      pasienInisial: "Tn HS",
+      pasienNoRm: "201877",
+      umurTahun: 74,
+      tindakanSegera: "Pasien dibantu kembali ke tempat tidur, luka dibersihkan, dokter jaga memeriksa: tidak ada cedera lain.",
+    }),
+  );
+  const kepalaMawar = await kepala("mawar");
+  await gradingInsiden(kepalaMawar, jatuh, { dampak: 2, probabilitas: 4 });
+  await simpanInvestigasi(
+    kepalaMawar,
+    jatuh,
+    investigasi({
+      tipeInsiden: "jatuh",
+      faktorKontributor: ["pasien", "lingkungan", "tugas"],
+      penyebabLangsung: "Pasien berjalan sendiri tanpa pendamping; lantai kamar mandi basah.",
+      akarMasalah: "Bel panggil jauh dari tempat tidur, dan edukasi risiko jatuh tidak diulang setelah pasien pindah kamar.",
+      rekomendasi: "Bel panggil di sisi tempat tidur semua pasien risiko tinggi; edukasi ulang setiap pindah kamar; keset antiselip.",
+    }),
+    true,
+  );
+
+  const alergi = await lapor(
+    await petugas("igd"),
+    laporan(unitId.igd, {
+      jenis: "ktd",
+      akibat: "cederaSedang",
+      waktuInsiden: pada(tambahHari(hari, -12), "16:40"),
+      judul: "Reaksi alergi setelah antibiotik intravena",
+      kronologi: "Pasien mendapat antibiotik intravena tanpa tes; riwayat alergi tercatat di rekam medis lama tetapi tidak di lembar triase.",
+      tempat: "Ruang tindakan IGD",
+      pasienInisial: "Nn RA",
+      pasienNoRm: "210004",
+      umurTahun: 24,
+      jenisKelamin: "P",
+      kategoriPasien: "ugd",
+      spesialisasi: "penyakitDalam",
+      penanggungBiaya: "pribadi",
+      tindakanSegera: "Infus dihentikan, diberikan penanganan anafilaksis sesuai protokol; pasien stabil dan dirawat 1 malam.",
+      tindakanOleh: "tim",
+    }),
+  );
+  await gradingInsiden(await kepala("igd"), alergi, { dampak: 3, probabilitas: 3 });
+
+  const sampel = await lapor(
+    await petugas("lab"),
+    laporan(unitId.lab, {
+      waktuInsiden: pada(tambahHari(hari, -20), "09:15"),
+      judul: "Sampel darah tanpa label identitas",
+      kronologi: "Tabung sampel dari Rawat Inap Melati diterima tanpa label; diketahui saat registrasi laboratorium.",
+      orangPertama: "petugasLain",
+      tempat: "Loket penerimaan sampel",
+      unitPenyebabId: unitId.melati,
+      tindakanSegera: "Sampel ditolak, ruangan diminta mengambil ulang dengan label.",
+      tindakanOleh: "petugasLain",
+    }),
+  );
+  const kepalaLab = await kepala("lab");
+  await gradingInsiden(kepalaLab, sampel, { dampak: 1, probabilitas: 3 });
+  await simpanInvestigasi(
+    kepalaLab,
+    sampel,
+    investigasi({
+      tipeInsiden: "laboratorium",
+      faktorKontributor: ["komunikasi", "tugas"],
+      penyebabLangsung: "Label dicetak setelah sampel diambil dan terlupa ditempel.",
+      akarMasalah: "Urutan kerja pengambilan sampel tidak mewajibkan label ditempel di samping pasien.",
+      rekomendasi: "Label ditempel di samping pasien sebelum pengambilan; sosialisasi ke semua ruang rawat inap.",
+    }),
+    true,
+  );
+  await tinjauInsiden(komite, sampel, { dampak: 1, probabilitas: 3, catatan: "Sosialisasi masuk agenda rapat kepala ruang bulan ini." });
+
+  const pengunjung = await lapor(
+    await petugas("rajal"),
+    laporan(unitId.rajal, {
+      waktuInsiden: pada(tambahHari(hari, -6), "10:30"),
+      judul: "Pengunjung terpeleset di lobi poliklinik",
+      kronologi: "Pengunjung terpeleset di lantai yang baru dipel.",
+      orangPertama: "pengunjung",
+      tempat: "Lobi poliklinik",
+      tindakanSegera: "Pengunjung dibantu dan diperiksa; tanda lantai basah dipasang.",
+      tindakanOleh: "petugasLain",
+    }),
+  );
+  await tandaiBukanInsiden(komite, pengunjung, "Insiden pada pengunjung; dilaporkan ke K3 RS.");
+
+  // Triwulan lalu, sudah Selesai: KTD merah lewat RCA (dengan e-report) dan KNC biru.
+  const [awalTriwulan] = bulanTriwulan(triwulanLalu());
+  const t1 = `${awalTriwulan}-14`;
+  const salahSisi = await lapor(
+    await petugas("ok"),
+    laporan(unitId.ok, {
+      jenis: "ktd",
+      akibat: "cederaSedang",
+      waktuInsiden: pada(t1, "10:05"),
+      judul: "Penandaan sisi operasi tidak dilakukan",
+      kronologi: "Operasi lutut kanan; penandaan sisi tidak dilakukan dan time-out dipersingkat. Insisi awal di sisi kiri dihentikan setelah perawat sirkuler mengingatkan.",
+      tempat: "Kamar Operasi 2",
+      pasienInisial: "Tn BW",
+      pasienNoRm: "187650",
+      umurTahun: 61,
+      spesialisasi: "bedah",
+      tindakanSegera: "Operasi dihentikan, luka dijahit, operasi dilanjutkan di sisi yang benar setelah time-out ulang. Keluarga diberi penjelasan.",
+      tindakanOleh: "tim",
+    }),
+  );
+  await gradingInsiden(await kepala("ok"), salahSisi, { dampak: 3, probabilitas: 3 });
+  await selesaikanRca(komite, salahSisi, {
+    tipeInsiden: "prosedurKlinis",
+    faktorKontributor: ["tim", "komunikasi", "organisasi"],
+    penyebabLangsung: "Penandaan sisi operasi tidak dilakukan di ruang persiapan, dan time-out tidak menyebut sisi.",
+    akarMasalah: "Daftar tilik keselamatan operasi tidak mewajibkan tanda tangan penandaan sisi sebelum pasien masuk kamar operasi.",
+    rekomendasi: "Pasien tidak boleh masuk kamar operasi tanpa penandaan sisi yang diverifikasi; audit kepatuhan time-out mingguan selama 3 bulan.",
+    dampak: 3,
+    probabilitas: 3,
+  });
+  await catatEreport(komite, salahSisi, tambahHari(t1, 20), new Date(`${tambahHari(t1, 21)}T02:00:00Z`));
+  const t2 = `${geserBulan(awalTriwulan, 1)}-03`;
+  const resep = await lapor(
+    await petugas("farmasi"),
+    laporan(unitId.farmasi, {
+      waktuInsiden: pada(t2, "11:20"),
+      judul: "Resep dengan dosis sepuluh kali lipat",
+      kronologi: "Resep parasetamol sirup anak tertulis 50 ml, seharusnya 5 ml; diketahui apoteker saat telaah resep.",
+      orangPertama: "petugasLain",
+      tempat: "Depo farmasi rawat jalan",
+      pasienInisial: "An KD",
+      pasienNoRm: "215530",
+      umurTahun: 4,
+      jenisKelamin: "P",
+      kategoriPasien: "rawatJalan",
+      spesialisasi: "anak",
+      tindakanSegera: "Apoteker mengonfirmasi ke dokter, resep diperbaiki sebelum obat diserahkan.",
+      tindakanOleh: "petugasLain",
+    }),
+  );
+  const kepalaFarmasi = await kepala("farmasi");
+  await gradingInsiden(kepalaFarmasi, resep, { dampak: 1, probabilitas: 2 });
+  await simpanInvestigasi(
+    kepalaFarmasi,
+    resep,
+    investigasi({
+      penyebabLangsung: "Satuan ditulis tanpa koma desimal yang jelas.",
+      akarMasalah: "Resep anak masih ditulis tangan tanpa kolom berat badan.",
+      rekomendasi: "Format resep anak dengan kolom berat badan dan dosis per kg; telaah resep anak wajib dua orang.",
+    }),
+    true,
+  );
+  await tinjauInsiden(komite, resep, { dampak: 1, probabilitas: 2, catatan: "" }, new Date(`${tambahHari(t2, 7)}T02:00:00Z`));
+}
+
 async function main() {
   const admin = await sesi(config.adminAwal.username, config.adminAwal.sandi);
   if ((await daftarPengguna(admin)).some((p) => p.username === "komite")) {
+    // Database dev dari sebelum ada modul Insiden: tambahkan Insiden contoh sekali saja.
+    if ((await daftarInsiden(await sesi("komite", SANDI), { status: "semua" })).length === 0) {
+      const ada = await daftarUnit(admin);
+      const unitId = Object.fromEntries(
+        (Object.entries(UNIT) as [KodeUnit, string][]).map(([k, nama]) => [k, ada.find((u) => u.nama === nama)!.id]),
+      ) as Record<KodeUnit, string>;
+      await insidenContoh(unitId);
+      console.log("Data dummy sudah ada; Insiden contoh ditambahkan.");
+      return;
+    }
     console.log("Data dummy sudah ada (Pengguna komite ditemukan); tidak ada yang diubah.");
     return;
   }
@@ -368,9 +654,11 @@ async function main() {
       "Phlebitis Rawat Inap Mawar turun tetapi belum mencapai Target; lanjutkan PDSA label kateter IV.",
   });
 
+  await insidenContoh(unitId);
+
   console.log(
     `Selesai: ${Object.keys(UNIT).length} Unit, ${2 + 2 * Object.keys(UNIT).length} Pengguna, ${IMP.length} IMP, ` +
-      `${jumlah} Pengukuran (${BULAN[0]} s.d. ${akhir}), 5 Analisis, 5 PDSA. Sandi semua Pengguna dummy: ${SANDI}`,
+      `${jumlah} Pengukuran (${BULAN[0]} s.d. ${akhir}), 5 Analisis, 5 PDSA, 9 Insiden. Sandi semua Pengguna dummy: ${SANDI}`,
   );
 }
 

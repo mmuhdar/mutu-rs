@@ -44,6 +44,7 @@ const MENU: { judul: string; item: (ItemMenu & { peran: readonly Peran[] })[] }[
       { href: "/pengukuran/verifikasi", label: "Verifikasi", ikon: "verifikasi", peran: ["kepalaUnit"] },
       { href: "/pengukuran/pantau", label: "Status Pengukuran", ikon: "pantau", peran: ["komiteMutu", "adminSistem"] },
       { href: "/monitoring", label: "Monitoring", ikon: "monitoring", peran: PERAN },
+      { href: "/insiden", label: "Insiden", ikon: "insiden", peran: PERAN },
     ],
   },
   {

@@ -45,11 +45,13 @@ export function Segmen(p: {
   nilai?: string | null;
   wajib?: boolean;
   disabled?: boolean;
+  /** Label hanya untuk pembaca layar, bila judul baris di sampingnya sudah menamai pilihan ini. */
+  labelTersembunyi?: boolean;
 }) {
   const id = `segmen-${p.nama}`;
   return (
     <div className="grid min-w-0 gap-2">
-      <Label id={id} className="font-medium">
+      <Label id={id} className={p.labelTersembunyi ? "sr-only" : "font-medium"}>
         {p.label}
       </Label>
       <RadioGroup
