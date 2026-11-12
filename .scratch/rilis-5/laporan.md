@@ -1,6 +1,6 @@
 # Laporan Rilis 5: kelengkapan akreditasi
 
-- **Branch:** `rilis-5`, dibuat dari `main` (yang sudah memuat Rilis 4 dan modul Insiden), 11 commit, belum di-merge.
+- **Branch:** `rilis-5`, dibuat dari `main` (yang sudah memuat Rilis 4 dan modul Insiden), 9 commit, belum di-merge.
 - **Spec:** `spec.md`.
 - **Riset baru:** `docs/research/validasi-data-pmkp5.md`.
 
