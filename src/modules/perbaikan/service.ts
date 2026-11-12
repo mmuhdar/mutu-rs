@@ -1,17 +1,20 @@
 import { and, asc, eq, gte, inArray, isNull, lt, lte, ne, type AnyColumn } from "drizzle-orm";
 
 import { db } from "@/db";
-import { analisis, indikator, pdsa, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
+import { analisis, efisiensiPdsa, indikator, pdsa, pengguna, tindakLanjut, unit, unitPelapor } from "@/db/schema";
 import { bulanBerjalan, bulanLalu, dariTanggal, hariIni, keTanggal, labelBulan, tanggalValid, wajibBulan, wajibBulanBerjalan } from "@/lib/bulan";
 import { kodePg, ServiceError } from "@/lib/errors";
-import { wajibTeks } from "@/lib/form";
+import { salahSatuDari, teksOpsional, wajibTeks } from "@/lib/form";
 import { diukurPadaBulan } from "@/lib/indikator";
 import {
+  JENIS_SUMBER_DAYA,
   KEPUTUSAN_PDSA,
+  LABEL_SUMBER_DAYA,
   LABEL_TAHAP_PDSA,
   lewatTenggat,
   mendekatiTenggat,
   punyaLingkupRs,
+  ringkasEfisiensi,
   STATUS_TERBUKA,
   STATUS_TINDAK_LANJUT,
   sudahDicapai,
@@ -582,6 +585,7 @@ const pilihPdsa = () =>
       hasil: pdsa.hasil,
       keputusan: pdsa.keputusan,
       penjelasan: pdsa.penjelasan,
+      kesimpulanEfisiensi: pdsa.kesimpulanEfisiensi,
       diubahOleh: pengguna.nama,
       diubahPada: pdsa.diubahPada,
       indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama, kelompok: indikator.kelompok, satuan: indikator.satuan },
@@ -612,10 +616,11 @@ export async function ambilPdsa(aktor: Pengguna | null, id: string, sekarang = n
   const unitId = p.unit?.id ?? null;
   wajibBaca(aktor, unitId);
   const siklus = { id: pdsa.id, siklus: pdsa.siklus };
-  const [[sebelumnya], [berikutnya], tren] = await Promise.all([
+  const [[sebelumnya], [berikutnya], tren, [efisiensi]] = await Promise.all([
     p.sebelumnyaId ? db.select(siklus).from(pdsa).where(eq(pdsa.id, p.sebelumnyaId)) : [],
     db.select(siklus).from(pdsa).where(eq(pdsa.sebelumnyaId, p.id)),
     trenCapaian(aktor, p.indikator.id, [p.bulanAkhir, bulanBerjalan(sekarang)].sort()[0], sekarang),
+    efisiensiUntuk([p.id]),
   ]);
   const study = deretLingkup(tren, unitId) ?? [];
   return {
@@ -623,6 +628,7 @@ export async function ambilPdsa(aktor: Pengguna | null, id: string, sekarang = n
     sebelumnya: sebelumnya ?? null,
     berikutnya: berikutnya ?? null,
     study,
+    efisiensi: efisiensi?.baris.length ? { ...efisiensi, kesimpulan: p.kesimpulanEfisiensi } : null,
     bolehTulis: bolehTulisLingkup(aktor, unitId),
   };
 }
@@ -652,6 +658,7 @@ export async function daftarPdsa(
       hasil: pdsa.hasil,
       keputusan: pdsa.keputusan,
       penjelasan: pdsa.penjelasan,
+      kesimpulanEfisiensi: pdsa.kesimpulanEfisiensi,
       indikator: { id: indikator.id, kode: indikator.kode, nama: indikator.nama },
       unit: { id: unit.id, nama: unit.nama },
     })
@@ -667,7 +674,54 @@ export async function daftarPdsa(
       ),
     )
     .orderBy(asc(indikator.kode), asc(pdsa.createdAt));
-  return baris.map(denganBulan);
+  const efisiensi = await efisiensiUntuk(baris.map((p) => p.id));
+  return baris.map((p) => ({ ...denganBulan(p), efisiensi: efisiensi.find((e) => e.pdsaId === p.id)?.ringkasan ?? null }));
+}
+
+/** Batas biaya satu baris Analisis Efisiensi (kolom `integer`). */
+const MAKS_BIAYA = 2_000_000_000;
+
+/** Baris Analisis Efisiensi dari form: biaya Rupiah sebelum dan sesudah (NaN = kosong). */
+export type BarisEfisiensi = { jenis: string; sebelum: number; sesudah: number; keterangan: string };
+
+/** Baris Analisis Efisiensi beberapa PDSA (urut seperti `JENIS_SUMBER_DAYA`) beserta ringkasannya; PDSA tanpa baris tidak ada. */
+async function efisiensiUntuk(pdsaIds: string[]) {
+  if (pdsaIds.length === 0) return [];
+  const baris = await db.select().from(efisiensiPdsa).where(inArray(efisiensiPdsa.pdsaId, pdsaIds));
+  return [...Map.groupBy(baris, (b) => b.pdsaId)].map(([pdsaId, g]) => {
+    const urut = g.toSorted((a, b) => JENIS_SUMBER_DAYA.indexOf(a.jenis) - JENIS_SUMBER_DAYA.indexOf(b.jenis));
+    return { pdsaId, baris: urut, ringkasan: ringkasEfisiensi(urut) };
+  });
+}
+
+/**
+ * Analisis Efisiensi PDSA (KMK 1596/2024 PMKP 4 EP g): biaya tiap jenis sumber daya sebelum dan sesudah perbaikan
+ * (Rupiah, bilangan bulat; jenis yang kosong kedua biayanya dilewati, setidaknya satu wajib) dan kesimpulan. Menyimpan
+ * ulang mengganti semua baris. Hak tulis = Lingkup PDSA; boleh di tahap mana pun.
+ */
+export async function simpanEfisiensiPdsa(aktor: Pengguna | null, id: string, isian: { baris: BarisEfisiensi[]; kesimpulan: string }) {
+  wajibPengguna(aktor);
+  const kesimpulan = wajibTeks(isian.kesimpulan, "Kesimpulan efisiensi", MAKS_ANALISIS);
+  const baris = (Array.isArray(isian.baris) ? isian.baris : [])
+    .filter((b) => !(Number.isNaN(b.sebelum) && Number.isNaN(b.sesudah)))
+    .map((b) => {
+      const jenis = salahSatuDari(b.jenis, JENIS_SUMBER_DAYA, "Jenis sumber daya tidak dikenal.");
+      const sah = (n: number) => Number.isInteger(n) && n >= 0 && n <= MAKS_BIAYA;
+      if (!sah(b.sebelum) || !sah(b.sesudah)) {
+        throw new ServiceError(400, `Biaya ${LABEL_SUMBER_DAYA[jenis]} sebelum dan sesudah harus Rupiah tanpa desimal, 0 sampai 2 miliar.`);
+      }
+      return { jenis, sebelum: b.sebelum, sesudah: b.sesudah, keterangan: teksOpsional(b.keterangan, "Keterangan", MAKS_TEKS) };
+    });
+  if (baris.length === 0) throw new ServiceError(400, "Isi biaya sebelum dan sesudah setidaknya satu jenis sumber daya.");
+  if (new Set(baris.map((b) => b.jenis)).size !== baris.length) throw new ServiceError(400, "Setiap jenis sumber daya hanya sekali.");
+  await db.transaction(async (tx) => {
+    const [p] = apakahUuid(id) ? await tx.select({ id: pdsa.id, unitId: pdsa.unitId }).from(pdsa).where(eq(pdsa.id, id)).for("update") : [];
+    if (!p) throw new ServiceError(404, "PDSA tidak ditemukan.");
+    wajibTulis(aktor, p.unitId);
+    await tx.delete(efisiensiPdsa).where(eq(efisiensiPdsa.pdsaId, p.id));
+    await tx.insert(efisiensiPdsa).values(baris.map((b) => ({ pdsaId: p.id, ...b })));
+    await tx.update(pdsa).set({ kesimpulanEfisiensi: kesimpulan, diubahOlehId: aktor.id, diubahPada: new Date() }).where(eq(pdsa.id, p.id));
+  });
 }
 
 /**

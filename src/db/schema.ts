@@ -47,10 +47,12 @@ import {
 } from "../lib/insiden";
 import { STATUS_PENGUKURAN, type StatusPengukuran } from "../lib/pengukuran";
 import {
+  JENIS_SUMBER_DAYA,
   KEPUTUSAN_PDSA,
   STATUS_TERBUKA,
   STATUS_TINDAK_LANJUT,
   TAHAP_PDSA,
+  type JenisSumberDaya,
   type KeputusanPdsa,
   type StatusTindakLanjut,
   type TahapPdsa,
@@ -371,6 +373,8 @@ export const pdsa = pgTable(
     hasil: text("hasil").notNull().default(""),
     keputusan: varchar("keputusan", { length: 16 }).$type<KeputusanPdsa>(),
     penjelasan: text("penjelasan").notNull().default(""),
+    /** Kesimpulan Analisis Efisiensi (PMKP 4 g); kosong = belum dianalisis. Biaya per sumber daya di `efisiensi_pdsa`. */
+    kesimpulanEfisiensi: text("kesimpulan_efisiensi").notNull().default(""),
     diubahOlehId: uuid("diubah_oleh_id")
       .notNull()
       .references(() => pengguna.id),
@@ -386,6 +390,28 @@ export const pdsa = pgTable(
     check("pdsa_bulan_mulai_check", sql`extract(day from ${t.bulanMulai}) = 1`),
     check("pdsa_bulan_akhir_check", sql`extract(day from ${t.bulanAkhir}) = 1`),
     check("pdsa_periode_check", sql`${t.bulanAkhir} >= ${t.bulanMulai}`),
+  ],
+);
+
+/**
+ * Analisis Efisiensi PDSA (KMK 1596/2024 PMKP 4 EP g): biaya satu jenis sumber daya sebelum dan sesudah perbaikan, dalam
+ * Rupiah per periode yang sama (dijelaskan di kesimpulan). Satu baris per PDSA + jenis; disimpan ulang seluruhnya.
+ */
+export const efisiensiPdsa = pgTable(
+  "efisiensi_pdsa",
+  {
+    pdsaId: uuid("pdsa_id")
+      .notNull()
+      .references(() => pdsa.id),
+    jenis: varchar("jenis", { length: 16 }).$type<JenisSumberDaya>().notNull(),
+    sebelum: integer("sebelum").notNull(),
+    sesudah: integer("sesudah").notNull(),
+    keterangan: text("keterangan").notNull().default(""),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pdsaId, t.jenis] }),
+    check("efisiensi_pdsa_jenis_check", salahSatu(t.jenis, JENIS_SUMBER_DAYA)),
+    check("efisiensi_pdsa_biaya_check", sql`${t.sebelum} >= 0 and ${t.sesudah} >= 0`),
   ],
 );
 

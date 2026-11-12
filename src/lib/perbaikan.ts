@@ -63,3 +63,24 @@ export const LABEL_KEPUTUSAN_PDSA: Record<KeputusanPdsa, string> = {
   adaptasi: "Adaptasi",
   tinggalkan: "Tinggalkan",
 };
+
+/** Jenis sumber daya Analisis Efisiensi PDSA (KMK 1596/2024 PMKP 4 EP g: biaya dan jenis sumber daya sebelum dan sesudah perbaikan). */
+export const JENIS_SUMBER_DAYA = ["tenaga", "bahan", "alat", "waktu", "lainnya"] as const;
+export type JenisSumberDaya = (typeof JENIS_SUMBER_DAYA)[number];
+export const LABEL_SUMBER_DAYA: Record<JenisSumberDaya, string> = {
+  tenaga: "Tenaga (SDM)",
+  bahan: "Obat, BMHP, dan bahan",
+  alat: "Alat dan sarana",
+  waktu: "Waktu pelayanan atau lama rawat",
+  lainnya: "Lain-lain",
+};
+
+/** Total biaya sebelum dan sesudah perbaikan (Rupiah), penghematan (negatif = lebih mahal), dan persennya dari biaya sebelum. */
+export function ringkasEfisiensi(baris: readonly { sebelum: number; sesudah: number }[]) {
+  const sebelum = baris.reduce((n, b) => n + b.sebelum, 0);
+  const sesudah = baris.reduce((n, b) => n + b.sesudah, 0);
+  return { sebelum, sesudah, hemat: sebelum - sesudah, persen: sebelum > 0 ? ((sebelum - sesudah) / sebelum) * 100 : null };
+}
+
+/** Rupiah untuk tampilan: "Rp 1.250.000". */
+export const formatRupiah = (n: number) => `Rp ${n.toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-import type { KeputusanPdsa } from "@/lib/perbaikan";
+import { ServiceError } from "@/lib/errors";
+import { ringkasEfisiensi, type KeputusanPdsa } from "@/lib/perbaikan";
 import type { Pengguna } from "@/modules/auth/service";
 import { aturAktifIndikator, tambahUnitPelapor } from "@/modules/indikator/service";
 import {
@@ -10,6 +11,7 @@ import {
   buatPdsa,
   daftarPdsa,
   simpanAnalisis,
+  simpanEfisiensiPdsa,
   simpanTahapPdsa,
   type PlanPdsa,
 } from "@/modules/perbaikan/service";
@@ -242,5 +244,61 @@ describe("membaca PDSA", () => {
     await simpanAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-03", teks: "x" });
     const a = await ambilAnalisis(komite, { indikatorId, unitId: null, bulan: "2026-03" });
     assert.deepEqual(a.pdsa.map((p) => p.id), [berjalan]);
+  });
+});
+
+describe("Analisis Efisiensi PDSA (PMKP 4 g)", () => {
+  const kosong = Number.NaN;
+  const baris = (jenis: string, sebelum: number, sesudah: number, keterangan = "") => ({ jenis, sebelum, sesudah, keterangan });
+  const ditolak = (status: number, pesan: RegExp) => (e: unknown) => e instanceof ServiceError && e.status === status && pesan.test(e.message);
+
+  it("ringkasan: total sebelum dan sesudah, hemat, dan persennya", () => {
+    assert.deepEqual(ringkasEfisiensi([{ sebelum: 1000, sesudah: 600 }, { sebelum: 0, sesudah: 150 }]), {
+      sebelum: 1000,
+      sesudah: 750,
+      hemat: 250,
+      persen: 25,
+    });
+    assert.equal(ringkasEfisiensi([{ sebelum: 0, sesudah: 100 }]).persen, null);
+  });
+
+  it("Kepala Unit Lingkup itu menyimpan biaya per sumber daya; jenis kosong dilewati, menyimpan ulang mengganti semuanya", async () => {
+    const { indikatorId, unit } = await siapkan();
+    const kepala = await sebagai("kepalaUnit", [unit.id]);
+    const { id } = await buatPdsa(kepala, { indikatorId, unitId: unit.id, ...plan() });
+    await simpanEfisiensiPdsa(kepala, id, {
+      baris: [baris("tenaga", 4_000_000, 3_000_000, "Lembur perawat"), baris("bahan", 1_000_000, 1_200_000), baris("alat", kosong, kosong)],
+      kesimpulan: "Per bulan, Januari dibanding April.",
+    });
+    let p = await ambilPdsa(kepala, id);
+    assert.deepEqual(
+      p.efisiensi?.baris.map((b) => [b.jenis, b.sebelum, b.sesudah]),
+      [
+        ["tenaga", 4_000_000, 3_000_000],
+        ["bahan", 1_000_000, 1_200_000],
+      ],
+    );
+    assert.deepEqual([p.efisiensi?.ringkasan.hemat, p.efisiensi?.kesimpulan], [800_000, "Per bulan, Januari dibanding April."]);
+    assert.equal((await daftarPdsa(kepala, { lingkup: unit.id })).find((x) => x.id === id)?.efisiensi?.sebelum, 5_000_000);
+
+    await simpanEfisiensiPdsa(kepala, id, { baris: [baris("waktu", 500, 300)], kesimpulan: "Lama rawat." });
+    p = await ambilPdsa(kepala, id);
+    assert.deepEqual(p.efisiensi?.baris.map((b) => b.jenis), ["waktu"]);
+  });
+
+  it("menolak isian tidak sah dan penulis di luar Lingkup", async () => {
+    const { indikatorId, unit } = await siapkan();
+    const { id } = await buatPdsa(komite, { indikatorId, unitId: unit.id, ...plan() });
+    const kesimpulan = "Per bulan.";
+    await assert.rejects(simpanEfisiensiPdsa(komite, id, { baris: [], kesimpulan }), ditolak(400, /setidaknya satu/));
+    await assert.rejects(simpanEfisiensiPdsa(komite, id, { baris: [baris("tenaga", 100, kosong)], kesimpulan }), ditolak(400, /Tenaga/));
+    await assert.rejects(simpanEfisiensiPdsa(komite, id, { baris: [baris("tenaga", 1.5, 1)], kesimpulan }), ditolak(400, /Rupiah/));
+    await assert.rejects(simpanEfisiensiPdsa(komite, id, { baris: [baris("lain", 1, 1)], kesimpulan }), ditolak(400, /tidak dikenal/));
+    await assert.rejects(simpanEfisiensiPdsa(komite, id, { baris: [baris("tenaga", 1, 1)], kesimpulan: " " }), ditolak(400, /Kesimpulan/));
+    await assert.rejects(
+      simpanEfisiensiPdsa(await sebagai("kepalaUnit"), id, { baris: [baris("tenaga", 1, 1)], kesimpulan }),
+      ditolak(403, /Lingkup Unit/),
+    );
+    await simpanEfisiensiPdsa(await adminSistem(), id, { baris: [baris("tenaga", 1, 1)], kesimpulan });
   });
 });

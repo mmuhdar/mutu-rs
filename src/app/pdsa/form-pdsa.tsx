@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { INPUT_BULAN } from "@/lib/bulan";
 import {
+  JENIS_SUMBER_DAYA,
   KEPUTUSAN_PDSA,
   LABEL_KEPUTUSAN_PDSA,
+  LABEL_SUMBER_DAYA,
   LABEL_TAHAP_PDSA,
   tahapBerikutnya,
   type TahapIsianPdsa,
@@ -19,7 +21,7 @@ import type { PlanPdsa } from "@/modules/perbaikan/service";
 import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { PilihCari } from "../pilih-cari";
 import { Ikon } from "../ikon";
-import { buatPdsaAction, simpanTahapPdsaAction } from "./actions";
+import { buatPdsaAction, simpanEfisiensiAction, simpanTahapPdsaAction } from "./actions";
 
 function Teks({ nama, label, petunjuk, awal, baris = 3 }: { nama: string; label: string; petunjuk?: string; awal?: string; baris?: number }) {
   return (
@@ -240,6 +242,53 @@ export function FormTahap({
           {pending ? "Menyimpan…" : "Simpan"}
         </Button>
       </div>
+    </form>
+  );
+}
+
+/**
+ * Form Analisis Efisiensi (PMKP 4 g): biaya Rupiah tiap jenis sumber daya sebelum dan sesudah perbaikan, per periode
+ * yang sama; jenis yang tidak relevan dikosongkan. `awal` = isian tersimpan (nama field form → nilai).
+ */
+export function FormEfisiensi({ id, awal }: { id: string; awal: Record<string, string> }) {
+  const [state, action, pending] = useActionState(simpanEfisiensiAction, {});
+  const a = { ...awal, ...state.nilai };
+  return (
+    <form action={action} className="grid gap-5">
+      <input type="hidden" name="id" value={id} />
+      <p className={kelasPetunjuk}>
+        Biaya dalam Rupiah tanpa titik, untuk periode yang sama sebelum dan sesudah perbaikan (mis. per bulan); jelaskan periodenya di
+        kesimpulan. Kosongkan jenis yang tidak terkait.
+      </p>
+      <div className="grid gap-4">
+        {JENIS_SUMBER_DAYA.map((j) => (
+          <fieldset key={j} className="min-w-0 border-b border-rule pb-4">
+            <legend className="mb-2 text-sm font-medium">{LABEL_SUMBER_DAYA[j]}</legend>
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,10rem)_minmax(0,10rem)_minmax(0,1fr)]">
+              <Kolom label="Sebelum (Rp)" htmlFor={`sebelum-${j}`}>
+                <Input id={`sebelum-${j}`} name={`sebelum-${j}`} type="number" inputMode="numeric" min={0} defaultValue={a[`sebelum-${j}`]} />
+              </Kolom>
+              <Kolom label="Sesudah (Rp)" htmlFor={`sesudah-${j}`}>
+                <Input id={`sesudah-${j}`} name={`sesudah-${j}`} type="number" inputMode="numeric" min={0} defaultValue={a[`sesudah-${j}`]} />
+              </Kolom>
+              <Kolom label="Keterangan" htmlFor={`keterangan-${j}`}>
+                <Input id={`keterangan-${j}`} name={`keterangan-${j}`} maxLength={1000} defaultValue={a[`keterangan-${j}`]} />
+              </Kolom>
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      <Teks
+        nama="kesimpulan"
+        label="Kesimpulan efisiensi"
+        petunjuk="Periode perhitungan, sumber angka, dan apakah perbaikan lebih efisien tanpa menurunkan Capaian."
+        awal={a.kesimpulan}
+        baris={4}
+      />
+      <PesanError pesan={state.error} />
+      <Button type="submit" variant="outline" size="lg" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+        {pending ? "Menyimpan…" : "Simpan Analisis Efisiensi"}
+      </Button>
     </form>
   );
 }

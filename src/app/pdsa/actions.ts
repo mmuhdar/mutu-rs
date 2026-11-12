@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { hasilAtauError } from "@/lib/errors";
-import { ditolak, teks, type StateForm } from "@/lib/form";
-import type { KeputusanPdsa, TahapIsianPdsa } from "@/lib/perbaikan";
-import { buatPdsa, simpanTahapPdsa, type IsianTahapPdsa } from "@/modules/perbaikan/service";
+import { bilanganBulat, ditolak, teks, type StateForm } from "@/lib/form";
+import { JENIS_SUMBER_DAYA, type KeputusanPdsa, type TahapIsianPdsa } from "@/lib/perbaikan";
+import { buatPdsa, simpanEfisiensiPdsa, simpanTahapPdsa, type IsianTahapPdsa } from "@/modules/perbaikan/service";
 import { getSessionUser } from "@/server/sesi";
 
 const isianPlan = (formData: FormData) => ({
@@ -52,5 +52,23 @@ export async function simpanTahapPdsaAction(_prev: StateForm, formData: FormData
   revalidatePath("/", "layout");
   // Setelah lanjut, buka tab tahap aktif yang baru (alamat tanpa `?tahap=`).
   if (lanjut) redirect(`/pdsa/${id}`);
+  return {};
+}
+
+/** Analisis Efisiensi PDSA: biaya per jenis sumber daya (`sebelum-<jenis>`, `sesudah-<jenis>`, `keterangan-<jenis>`) dan kesimpulan. */
+export async function simpanEfisiensiAction(_prev: StateForm, formData: FormData): Promise<StateForm> {
+  const hasil = await hasilAtauError(
+    simpanEfisiensiPdsa(await getSessionUser(), teks(formData, "id"), {
+      baris: JENIS_SUMBER_DAYA.map((jenis) => ({
+        jenis,
+        sebelum: bilanganBulat(teks(formData, `sebelum-${jenis}`)),
+        sesudah: bilanganBulat(teks(formData, `sesudah-${jenis}`)),
+        keterangan: teks(formData, `keterangan-${jenis}`),
+      })),
+      kesimpulan: teks(formData, "kesimpulan"),
+    }),
+  );
+  if ("error" in hasil) return ditolak(formData, hasil.error);
+  revalidatePath("/", "layout");
   return {};
 }

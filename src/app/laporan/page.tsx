@@ -25,7 +25,7 @@ import {
   LABEL_WARNA_GRADING,
   WARNA_GRADING,
 } from "@/lib/insiden";
-import { LABEL_KEPUTUSAN_PDSA, labelLingkup } from "@/lib/perbaikan";
+import { formatRupiah, LABEL_KEPUTUSAN_PDSA, labelLingkup } from "@/lib/perbaikan";
 import { laporanTriwulan, type LaporanTriwulan } from "@/modules/laporan/service";
 import { requireUser } from "@/server/sesi";
 
@@ -179,10 +179,24 @@ export default async function HalamanLaporan({ searchParams }: PageProps<"/lapor
                   <span className="terukur text-[13px] text-ink-2">{p.indikator.kode}</span>, {labelLingkup(p.unit)}, siklus ke-{p.siklus},{" "}
                   {labelPeriode(p.bulanMulai, p.bulanAkhir)}
                 </span>
-                {(p.hasil || p.keputusan) && (
+                {(p.hasil || p.keputusan || p.efisiensi) && (
                   <dl className="grid gap-2 pt-1">
                     {p.hasil && <Teks label="Hasil (Study)">{p.hasil}</Teks>}
                     {p.keputusan && <Teks label={`Keputusan (Act): ${LABEL_KEPUTUSAN_PDSA[p.keputusan]}`}>{p.penjelasan}</Teks>}
+                    {p.efisiensi && (
+                      <Teks label="Efisiensi (PMKP 4 g)">
+                        <span className="terukur text-[14px]">
+                          {formatRupiah(p.efisiensi.sebelum)} sebelum, {formatRupiah(p.efisiensi.sesudah)} sesudah
+                        </span>
+                        {p.efisiensi.persen !== null && (
+                          <span className={p.efisiensi.hemat >= 0 ? "text-ok" : "text-bad"}>
+                            {" "}
+                            ({p.efisiensi.hemat >= 0 ? "hemat" : "bertambah"} {Math.abs(p.efisiensi.persen).toLocaleString("id-ID", { maximumFractionDigits: 1 })}%)
+                          </span>
+                        )}
+                        {p.kesimpulanEfisiensi && <span className="mt-1 block">{p.kesimpulanEfisiensi}</span>}
+                      </Teks>
+                    )}
                   </dl>
                 )}
               </li>

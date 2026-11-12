@@ -6,7 +6,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { labelBulan, labelPeriode } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
 import {
+  formatRupiah,
   LABEL_KEPUTUSAN_PDSA,
+  LABEL_SUMBER_DAYA,
   LABEL_TAHAP_PDSA,
   labelLingkup,
   sudahDicapai,
@@ -19,8 +21,8 @@ import { requireUser } from "@/server/sesi";
 import { Ikon } from "../../ikon";
 import { keteranganRs, keteranganUnit, Tren } from "../../monitoring/grafik";
 import { formatWaktu, Pesan, pesanAtau } from "../../pengukuran/status";
-import { Halaman, KepalaHalaman } from "../../ui";
-import { FormTahap } from "../form-pdsa";
+import { Halaman, Kartu, KepalaHalaman, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui";
+import { FormEfisiensi, FormTahap } from "../form-pdsa";
 import { keadaan, LabelTahap, WARNA_KEADAAN } from "../tahap";
 
 export const metadata: Metadata = { title: "Detail PDSA" };
@@ -206,6 +208,86 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
           })}
         </ol>
       </section>
+
+      <Efisiensi p={p} versi={versi} />
     </Halaman>
+  );
+}
+
+/**
+ * Analisis Efisiensi PDSA (KMK 1596/2024 PMKP 4 EP g): biaya per jenis sumber daya sebelum dan sesudah perbaikan,
+ * penghematannya, dan kesimpulan; form di balik "Isi" / "Perbaiki" untuk yang boleh menulis Lingkup ini.
+ */
+function Efisiensi({ p, versi }: { p: Awaited<ReturnType<typeof ambilPdsa>>; versi: string }) {
+  const e = p.efisiensi;
+  if (!e && !p.bolehTulis) return null;
+  const awal: Record<string, string> = { kesimpulan: e?.kesimpulan ?? "" };
+  for (const b of e?.baris ?? []) {
+    Object.assign(awal, { [`sebelum-${b.jenis}`]: String(b.sebelum), [`sesudah-${b.jenis}`]: String(b.sesudah), [`keterangan-${b.jenis}`]: b.keterangan });
+  }
+  const selisih = (n: number) => (n === 0 ? "tetap" : `${n > 0 ? "hemat" : "bertambah"} ${formatRupiah(Math.abs(n))}`);
+  return (
+    <Kartu judul="Analisis Efisiensi" sub="Biaya dan jenis sumber daya sebelum dan sesudah perbaikan (PMKP 4 g; satu proyek prioritas per tahun).">
+      {e ? (
+        <>
+          <Tabel label="Biaya sebelum dan sesudah perbaikan" lebarMin="min-w-[40rem]">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Sumber daya</TableHead>
+                <TableHead className="text-right">Sebelum</TableHead>
+                <TableHead className="text-right">Sesudah</TableHead>
+                <TableHead className="text-right">Selisih</TableHead>
+                <TableHead>Keterangan</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {e.baris.map((b) => (
+                <TableRow key={b.jenis}>
+                  <TableCell className="font-medium">{LABEL_SUMBER_DAYA[b.jenis]}</TableCell>
+                  <TableCell className="terukur text-right">{formatRupiah(b.sebelum)}</TableCell>
+                  <TableCell className="terukur text-right">{formatRupiah(b.sesudah)}</TableCell>
+                  <TableCell className="text-right text-[14px] whitespace-nowrap">{selisih(b.sebelum - b.sesudah)}</TableCell>
+                  <TableCell className="min-w-48 text-[14px] whitespace-normal text-ink-2">{b.keterangan}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell className="font-medium">Jumlah</TableCell>
+                <TableCell className="terukur text-right text-ink">{formatRupiah(e.ringkasan.sebelum)}</TableCell>
+                <TableCell className="terukur text-right text-ink">{formatRupiah(e.ringkasan.sesudah)}</TableCell>
+                <TableCell
+                  className={`text-right text-[14px] whitespace-nowrap ${e.ringkasan.hemat > 0 ? "text-ok" : e.ringkasan.hemat < 0 ? "text-bad" : ""}`}
+                >
+                  {selisih(e.ringkasan.hemat)}
+                  {e.ringkasan.persen !== null && (
+                    <span className="terukur ml-1">({e.ringkasan.persen.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%)</span>
+                  )}
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            </TableBody>
+          </Tabel>
+          <dl className="grid gap-1 px-5 pb-5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-6">
+            <dt className="text-[14px] text-ink-3">Kesimpulan</dt>
+            <dd className="max-w-[72ch] text-[15px] leading-6 whitespace-pre-line">{e.kesimpulan}</dd>
+          </dl>
+        </>
+      ) : (
+        <p className="px-5 pb-4 text-[15px] text-ink-3">Belum ada Analisis Efisiensi untuk PDSA ini.</p>
+      )}
+      {p.bolehTulis && (
+        <Collapsible className="group/efisiensi grid gap-4 border-t border-rule px-5 py-4">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full justify-self-start sm:w-auto">
+              <Ikon nama="isi" className="size-4" />
+              {e ? "Perbaiki Analisis Efisiensi" : "Isi Analisis Efisiensi"}
+              <Ikon nama="bawah" className="size-4 text-ink-3 group-data-[state=open]/efisiensi:rotate-180" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <FormEfisiensi key={versi} id={p.id} awal={awal} />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+    </Kartu>
   );
 }
