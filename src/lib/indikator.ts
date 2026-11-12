@@ -1,6 +1,8 @@
-/** Kelompok Indikator. Nilainya sekaligus label (istilah glosarium). */
-export const KELOMPOK = ["INM", "IMP-RS", "IMP-Unit"] as const;
+/** Kelompok Indikator, dalam urutan tampil. Nilainya sekaligus label (istilah glosarium). */
+export const KELOMPOK = ["INM", "IMP-RS", "IMP-Unit", "SPM"] as const;
 export type Kelompok = (typeof KELOMPOK)[number];
+/** Kelompok yang bisa ditambah Komite Mutu / Admin Sistem; INM hanya dari data awal (PMK 30/2022). */
+export const KELOMPOK_BISA_DITAMBAH = KELOMPOK.filter((k): k is Exclude<Kelompok, "INM"> => k !== "INM");
 
 /** Arah: sisi Target yang dianggap baik. */
 export const ARAH = ["makinTinggi", "makinRendah"] as const;

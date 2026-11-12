@@ -13,7 +13,7 @@ import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { PilihCari } from "../pilih-cari";
 
 import { INPUT_BULAN } from "@/lib/bulan";
-import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
+import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, KELOMPOK_BISA_DITAMBAH, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import type { Indikator } from "@/modules/indikator/service";
 
 import {
@@ -112,10 +112,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
               key={state.nilai?.kelompok}
               nama="kelompok"
               label="Kelompok (INM sudah tersedia sesuai PMK 30/2022)"
-              pilihan={[
-                { nilai: "IMP-RS", label: "IMP-RS" },
-                { nilai: "IMP-Unit", label: "IMP-Unit" },
-              ]}
+              pilihan={KELOMPOK_BISA_DITAMBAH.map((k) => ({ nilai: k, label: k }))}
               nilai={state.nilai?.kelompok ?? "IMP-RS"}
               wajib
             />

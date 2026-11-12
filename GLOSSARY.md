@@ -18,6 +18,9 @@ Indikator yang dipilih rumah sakit sebagai prioritas tingkat rumah sakit.
 **IMP-Unit (Indikator Mutu Prioritas Unit)**:
 Indikator prioritas milik satu Unit.
 
+**SPM (Standar Pelayanan Minimal)**:
+Indikator dari Standar Pelayanan Minimal rumah sakit; dinilai seperti IMP-RS (Capaian RS dari Unit Pelapor-nya, Analisis Lingkup RS), tetapi dikelompokkan sendiri.
+
 **Unit**:
 Bagian pelayanan rumah sakit yang mengukur Indikator, seperti IGD, ICU, atau Rawat Inap; dipilih dari daftar baku, bukan diketik bebas.
 _Avoid_: ruangan, bagian

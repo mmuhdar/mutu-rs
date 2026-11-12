@@ -112,6 +112,13 @@ describe("menulis Analisis", () => {
     await simpanAnalisis(await sebagai("kepalaUnit", [unit.id]), { indikatorId, unitId: unit.id, bulan: "2026-03", teks: "x" });
   });
 
+  it("SPM punya Analisis Lingkup RS seperti IMP-RS", async () => {
+    const { indikatorId } = await siapkan({ kelompok: "SPM" });
+    const kunci = { indikatorId, unitId: null, bulan: "2026-03" };
+    await simpanAnalisis(komite, { ...kunci, teks: "Capaian SPM turun." });
+    assert.equal((await ambilAnalisis(komite, kunci)).analisis?.teks, "Capaian SPM turun.");
+  });
+
   it("Indikator nonaktif tidak bisa dianalisis lagi, tetapi Analisis lamanya tetap terbaca dan Tindak Lanjut-nya tetap dikelola", async () => {
     const { indikatorId } = await siapkan();
     const kunci = { indikatorId, unitId: null, bulan: "2026-03" };

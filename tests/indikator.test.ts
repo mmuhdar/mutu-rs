@@ -11,7 +11,7 @@ import {
   ubahIndikator,
 } from "@/modules/indikator/service";
 
-import { adminSistem, impBaru, isianDari, komiteMutu, sebagai } from "./bantuan";
+import { adminSistem, impBaru, isianDari, komiteMutu, sebagai, unik } from "./bantuan";
 
 describe("13 INM awal", () => {
   it("tersedia sejak start sesuai PMK 30/2022, masing-masing dengan Sumber Data dan satu Target awal", async () => {
@@ -90,6 +90,13 @@ describe("kelola IMP", () => {
     assert.equal(detail.aktif, true);
     assert.deepEqual(detail.target, [{ nilai: 92.5, berlakuMulai: "2026-11" }]);
     assert.ok((await daftarIndikator(await sebagai("petugasInputData"))).some((i) => i.id === id));
+  });
+
+  it("Admin Sistem menambah SPM seperti IMP-RS; SPM tampil di daftar dengan kelompoknya", async () => {
+    const admin = await adminSistem();
+    const id = await tambahIndikator(admin, impBaru({ kode: unik("SPM"), kelompok: "SPM" }));
+    assert.equal((await ambilIndikator(admin, id)).kelompok, "SPM");
+    assert.ok((await daftarIndikator(admin)).some((i) => i.id === id && i.kelompok === "SPM"));
   });
 
   it("kode duplikat ditolak tanpa membedakan huruf besar/kecil, termasuk kode INM", async () => {

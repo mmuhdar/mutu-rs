@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { indikator, pengukuran, target, unit, unitPelapor } from "@/db/schema";
 import { bulanBerjalan, dariTanggal, keTanggal, labelBulan, labelPeriode, wajibBulan } from "@/lib/bulan";
 import { kodePg, ServiceError } from "@/lib/errors";
-import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, targetPadaBulan, type Kelompok } from "@/lib/indikator";
+import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, KELOMPOK_BISA_DITAMBAH, targetPadaBulan, type Kelompok } from "@/lib/indikator";
 import type { Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
@@ -26,7 +26,7 @@ export type IsianIndikator = Pick<
   | "frekuensi"
   | "pic"
 >;
-/** IMP baru beserta Target awalnya (bulan "YYYY-MM"). INM hanya berasal dari data awal. */
+/** IMP atau SPM baru beserta Target awalnya (bulan "YYYY-MM"). INM hanya berasal dari data awal. */
 export type IndikatorBaru = IsianIndikator & {
   kode: string;
   kelompok: Exclude<Kelompok, "INM">;
@@ -186,12 +186,12 @@ export async function aturAktifIndikator(aktor: Pengguna | null, id: string, akt
   if (!baris) throw tidakDitemukan();
 }
 
-/** Menambah IMP-RS atau IMP-Unit beserta Target awalnya. Mengembalikan id Indikator baru. */
+/** Menambah IMP-RS, IMP-Unit, atau SPM beserta Target awalnya. Mengembalikan id Indikator baru. */
 export async function tambahIndikator(aktor: Pengguna | null, baru: IndikatorBaru) {
   wajibPeran(aktor, PENGELOLA, HANYA_PENGELOLA);
   const kode = teks(baru.kode, "Kode", 32);
-  if (baru.kelompok !== "IMP-RS" && baru.kelompok !== "IMP-Unit") {
-    throw new ServiceError(400, "Pilih kelompok IMP-RS atau IMP-Unit. INM sudah tersedia sesuai PMK 30/2022.");
+  if (!KELOMPOK_BISA_DITAMBAH.includes(baru.kelompok)) {
+    throw new ServiceError(400, "Pilih kelompok IMP-RS, IMP-Unit, atau SPM. INM sudah tersedia sesuai PMK 30/2022.");
   }
   const data = periksaIsian(baru);
   const { nilai, berlakuMulai } = periksaTarget(baru.target);

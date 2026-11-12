@@ -16,7 +16,7 @@ import { Halaman, KepalaHalaman, Pil, Tabel, TableBody, TableCell, TableHead, Ta
 export const metadata: Metadata = { title: "Indikator" };
 
 /**
- * Katalog Indikator: satu buku daftar dengan bagian per kelompok (INM, IMP-RS, IMP-Unit), kode dalam huruf ukur sebagai
+ * Katalog Indikator: satu buku daftar dengan bagian per kelompok (INM, IMP-RS, IMP-Unit, SPM), kode dalam huruf ukur sebagai
  * tautan baris; yang nonaktif tetap tampil dengan tanda. `?q=` (juga dari pencarian di bar atas) menyaring kode atau
  * nama yang memuat teks itu, tanpa membedakan huruf besar/kecil.
  */
@@ -35,13 +35,13 @@ export default async function HalamanIndikator({ searchParams }: PageProps<"/ind
     <Halaman>
       <KepalaHalaman
         judul="Indikator"
-        sub="INM sesuai PMK 30/2022, IMP-RS, dan IMP-Unit. Indikator nonaktif tidak muncul di isian, tetapi riwayatnya tetap ada."
+        sub="INM sesuai PMK 30/2022, IMP-RS, IMP-Unit, dan SPM. Indikator nonaktif tidak muncul di isian, tetapi riwayatnya tetap ada."
         aksi={
           bolehKelolaIndikator(pengguna) && (
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href="/indikator/baru">
                 <Ikon nama="tambah" className="size-[18px]" />
-                Tambah IMP
+                Tambah Indikator
               </Link>
             </Button>
           )

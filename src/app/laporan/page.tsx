@@ -333,7 +333,7 @@ function AnalisisDanTindakLanjut({ lap }: { lap: LaporanTriwulan }) {
   return (
     <Kartu
       judul="Analisis dan Tindak Lanjut"
-      sub="Analisis Lingkup RS untuk INM dan IMP-RS, Lingkup Unit untuk IMP-Unit, setiap bulan yang dinilai."
+      sub="Analisis Lingkup RS untuk INM, IMP-RS, dan SPM, Lingkup Unit untuk IMP-Unit, setiap bulan yang dinilai."
     >
       {kelompok.length === 0 ? (
         <p className="px-5 pb-5 text-[15px] text-ink-3">Tidak ada Indikator yang dinilai.</p>

@@ -37,7 +37,7 @@ export const bolehTulisRekomendasi = (aktor: Pengguna) => PENULIS.includes(aktor
 export async function laporanTriwulan(aktor: Pengguna | null, triwulan?: string, sekarang = new Date()) {
   wajibPeran(aktor, PELIHAT_RS, "Laporan Triwulan hanya untuk Komite Mutu, Direktur, dan Admin Sistem.");
   triwulan ||= triwulanLalu(sekarang);
-  // Triwulan diperiksa modul Capaian. Urutan laporan: per kelompok (INM, IMP-RS, IMP-Unit), lalu kode.
+  // Triwulan diperiksa modul Capaian. Urutan laporan: per kelompok (urutan `KELOMPOK`), lalu kode.
   const capaian = (await capaianTriwulan(aktor, triwulan, sekarang)).sort(
     (a, b) => KELOMPOK.indexOf(a.indikator.kelompok) - KELOMPOK.indexOf(b.indikator.kelompok) || a.indikator.kode.localeCompare(b.indikator.kode),
   );

@@ -679,7 +679,7 @@ export async function daftarPdsa(
 
 /**
  * Analisis yang diharapkan pada bulan "YYYY-MM" tetapi belum ditulis (Dashboard): untuk setiap Indikator aktif yang
- * dinilai bulan itu, Lingkup RS bagi INM dan IMP-RS, dan Lingkup Unit Pelapor bagi IMP-Unit (Unit yang kini nonaktif
+ * dinilai bulan itu, Lingkup RS bagi INM, IMP-RS, dan SPM, dan Lingkup Unit Pelapor bagi IMP-Unit (Unit yang kini nonaktif
  * tetap terhitung). Petugas Input Data dan Kepala Unit hanya melihat IMP-Unit Unit-nya. Urut kode Indikator lalu nama
  * Unit. Tanpa bulan = bulan lalu; bulan setelah bulan berjalan ditolak.
  */

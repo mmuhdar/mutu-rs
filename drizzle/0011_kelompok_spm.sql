@@ -1,0 +1,2 @@
+ALTER TABLE "indikator" DROP CONSTRAINT "indikator_kelompok_check";--> statement-breakpoint
+ALTER TABLE "indikator" ADD CONSTRAINT "indikator_kelompok_check" CHECK ("indikator"."kelompok" in ('INM', 'IMP-RS', 'IMP-Unit', 'SPM'));
