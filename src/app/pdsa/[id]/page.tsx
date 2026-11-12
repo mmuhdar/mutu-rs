@@ -244,16 +244,16 @@ function Efisiensi({ p, versi }: { p: Awaited<ReturnType<typeof ambilPdsa>>; ver
               {e.baris.map((b) => (
                 <TableRow key={b.jenis}>
                   <TableCell className="font-medium">{LABEL_SUMBER_DAYA[b.jenis]}</TableCell>
-                  <TableCell className="terukur text-right">{formatRupiah(b.sebelum)}</TableCell>
-                  <TableCell className="terukur text-right">{formatRupiah(b.sesudah)}</TableCell>
+                  <TableCell className="terukur text-right whitespace-nowrap">{formatRupiah(b.sebelum)}</TableCell>
+                  <TableCell className="terukur text-right whitespace-nowrap">{formatRupiah(b.sesudah)}</TableCell>
                   <TableCell className="text-right text-[14px] whitespace-nowrap">{selisih(b.sebelum - b.sesudah)}</TableCell>
                   <TableCell className="min-w-48 text-[14px] whitespace-normal text-ink-2">{b.keterangan}</TableCell>
                 </TableRow>
               ))}
               <TableRow>
                 <TableCell className="font-medium">Jumlah</TableCell>
-                <TableCell className="terukur text-right text-ink">{formatRupiah(e.ringkasan.sebelum)}</TableCell>
-                <TableCell className="terukur text-right text-ink">{formatRupiah(e.ringkasan.sesudah)}</TableCell>
+                <TableCell className="terukur text-right whitespace-nowrap text-ink">{formatRupiah(e.ringkasan.sebelum)}</TableCell>
+                <TableCell className="terukur text-right whitespace-nowrap text-ink">{formatRupiah(e.ringkasan.sesudah)}</TableCell>
                 <TableCell
                   className={`text-right text-[14px] whitespace-nowrap ${e.ringkasan.hemat > 0 ? "text-ok" : e.ringkasan.hemat < 0 ? "text-bad" : ""}`}
                 >

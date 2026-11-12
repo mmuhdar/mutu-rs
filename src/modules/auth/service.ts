@@ -89,7 +89,8 @@ export async function masuk(input: { username: string; sandi: string; ip: string
   const sandiBenar = await bcrypt.compare(input.sandi, akun?.hashSandi ?? (await (hashTiruan ??= hashSandi("tiruan"))));
   if (!akun || !sandiBenar) {
     kunci.forEach((k) => catatGagal(k, waktu));
-    await catatJejak(db, akun ?? null, "sesi", null, `Gagal masuk sebagai ${username.slice(0, 64)} dari ${input.ip}`);
+    // Tanpa pelaku: yang gagal belum tentu pemilik akun itu.
+    await catatJejak(db, null, "sesi", null, `Gagal masuk sebagai ${username.slice(0, 64)} dari ${input.ip}`);
     // Pesan sama untuk username yang tidak ada dan sandi salah.
     throw new ServiceError(401, "Username atau sandi salah.");
   }
