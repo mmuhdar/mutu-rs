@@ -88,6 +88,11 @@ async function ambilUnitAktif(q: Kueri, unitId: string) {
  */
 async function periksaKonteks(q: Kueri, aktor: Pengguna | null, k: KunciIsian, sekarang: Date) {
   wajibPengisiUnit(aktor, k.unitId);
+  return periksaIndikatorDanUnit(q, k, sekarang);
+}
+
+/** Bagian `periksaKonteks` tanpa peran aktor: juga untuk impor riwayat isian oleh Admin Sistem. */
+async function periksaIndikatorDanUnit(q: Kueri, k: KunciIsian, sekarang: Date) {
   periksaBulan(k.bulan, sekarang);
   const [ind] = apakahUuid(k.indikatorId)
     ? await q.select().from(indikator).where(eq(indikator.id, k.indikatorId)).for("share")
@@ -290,6 +295,39 @@ export function simpanPengukuran(aktor: Pengguna | null, isian: IsianPengukuran,
 /** Menyimpan isian lalu mengajukannya (Draf → Diajukan) untuk diverifikasi Kepala Unit. */
 export function ajukanPengukuran(aktor: Pengguna | null, isian: IsianPengukuran, sekarang = new Date()) {
   return simpan(aktor, isian, true, sekarang);
+}
+
+/** Alasan di Riwayat Status Pengukuran hasil impor riwayat isian aplikasi lama. */
+export const ALASAN_IMPOR = "Diimpor dari aplikasi lama (tanpa Verifikasi Kepala Unit).";
+
+/**
+ * Riwayat isian aplikasi lama (`scripts/impor-v1.ts`): Pengukuran langsung Terverifikasi atas nama Admin Sistem, hanya
+ * untuk bulan yang sudah lewat. Aturan Indikator, Unit Pelapor, dan angka sama dengan isian biasa; satu baris Riwayat
+ * Status beralasan `ALASAN_IMPOR`. Pengukuran yang sudah ada tidak diubah (hasil null). Mengembalikan id Pengukuran.
+ */
+export async function imporPengukuranLama(aktor: Pengguna | null, isian: IsianPengukuran, sekarang = new Date()) {
+  wajibPeran(aktor, ["adminSistem"], "Hanya Admin Sistem yang boleh mengimpor riwayat isian aplikasi lama.");
+  wajibBulan(isian.bulan, "Pilih bulan.");
+  if (isian.bulan >= bulanBerjalan(sekarang)) throw new ServiceError(400, "Riwayat isian hanya untuk bulan yang sudah lewat.");
+  return db.transaction(async (tx) => {
+    const { indikator: ind, unit: u } = await periksaIndikatorDanUnit(tx, isian, sekarang);
+    const { n, d } = periksaAngkaDanCatatan({ ...isian, catatan: "" }, ind.faktor);
+    const [baru] = await tx
+      .insert(pengukuran)
+      .values({ indikatorId: ind.id, unitId: u.id, bulan: keTanggal(isian.bulan), n, d, pengisiId: aktor.id, status: "terverifikasi" })
+      .onConflictDoNothing()
+      .returning({ id: pengukuran.id });
+    if (!baru) return null;
+    await tx.insert(riwayatStatusPengukuran).values({
+      pengukuranId: baru.id,
+      statusAsal: null,
+      statusTujuan: "terverifikasi",
+      olehId: aktor.id,
+      alasan: ALASAN_IMPOR,
+    });
+    await catatJejak(tx, aktor, "pengukuran", baru.id, `Mengimpor Pengukuran ${ind.kode} Unit ${u.nama} ${labelBulan(isian.bulan)} dari aplikasi lama: N ${n}, D ${d}`);
+    return baru.id;
+  });
 }
 
 const HANYA_KEPALA = "Hanya Kepala Unit yang boleh memverifikasi Pengukuran.";

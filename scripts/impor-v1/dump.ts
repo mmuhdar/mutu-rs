@@ -4,10 +4,11 @@ import { createGunzip } from "node:zlib";
 
 /*
  * Pengurai dump SQL MySQL/MariaDB aplikasi mutu lama (mysqldump atau ekspor phpMyAdmin). Hanya tiga tabel pengaturan
- * mutu yang diurai; tabel lain (termasuk data kepegawaian) dilewati baris per baris tanpa disimpan.
+ * mutu dan isian harian `mutu_entries` yang diurai; tabel lain (termasuk data kepegawaian) dilewati baris per baris tanpa
+ * disimpan.
  */
 
-const TABEL_V1 = ["units", "master_indikator_mutus", "indikator_mutus"] as const;
+const TABEL_V1 = ["units", "master_indikator_mutus", "indikator_mutus", "mutu_entries"] as const;
 type TabelV1 = (typeof TABEL_V1)[number];
 /** Satu baris tabel: nama kolom → nilai teks apa adanya (angka juga teks), NULL = null. */
 type BarisV1 = Record<string, string | null>;
@@ -80,7 +81,7 @@ function selesai(teks: string) {
  * kolom INSERT (phpMyAdmin) atau dari `CREATE TABLE` tabel itu (mysqldump tanpa daftar kolom).
  */
 export function pengurai() {
-  const isi: IsiDump = { units: [], master_indikator_mutus: [], indikator_mutus: [] };
+  const isi: IsiDump = { units: [], master_indikator_mutus: [], indikator_mutus: [], mutu_entries: [] };
   const kolom = new Map<TabelV1, string[]>();
   let buat: { tabel: TabelV1; kolom: string[] } | null = null;
   let sisipan: { tabel: TabelV1; teks: string } | null = null;

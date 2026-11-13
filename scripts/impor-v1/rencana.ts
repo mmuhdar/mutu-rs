@@ -15,6 +15,8 @@ export const BELUM_DIISI = "Belum diisi (dari aplikasi lama)";
 
 /** Satu baris `indikator_mutus` aplikasi lama yang sudah dibaca. */
 export type IndikatorV1 = {
+  /** id baris di aplikasi lama, untuk memetakan isiannya. */
+  id: string;
   unit: string;
   master: string | null;
   nama: string;
@@ -40,6 +42,7 @@ export function dariDump(isi: IsiDump): IndikatorV1[] {
   return isi.indikator_mutus
     .filter((r) => r.is_active === "1" && !r.deleted_at && r.unit_id && namaUnit.get(r.unit_id))
     .map((r) => ({
+      id: r.id!,
       unit: namaUnit.get(r.unit_id!)!,
       master: (r.master_indikator_id && namaMaster.get(r.master_indikator_id)) || null,
       nama: rapi(r.nama_indikator),
@@ -55,8 +58,8 @@ export function dariDump(isi: IsiDump): IndikatorV1[] {
     }));
 }
 
-/** Indikator yang sudah ada di MutuRS (13 INM dan hasil impor sebelumnya). */
-export type IndikatorAda = { kode: string; nama: string; kelompok: Kelompok };
+/** Indikator yang sudah ada di MutuRS (13 INM dan hasil impor sebelumnya); definisi N/D untuk menunda riwayat isian. */
+export type IndikatorAda = { kode: string; nama: string; kelompok: Kelompok; definisiNumerator?: string; definisiDenominator?: string };
 
 export type RencanaIndikator = {
   kode: string;
@@ -71,6 +74,13 @@ export type RencanaIndikator = {
   catatan: string[];
   /** Field yang berisi `BELUM_DIISI` (selain Sumber Data, yang selalu). */
   belumDiisi: string[];
+  /** Baris aplikasi lama (id dan Unit-nya) yang menjadi Indikator ini, untuk memetakan isiannya. */
+  sumber: { id: string; unit: string }[];
+  /**
+   * Definisi N dan D di MutuRS sudah lengkap. Bila belum, riwayat isian ditunda: Pengukuran mengunci definisi N/D,
+   * jadi Komite Mutu melengkapinya dulu lalu impor dijalankan lagi.
+   */
+  definisiLengkap: boolean;
 };
 
 export type Rencana = { mulai: string; unit: string[]; indikator: RencanaIndikator[] };
@@ -137,7 +147,9 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
     sebelumnya.unit = [...new Map([...sebelumnya.unit, ...r.unit].map((u) => [u.toLowerCase(), u])).values()];
     sebelumnya.namaV1 = [...new Set([...sebelumnya.namaV1, ...r.namaV1])];
     sebelumnya.catatan.push(...r.catatan);
+    sebelumnya.sumber.push(...r.sumber);
   };
+  const lengkap = (n?: string, d?: string) => n !== BELUM_DIISI && d !== BELUM_DIISI;
 
   for (const grup of kelompokBaris.values()) {
     const nama = grup[0].master ?? terbanyak(grup.map((b) => b.nama)).nilai;
@@ -214,6 +226,10 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
       namaV1: [...new Set(grup.map((b) => b.nama))],
       catatan,
       belumDiisi: inmCocok ? [] : belumDiisi,
+      sumber: grup.map((b) => ({ id: b.id, unit: b.unit })),
+      definisiLengkap: inmCocok
+        ? lengkap(inmCocok.definisiNumerator, inmCocok.definisiDenominator)
+        : lengkap(definisiN || BELUM_DIISI, definisiD || BELUM_DIISI),
     };
     if (inmCocok) {
       // INM selalu memakai Target PMK; yang dicatat hanya Target aplikasi lama yang berbeda darinya.
@@ -225,7 +241,9 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
     }
     // Rencana ulang atas database yang sudah diimpor: Indikator bernama sama dipakai ulang dengan kodenya.
     const ada = opsi.ada.find((i) => i.kelompok !== "INM" && kunciNama(i.nama) === kunciNama(namaMutuRs));
-    if (ada) gabung(Object.assign(r, { kode: ada.kode, kelompok: ada.kelompok, sudahAda: true }));
+    if (ada) {
+      gabung(Object.assign(r, { kode: ada.kode, kelompok: ada.kelompok, sudahAda: true, definisiLengkap: lengkap(ada.definisiNumerator, ada.definisiDenominator) }));
+    }
     else baru.push(r);
   }
 
@@ -245,13 +263,89 @@ export function susunRencana(baris: IndikatorV1[], opsi: { mulai: string; ada: I
   return { mulai: opsi.mulai, unit, indikator };
 }
 
+/** Satu isian `mutu_entries` aplikasi lama: harian atau sebulan sekali, N dan D bilangan bulat. */
+export type IsianV1 = { indikatorId: string; tanggal: string; n: number; d: number };
+
+/** Isian aplikasi lama dari dump (kolom alasan tidak tercapai tidak dibaca). */
+export const isianDariDump = (isi: IsiDump): IsianV1[] =>
+  isi.mutu_entries.map((e) => ({ indikatorId: e.indikator_mutu_id!, tanggal: e.tanggal!, n: Number(e.numerator), d: Number(e.denominator) }));
+
+/** Satu Pengukuran riwayat: N dan D isian satu bulan dijumlahkan (ΣN/ΣD), `isian` = jumlah isian lamanya. */
+export type PengukuranRiwayat = { kode: string; unit: string; bulan: string; n: number; d: number; isian: number };
+export type Riwayat = {
+  sampai: string;
+  pengukuran: PengukuranRiwayat[];
+  /** Indikator yang riwayatnya ditunda karena definisi N/D belum lengkap, dengan jumlah isiannya. */
+  ditunda: { kode: string; nama: string; isian: number }[];
+  /** Isian setelah bulan `sampai` (masih diisi di aplikasi lama; diimpor dengan dump berikutnya). */
+  setelahBatas: number;
+  /** Isian milik baris Indikator lama yang nonaktif, terhapus, atau tanpa Unit (tidak ikut rencana). */
+  tanpaIndikator: number;
+};
+
+/**
+ * Riwayat isian per Indikator + Unit + bulan sampai bulan `sampai`: isian harian dan isian bulanan sama-sama
+ * dijumlahkan per bulan. Aturan angka (mis. N ≤ D) diperiksa service saat dijalankan, bukan di sini.
+ */
+export function susunRiwayat(r: Rencana, isian: IsianV1[], opsi: { sampai: string }): Riwayat {
+  const baris = new Map(r.indikator.flatMap((i) => i.sumber.map((s) => [s.id, { i, unit: s.unit }] as const)));
+  const hasil = new Map<string, PengukuranRiwayat>();
+  const ditunda = new Map<string, { kode: string; nama: string; isian: number }>();
+  let setelahBatas = 0;
+  let tanpaIndikator = 0;
+  for (const e of isian) {
+    const m = baris.get(e.indikatorId);
+    const bulan = e.tanggal.slice(0, 7);
+    if (!m) tanpaIndikator++;
+    else if (bulan > opsi.sampai) setelahBatas++;
+    else if (!m.i.definisiLengkap) {
+      const t = ditunda.get(m.i.kode) ?? { kode: m.i.kode, nama: m.i.nama, isian: 0 };
+      t.isian++;
+      ditunda.set(m.i.kode, t);
+    } else {
+      const kunci = `${m.i.kode}|${m.unit.toLowerCase()}|${bulan}`;
+      const p = hasil.get(kunci) ?? { kode: m.i.kode, unit: m.unit, bulan, n: 0, d: 0, isian: 0 };
+      p.n += e.n;
+      p.d += e.d;
+      p.isian++;
+      hasil.set(kunci, p);
+    }
+  }
+  const pengukuran = [...hasil.values()].sort(
+    (a, b) => a.kode.localeCompare(b.kode) || a.unit.localeCompare(b.unit, "id") || a.bulan.localeCompare(b.bulan),
+  );
+  return { sampai: opsi.sampai, pengukuran, ditunda: [...ditunda.values()], setelahBatas, tanpaIndikator };
+}
+
 /** Hasil menjalankan rencana (diisi pelaksana); tanpa hasil = pratinjau. */
-export type HasilImpor = { dibuat: { unit: number; indikator: number; unitPelapor: number }; gagal: string[] };
+export type HasilImpor = { dibuat: { unit: number; indikator: number; unitPelapor: number; pengukuran: number }; gagal: string[] };
 
 const sel = (s: string) => s.replace(/\|/g, "\\|").replace(/\n+/g, " ");
 
+function bagianRiwayat(rw: Riwayat) {
+  const isian = rw.pengukuran.reduce((n, p) => n + p.isian, 0);
+  const bulan = rw.pengukuran.map((p) => p.bulan).sort();
+  return [
+    "",
+    "## Riwayat isian aplikasi lama",
+    "",
+    `- Sampai ${labelBulan(rw.sampai)}: ${rw.pengukuran.length} Pengukuran dari ${isian} isian` +
+      (bulan.length > 0 ? ` (${labelBulan(bulan[0])} sampai ${labelBulan(bulan.at(-1)!)})` : "") +
+      ". Isian harian dijumlahkan per bulan. Langsung Terverifikasi; Riwayat Status-nya mencatat asal impor.",
+    "- Unit Pelapor Indikator yang punya riwayat dimulai sejak bulan isian pertamanya.",
+    ...(rw.ditunda.length > 0
+      ? [
+          "- Ditunda karena definisi N/D belum lengkap (Pengukuran mengunci definisi; lengkapi dulu, lalu jalankan impor lagi): " +
+            rw.ditunda.map((t) => `${t.kode} ${t.nama} (${t.isian} isian)`).join("; ") + ".",
+        ]
+      : []),
+    ...(rw.setelahBatas > 0 ? [`- ${rw.setelahBatas} isian setelah ${labelBulan(rw.sampai)} belum diimpor; jalankan lagi dengan dump yang lebih baru.`] : []),
+    ...(rw.tanpaIndikator > 0 ? [`- ${rw.tanpaIndikator} isian milik Indikator aplikasi lama yang nonaktif atau terhapus tidak diimpor.`] : []),
+  ];
+}
+
 /** Daftar periksa Markdown untuk Komite Mutu: ringkasan, yang harus dilengkapi, Unit, lalu Indikator per kelompok. */
-export function daftarPeriksa(r: Rencana, sumber: string, hasil?: HasilImpor) {
+export function daftarPeriksa(r: Rencana, sumber: string, hasil?: HasilImpor, riwayat?: Riwayat) {
   const jumlah = (k: Kelompok) => r.indikator.filter((i) => i.kelompok === k).length;
   const belum = r.indikator.filter((i) => i.belumDiisi.length > 0);
   const baris = [
@@ -259,7 +353,7 @@ export function daftarPeriksa(r: Rencana, sumber: string, hasil?: HasilImpor) {
     "",
     `Sumber: ${sumber}. Bulan peralihan (Unit Pelapor dan Target mulai berlaku): ${labelBulan(r.mulai)}.`,
     hasil
-      ? `Hasil: dibuat ${hasil.dibuat.unit} Unit, ${hasil.dibuat.indikator} Indikator, ${hasil.dibuat.unitPelapor} Unit Pelapor; yang sudah ada dilewati.`
+      ? `Hasil: dibuat ${hasil.dibuat.unit} Unit, ${hasil.dibuat.indikator} Indikator, ${hasil.dibuat.unitPelapor} Unit Pelapor, ${hasil.dibuat.pengukuran} Pengukuran; yang sudah ada dilewati.`
       : "Pratinjau: belum ada yang disimpan (jalankan dengan --jalankan).",
     "",
     `${r.unit.length} Unit, ${r.indikator.length} Indikator (${KELOMPOK.map((k) => `${k} ${jumlah(k)}`).join(", ")}), ` +
@@ -270,6 +364,7 @@ export function daftarPeriksa(r: Rencana, sumber: string, hasil?: HasilImpor) {
     `- Sumber Data setiap Indikator baru masih "${BELUM_DIISI}". Definisi N dan D terkunci setelah ada Pengukuran, jadi lengkapi dulu.`,
     ...belum.map((i) => `- ${i.kode}, ${i.nama}: ${i.belumDiisi.join(", ")}.`),
     "- Periksa setiap catatan di tabel di bawah, terutama INM yang dicocokkan menurut kemiripan nama dan Target yang berbeda.",
+    ...(riwayat ? bagianRiwayat(riwayat) : []),
     ...(hasil && hasil.gagal.length > 0 ? ["", "## Gagal", "", ...hasil.gagal.map((g) => `- ${g}`)] : []),
     "",
     `## Unit (${r.unit.length})`,

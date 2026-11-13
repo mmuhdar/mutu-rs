@@ -1,14 +1,25 @@
 import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
 
+import { trenCapaian } from "@/modules/capaian/service";
 import { ambilIndikator, daftarIndikator, hapusUnitPelapor, unitPelaporAktif } from "@/modules/indikator/service";
 import { INM } from "@/modules/indikator/inm";
+import { ALASAN_IMPOR, ambilPengukuran, imporPengukuranLama } from "@/modules/pengukuran/service";
 
 import { uraiDump } from "../scripts/impor-v1/dump";
 import { jalankanRencana } from "../scripts/impor-v1/jalankan";
-import { BELUM_DIISI, cocokkanInm, daftarPeriksa, dariDump, susunRencana, type IndikatorAda, type IndikatorV1 } from "../scripts/impor-v1/rencana";
+import {
+  BELUM_DIISI,
+  cocokkanInm,
+  daftarPeriksa,
+  dariDump,
+  susunRencana,
+  susunRiwayat,
+  type IndikatorAda,
+  type IndikatorV1,
+} from "../scripts/impor-v1/rencana";
 
-import { adminSistem, unik } from "./bantuan";
+import { adminSistem, indikatorBaru, komiteMutu, unik, unitPelapor } from "./bantuan";
 
 describe("membaca dump aplikasi lama", () => {
   it("mysqldump: urutan kolom dari CREATE TABLE, escape dan NULL, tabel lain dilewati", () => {
@@ -72,6 +83,7 @@ describe("membaca dump aplikasi lama", () => {
 
 /** Baris Indikator aplikasi lama untuk tes rencana. */
 const v1 = (ubahan: Partial<IndikatorV1>): IndikatorV1 => ({
+  id: unik("v1"),
   unit: "ICU",
   master: null,
   nama: "Indikator",
@@ -235,7 +247,7 @@ describe("menjalankan impor", () => {
     const r = await rencanaUntuk();
     unitPelaporInm = [unitIcu];
     const hasil = await jalankanRencana(admin, r);
-    assert.deepEqual(hasil, { dibuat: { unit: 2, indikator: 2, unitPelapor: 4 }, gagal: [] });
+    assert.deepEqual(hasil, { dibuat: { unit: 2, indikator: 2, unitPelapor: 4, pengukuran: 0 }, gagal: [] });
 
     const daftar = await daftarIndikator(admin);
     const sbar = daftar.find((i) => i.nama === `${nama} SBAR`)!;
@@ -248,6 +260,107 @@ describe("menjalankan impor", () => {
     assert.ok((await unitPelaporAktif(admin, inm03.id, "2031-01")).some((p) => p.nama === unitIcu));
 
     const ulang = await jalankanRencana(admin, await rencanaUntuk());
-    assert.deepEqual(ulang, { dibuat: { unit: 0, indikator: 0, unitPelapor: 0 }, gagal: [] });
+    assert.deepEqual(ulang, { dibuat: { unit: 0, indikator: 0, unitPelapor: 0, pengukuran: 0 }, gagal: [] });
+  });
+});
+
+describe("riwayat isian aplikasi lama", () => {
+  it("isian dijumlahkan per bulan per Indikator + Unit; bulan setelah batas dan baris tak dikenal diabaikan; definisi N/D belum lengkap ditunda", () => {
+    const r = susunRencana(
+      [
+        v1({ id: "11", nama: "Linen bersih", unit: "ICU" }),
+        v1({ id: "12", nama: "Linen bersih", unit: "IGD" }),
+        // Baris ganda Indikator yang sama di Unit yang sama ikut dijumlahkan.
+        v1({ id: "13", nama: "Linen bersih", unit: "ICU" }),
+        v1({ id: "14", nama: "Tanpa definisi", unit: "ICU", definisiD: "" }),
+      ],
+      { mulai: "2027-01", ada: inm, targetInm },
+    );
+    const rw = susunRiwayat(
+      r,
+      [
+        { indikatorId: "11", tanggal: "2026-09-01", n: 3, d: 4 },
+        { indikatorId: "11", tanggal: "2026-09-02", n: 5, d: 6 },
+        { indikatorId: "13", tanggal: "2026-09-30", n: 1, d: 1 },
+        { indikatorId: "12", tanggal: "2026-10-31", n: 7, d: 8 },
+        { indikatorId: "12", tanggal: "2026-11-05", n: 1, d: 1 },
+        { indikatorId: "14", tanggal: "2026-09-30", n: 1, d: 2 },
+        { indikatorId: "99", tanggal: "2026-09-30", n: 1, d: 2 },
+      ],
+      { sampai: "2026-10" },
+    );
+    const kode = r.indikator.find((i) => i.nama === "Linen bersih")!.kode;
+    assert.deepEqual(rw.pengukuran, [
+      { kode, unit: "ICU", bulan: "2026-09", n: 9, d: 11, isian: 3 },
+      { kode, unit: "IGD", bulan: "2026-10", n: 7, d: 8, isian: 1 },
+    ]);
+    assert.deepEqual(rw.ditunda.map((x) => [x.nama, x.isian]), [["Tanpa definisi", 1]]);
+    assert.deepEqual([rw.sampai, rw.setelahBatas, rw.tanpaIndikator], ["2026-10", 1, 1]);
+    assert.match(daftarPeriksa(r, "dump.sql", undefined, rw), /2 Pengukuran dari 4 isian[\s\S]*Tanpa definisi/);
+  });
+
+  it("Admin Sistem mengimpor Pengukuran langsung Terverifikasi dengan Riwayat Status bertanda impor; yang sudah ada tidak diubah", async () => {
+    const admin = await adminSistem();
+    const indikatorId = await indikatorBaru();
+    const u = await unitPelapor(indikatorId, "Impor", "2008-01");
+    const id = await imporPengukuranLama(admin, { indikatorId, unitId: u.id, bulan: "2008-03", n: 8, d: 10 });
+    const p = await ambilPengukuran(admin, id!);
+    assert.deepEqual([p.status, p.n, p.d, p.capaian], ["terverifikasi", 8, 10, 80]);
+    assert.deepEqual(
+      p.riwayat.map((x) => [x.statusAsal, x.statusTujuan, x.alasan]),
+      [[null, "terverifikasi", ALASAN_IMPOR]],
+    );
+    assert.equal(await imporPengukuranLama(admin, { indikatorId, unitId: u.id, bulan: "2008-03", n: 1, d: 10 }), null);
+    assert.equal((await ambilPengukuran(admin, id!)).n, 8);
+  });
+
+  it("impor Pengukuran memakai aturan isian biasa, hanya untuk Admin Sistem dan bulan yang sudah lewat", async () => {
+    const admin = await adminSistem();
+    const indikatorId = await indikatorBaru();
+    const u = await unitPelapor(indikatorId, "Impor", "2008-01");
+    const sekarang = new Date("2026-11-13T10:00:00+08:00");
+    const impor = (ubahan: { n?: number; bulan?: string }, aktor = admin) =>
+      imporPengukuranLama(aktor, { indikatorId, unitId: u.id, bulan: "2008-04", n: 5, d: 10, ...ubahan }, sekarang);
+    await assert.rejects(impor({ n: 11 }), { status: 400, message: "N tidak boleh lebih dari D pada Indikator persen." });
+    await assert.rejects(impor({ bulan: "2007-12" }), { status: 400 });
+    await assert.rejects(impor({ bulan: "2026-11" }), { status: 400, message: "Riwayat isian hanya untuk bulan yang sudah lewat." });
+    await assert.rejects(impor({}, await komiteMutu()), { status: 403 });
+  });
+
+  it("menjalankan: Unit Pelapor mulai bulan isian pertama, Pengukuran Terverifikasi masuk tren; diulang tidak membuat apa pun lagi", async () => {
+    const admin = await adminSistem();
+    const nama = unik("Riwayat");
+    const baris = [
+      v1({ id: "21", nama: `${nama} Linen`, unit: `${nama} ICU` }),
+      v1({ id: "22", nama: `${nama} Kosong`, unit: `${nama} ICU`, definisiN: "" }),
+    ];
+    const isian = [
+      { indikatorId: "21", tanggal: "2008-05-31", n: 9, d: 10 },
+      { indikatorId: "21", tanggal: "2008-06-30", n: 12, d: 10 },
+      { indikatorId: "22", tanggal: "2008-05-31", n: 1, d: 2 },
+    ];
+    const jalankan = async () => {
+      const r = susunRencana(baris, { mulai: "2008-09", ada: await daftarIndikator(admin), targetInm });
+      return jalankanRencana(admin, r, susunRiwayat(r, isian, { sampai: "2008-08" }));
+    };
+
+    const hasil = await jalankan();
+    assert.deepEqual(hasil.dibuat, { unit: 1, indikator: 2, unitPelapor: 2, pengukuran: 1 });
+    assert.equal(hasil.gagal.length, 1);
+    assert.match(hasil.gagal[0], /Juni 2008: N tidak boleh lebih dari D/);
+    const daftar = await daftarIndikator(admin);
+    const linen = daftar.find((i) => i.nama === `${nama} Linen`)!;
+    const kosong = daftar.find((i) => i.nama === `${nama} Kosong`)!;
+    assert.deepEqual((await unitPelaporAktif(admin, linen.id, "2008-05")).map((p) => p.nama), [`${nama} ICU`]);
+    assert.deepEqual(await unitPelaporAktif(admin, linen.id, "2008-04"), []);
+    // Riwayat ditunda: Unit Pelapor tetap mulai bulan peralihan, dan definisi N masih bisa dilengkapi.
+    assert.deepEqual(await unitPelaporAktif(admin, kosong.id, "2008-08"), []);
+    assert.equal((await ambilIndikator(admin, kosong.id)).terkunci, false);
+    const tren = await trenCapaian(admin, linen.id, "2008-08");
+    assert.equal(tren.rs!.find((t) => t.bulan === "2008-05")!.capaian, 90);
+
+    const ulang = await jalankan();
+    assert.deepEqual(ulang.dibuat, { unit: 0, indikator: 0, unitPelapor: 0, pengukuran: 0 });
+    assert.equal(ulang.gagal.length, 1);
   });
 });
