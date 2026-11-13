@@ -40,7 +40,7 @@ Catatan:
 
 ## Perbedaan dengan seed SIMRS
 
-Seed yang dibandingkan: `/home/mat/AgenticProjects/simrs-mokopido/apps/api/prisma/migrations/20261025153050_mutu/migration.sql` baris 135–149, tabel `QualityIndicator`, kode `INM-01`–`INM-13`. Skemanya didefinisikan di `apps/api/prisma/schema.prisma` (model `QualityIndicator`/`QualityMeasurement`). Rumus capaian ada di `apps/api/src/quality/quality.service.ts:75`, yaitu `n × factor / d`.
+Seed yang dibandingkan: migrasi SIMRS rumah sakit `apps/api/prisma/migrations/20261025153050_mutu/migration.sql` baris 135–149, tabel `QualityIndicator`, kode `INM-01`–`INM-13`. Skemanya didefinisikan di `apps/api/prisma/schema.prisma` (model `QualityIndicator`/`QualityMeasurement`). Rumus capaian ada di `apps/api/src/quality/quality.service.ts:75`, yaitu `n × factor / d`.
 
 **Yang sudah sesuai:** jumlah indikator (13, tidak ada yang hilang atau berlebih), urutan (a–m = INM-01..13), semua target (85, 100, 100, 80, 80, 5, 80, 100, 80, 80, 100, 80, 76,61), semua arah target (hanya INM-06 yang `higherIsBetter=false`), faktor 100 dan satuan "%" untuk INM-01..12, serta satuan "indeks" untuk INM-13.
 

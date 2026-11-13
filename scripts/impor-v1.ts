@@ -1,5 +1,5 @@
 /*
- * Impor pengaturan aplikasi mutu lama (modul Mutu pegawai-mokopido) dari dump SQL MySQL/MariaDB-nya: Unit, Indikator,
+ * Impor pengaturan aplikasi mutu lama (modul Mutu di aplikasi kepegawaian RS) dari dump SQL MySQL/MariaDB-nya: Unit, Indikator,
  * Target, dan Unit Pelapor mulai bulan peralihan. Dijalankan saat pemasangan MutuRS, atas database MutuRS yang baru
  * (langkahnya di INSTALASI.md).
  *
