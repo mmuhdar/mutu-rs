@@ -86,6 +86,19 @@ describe("pembatasan percobaan masuk", () => {
 });
 
 describe("Admin Sistem awal", () => {
+  it("tidak dibuat dengan sandi kurang dari 8 karakter, atau di produksi dengan sandi contoh .env.example", async () => {
+    const username = `admin-lemah-${process.pid}`;
+    await assert.rejects(buatAdminAwal({ username, sandi: "1234567" }), /ADMIN_PASSWORD minimal 8 karakter/);
+    await assert.rejects(buatAdminAwal({ username, sandi: "ganti-sandi-admin" }, true), /ADMIN_PASSWORD masih sandi contoh/);
+    await assert.rejects(masuk({ username, sandi: "ganti-sandi-admin", ip: "10.0.0.4" }), { status: 401 });
+
+    // Di luar produksi (dev) sandi contoh boleh, supaya `cp .env.example .env` langsung jalan.
+    await buatAdminAwal({ username, sandi: "ganti-sandi-admin" }, false);
+    await masuk({ username, sandi: "ganti-sandi-admin", ip: "10.0.0.4" });
+    // Admin yang sudah ada tidak diperiksa lagi: sandi di konfigurasi tidak dipakai setelah start pertama.
+    await buatAdminAwal({ username, sandi: "x" }, true);
+  });
+
   it("start kedua tidak membuat ulang dan tidak menimpa sandinya walau sandi di konfigurasi berbeda", async () => {
     const admin = await adminBaru("sandi-yang-dipakai");
     // Start kedua: konfigurasi kini berisi sandi lain (mis. sandi sudah diganti lewat aplikasi).

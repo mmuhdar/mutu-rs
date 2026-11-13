@@ -174,6 +174,13 @@ function angka(pola: Pola, [dari, ke]: [number, number], i: number, faktor: numb
   return { n: faktor === 100 ? Math.min(n, d) : n, d };
 }
 
+/** Apakah username + sandi ini bisa masuk (tanpa melempar). */
+const bisaMasuk = (username: string, sandi: string) =>
+  masuk({ username, sandi, ip: "127.0.0.1" }).then(
+    () => true,
+    () => false,
+  );
+
 async function sesi(username: string, sandi: string) {
   const p = await penggunaDariToken(await masuk({ username, sandi, ip: "127.0.0.1" }));
   if (!p) throw new Error(`Sesi ${username} tidak termuat.`);
@@ -563,7 +570,16 @@ async function contohRisiko(unitId: Record<KodeUnit, string>) {
 
 async function main() {
   const admin = await sesi(config.adminAwal.username, config.adminAwal.sandi);
-  if ((await daftarPengguna(admin)).some((p) => p.username === "komite")) {
+  // Penjaga: Pengguna dummy bersandi SANDI (tertulis di README), jadi hanya untuk database dev kosong atau yang sudah
+  // berisi data dummy. Database yang sudah dipakai (ada Pengguna lain, atau `komite` bersandi lain) ditolak.
+  const pengguna = await daftarPengguna(admin);
+  const dummy = pengguna.some((p) => p.username === "komite") && (await bisaMasuk("komite", SANDI));
+  if (!dummy && pengguna.some((p) => p.id !== admin.id)) {
+    console.error("Database ini sudah berisi Pengguna selain Admin Sistem awal. Data dummy hanya untuk database dev kosong; tidak ada yang diubah.");
+    process.exitCode = 1;
+    return;
+  }
+  if (dummy) {
     const ada = await daftarUnit(admin);
     const unitIdAda = Object.fromEntries(
       (Object.entries(UNIT) as [KodeUnit, string][]).map(([k, nama]) => [k, ada.find((u) => u.nama === nama)!.id]),

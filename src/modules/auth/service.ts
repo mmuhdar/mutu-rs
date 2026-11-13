@@ -27,21 +27,28 @@ export function hashSandiBaru(sandi: string) {
   return hashSandi(sandi);
 }
 
+/** Nilai ADMIN_PASSWORD di `.env.example`; repo terbuka, jadi di produksi ditolak. */
+const SANDI_ADMIN_CONTOH = "ganti-sandi-admin";
+
 /**
  * Data awal: Admin Sistem dari konfigurasi, hanya bila username itu belum ada.
  * Restart tidak pernah menimpa sandi yang sudah diganti.
  */
-export async function buatAdminAwal(admin: { username: string; sandi: string }) {
+export async function buatAdminAwal(admin: { username: string; sandi: string }, produksi = process.env.NODE_ENV === "production") {
+  const username = admin.username.trim();
+  const [ada] = await db.select({ id: pengguna.id }).from(pengguna).where(sql`lower(${pengguna.username}) = lower(${username})`);
+  if (ada) return;
+  // Hanya saat membuat: sandi di konfigurasi tidak dipakai lagi setelah start pertama. Error di sini menghentikan start.
+  if (admin.sandi.length < 8) throw new Error("ADMIN_PASSWORD minimal 8 karakter.");
+  if (produksi && admin.sandi === SANDI_ADMIN_CONTOH) {
+    throw new Error("ADMIN_PASSWORD masih sandi contoh dari .env.example (diketahui umum); ganti dengan sandi yang kuat.");
+  }
   await db
     .insert(pengguna)
-    .values({
-      username: admin.username.trim(),
-      nama: "Admin Sistem",
-      peran: "adminSistem",
-      hashSandi: await hashSandi(admin.sandi),
-    })
+    .values({ username, nama: "Admin Sistem", peran: "adminSistem", hashSandi: await hashSandi(admin.sandi) })
     .onConflictDoNothing();
 }
+
 
 /*
  * Pembatasan percobaan masuk (pola sistem-radiologi-digital), di memori proses.
