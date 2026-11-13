@@ -158,6 +158,44 @@ Root Cause Analysis: investigasi Insiden kuning, merah, dan semua Kejadian Senti
 **Status Insiden**:
 Dilaporkan (menunggu grading; laporan masih bisa diubah Pembuat Laporan), Investigasi Sederhana, Ditinjau (menunggu Komite Mutu), RCA, Selesai, atau Bukan Insiden (ditutup Komite Mutu dengan alasan). Lewat tenggat bila tenggat investigasi sudah lewat sedangkan statusnya Investigasi Sederhana atau RCA.
 
+## Manajemen Risiko
+
+**Register Risiko**:
+Daftar Risiko satu Unit untuk satu tahun, diisi Petugas Input Data dan Kepala Unit dari Unit itu atau Komite Mutu; pengganti Input Risiko aplikasi v1.
+_Avoid_: input risiko, daftar risiko
+
+**Risiko**:
+Satu baris Register Risiko: uraian kejadian yang mungkin terjadi, Kategori Risiko, Penilaian Awal, Perlakuan, Jadwal Pelaksanaan, Hasil Pemantauan, Simpulan, dan Dokumen Review.
+
+**Kategori Risiko**:
+Kebijakan, Reputasi, Fraud/Korupsi, Legal, Kepatuhan, atau Operasional.
+
+**Probabilitas** dan **Dampak**:
+Skala 1–5 untuk menilai Risiko; pasangan keduanya menentukan Nilai Risiko dan Bobot.
+
+**Nilai Risiko**:
+Angka 1–25 dari sel matriks Probabilitas × Dampak Input Risiko v1 (peringkat sel, bukan hasil kali). Bobot = angka kedua dari sel yang sama.
+_Avoid_: skor risiko (dipakai Grading Insiden)
+
+**Tingkat Risiko**:
+Sangat Tinggi (Nilai Risiko ≥ 20), Tinggi (15–19), Sedang (10–14), Rendah (5–9), atau Sangat Rendah (1–4). Prioritas Risiko = 1 untuk Sangat Tinggi sampai 5 untuk Sangat Rendah. Berbeda dari Grading Insiden.
+
+**Penilaian Awal**:
+Probabilitas dan Dampak saat Risiko dicatat, sebelum Perlakuan.
+_Avoid_: analisis risiko awal (bentrok dengan Analisis)
+
+**Perlakuan**:
+Langkah penanganan Risiko, satu per baris, dengan satu Jadwal Pelaksanaan.
+
+**Hasil Pemantauan**:
+Penilaian ulang Probabilitas dan Dampak setelah Perlakuan berjalan.
+
+**Simpulan**:
+Tingkat Risiko "ada penurunan" bila Tingkat Risiko Hasil Pemantauan lebih rendah dari Penilaian Awal (dihitung), dan Efektivitas Perlakuan Efektif atau Tidak Efektif (dinilai, setelah Hasil Pemantauan).
+
+**Dokumen Review**:
+Berkas PDF, DOC, atau DOCX hasil review satu Risiko, misalnya notulen rapat.
+
 ## Sistem
 
 **Jejak Audit**:
