@@ -4,7 +4,7 @@ Status: selesai (2026-11-12, branch `rilis-4-pindah`)
 
 ## Problem Statement
 
-Rumah sakit sudah memakai aplikasi mutu versi pertama (modul "Mutu" di aplikasi kepegawaian `pegawai-mokopido`, berjalan di Hostinger). Perbandingannya ada di `.scratch/perbandingan-v1/laporan.md`. Ada tiga hal yang sudah dipakai di v1 tetapi belum ada di MutuRS:
+Rumah sakit sudah memakai aplikasi mutu versi pertama (modul "Mutu" di aplikasi kepegawaian RS, berjalan di hosting web). Perbandingannya ada di `.scratch/perbandingan-v1/laporan.md`. Ada tiga hal yang sudah dipakai di v1 tetapi belum ada di MutuRS:
 
 - **Lampiran bukti.** Ruangan melampirkan foto atau PDF bukti pengukuran (76 berkas, 97 MB dalam enam bulan).
 - **Kelompok SPM.** Ada empat Indikator Standar Pelayanan Minimal.

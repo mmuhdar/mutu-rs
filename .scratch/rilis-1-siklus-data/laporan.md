@@ -132,4 +132,4 @@ Lalu buka http://localhost:3000 (atau `APP_PORT`). Langkah lengkapnya, termasuk 
 1. Setelah dicek: `git switch main && git merge --ff-only rilis-1-siklus-data`.
 2. Rilis 2 (PDSA, Tindak Lanjut, Evaluasi): mulai dengan `/mattpocock-skills:grill-with-docs`.
 3. Rilis 3: Laporan dan ekspor PDF/Excel (termasuk format untuk SIMAR), notifikasi, dan audit trail lengkap.
-4. Di luar MutuRS: seed indikator mutu di SIMRS Mokopido punya kesalahan pada INM-09, INM-10, dan INM-13 (rincian di `docs/research/inm-rumah-sakit.md`). Menu itu harus dinonaktifkan sebelum SIMRS dipakai (ADR-0001).
+4. Di luar MutuRS: seed indikator mutu di SIMRS rumah sakit punya kesalahan pada INM-09, INM-10, dan INM-13 (rincian di `docs/research/inm-rumah-sakit.md`). Menu itu harus dinonaktifkan sebelum SIMRS dipakai (ADR-0001).

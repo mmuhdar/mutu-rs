@@ -1,6 +1,6 @@
 # Perbandingan aplikasi mutu versi pertama dengan MutuRS
 
-Tanggal: 2026-11-12. Sumber v1: `~/Projects/pegawai-mokopido` (Laravel + Filament, grup menu "Mutu"; fitur mutu dibuat 2026-04-13 s.d. 2026-10-09). Data dibaca hanya sebagai jumlah agregat dan nama Indikator dari database lokal `pegawai_mokopido` (tanpa data pegawai atau pasien). Salinan lokal berhenti di entri 2026-09-30, jadi mungkin bukan data produksi terbaru.
+Tanggal: 2026-11-12. Sumber v1: aplikasi kepegawaian RS (Laravel + Filament, grup menu "Mutu"; fitur mutu dibuat 2026-04-13 s.d. 2026-10-09). Data dibaca hanya sebagai jumlah agregat dan nama Indikator dari database lokal aplikasi itu (tanpa data pegawai atau pasien). Salinan lokal berhenti di entri 2026-09-30, jadi mungkin bukan data produksi terbaru.
 
 ## Ringkasan
 

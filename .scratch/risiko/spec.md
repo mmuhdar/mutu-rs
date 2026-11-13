@@ -2,7 +2,7 @@
 
 Status: selesai (2026-11-13, branch `risiko`, dari `rilis-5` karena membutuhkan Jejak Audit)
 
-Permintaan user (13 November 2026): "tambahkan fitur Input Risiko juga seperti di project pegawai-mokopido". Sumber: `app/Filament/Pages/InputRisiko.php`, `resources/views/filament/pages/input-risiko.blade.php`, dan migrasi `2026_06_04_082125_create_risikos_table.php` di `~/Projects/pegawai-mokopido`. Glosarium: bagian Manajemen Risiko.
+Permintaan user (13 November 2026): "tambahkan fitur Input Risiko juga seperti di project [aplikasi kepegawaian RS]". Sumber: `app/Filament/Pages/InputRisiko.php`, `resources/views/filament/pages/input-risiko.blade.php`, dan migrasi `2026_06_04_082125_create_risikos_table.php` di aplikasi kepegawaian RS (v1). Glosarium: bagian Manajemen Risiko.
 
 ## Problem Statement
 

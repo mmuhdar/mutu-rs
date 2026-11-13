@@ -1,6 +1,6 @@
 # Daftar periksa impor aplikasi mutu lama
 
-Sumber: u792262854_kepegawaian.20261110000307.sql.gz. Bulan peralihan (Unit Pelapor dan Target mulai berlaku): Januari 2027.
+Sumber: dump database aplikasi lama tanggal 10 November 2026. Bulan peralihan (Unit Pelapor dan Target mulai berlaku): Januari 2027.
 Pratinjau: belum ada yang disimpan (jalankan dengan --jalankan).
 
 52 Unit, 50 Indikator (INM 13, IMP-RS 13, IMP-Unit 20, SPM 4), 258 Unit Pelapor.

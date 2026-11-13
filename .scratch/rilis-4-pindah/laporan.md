@@ -62,7 +62,7 @@ Selain keputusan sesi tanya-jawab (Q1 s.d. Q18):
 
 ## Hasil impor dump asli
 
-Dump `u792262854_kepegawaian.20261110000307.sql.gz` (MariaDB, 10 November 2026) dibaca langsung dari Downloads, tanpa disalin atau dibongkar. Yang diurai hanya `units`, `master_indikator_mutus`, dan `indikator_mutus`; tabel kepegawaian dilewati.
+Dump database aplikasi lama (MariaDB, 10 November 2026) dibaca langsung dari folder unduhan, tanpa disalin atau dibongkar. Yang diurai hanya `units`, `master_indikator_mutus`, dan `indikator_mutus`; tabel kepegawaian dilewati.
 
 - **Ke database PostgreSQL kosong:**
   - 287 baris Indikator aktif menjadi 52 Unit dan 50 Indikator: 13 INM, 13 IMP-RS, 20 IMP-Unit, 4 SPM.
