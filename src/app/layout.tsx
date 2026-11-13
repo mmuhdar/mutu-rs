@@ -54,6 +54,7 @@ const MENU: { judul: string; item: (ItemMenu & { peran: readonly Peran[] })[] }[
     item: [
       { href: "/tindak-lanjut", label: "Tindak Lanjut", ikon: "tindakLanjut", peran: PERAN },
       { href: "/pdsa", label: "PDSA", ikon: "pdsa", peran: PERAN },
+      { href: "/risiko", label: "Register Risiko", ikon: "risiko", peran: PERAN },
     ],
   },
   {

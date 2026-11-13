@@ -77,7 +77,7 @@ function MatriksGrading({ nilai }: { nilai?: string }) {
                 >
                   <RadioGroupItem
                     value={`${d.nilai}-${p.nilai}`}
-                    className="sr-only"
+                    className="sr-only absolute"
                     aria-label={`Dampak ${d.nilai} ${d.label}, probabilitas ${p.nilai} ${p.label}: ${LABEL_WARNA_GRADING[w]}`}
                   />
                   {LABEL_WARNA_GRADING[w]}

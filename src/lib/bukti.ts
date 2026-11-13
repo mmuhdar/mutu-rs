@@ -33,3 +33,7 @@ export function labelUkuran(bita: number) {
   if (bita < 1024 * 1024) return `${Math.max(1, Math.round(bita / 1024))} KB`;
   return `${(bita / 1024 / 1024).toLocaleString("id-ID", { maximumFractionDigits: 1 })} MB`;
 }
+
+/** Header Content-Disposition untuk berkas unggahan: nama UTF-8 menurut RFC 5987, yang juga mengodekan `'()*`. */
+export const contentDisposition = (cara: "inline" | "attachment", nama: string) =>
+  `${cara}; filename*=UTF-8''${encodeURIComponent(nama).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;

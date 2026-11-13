@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 
+import { contentDisposition } from "@/lib/bukti";
 import { responsPenolakan } from "@/lib/errors";
 import { ambilBerkasBukti } from "@/modules/pengukuran/service";
 import { getSessionUser } from "@/server/sesi";
@@ -14,7 +15,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/pengukuran/
     return new Response(new Uint8Array(bukti.isi), {
       headers: {
         "Content-Type": bukti.jenis,
-        "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(bukti.nama)}`,
+        "Content-Disposition": contentDisposition("inline", bukti.nama),
         "Content-Security-Policy": "sandbox",
         "Cache-Control": "private, no-store",
       },

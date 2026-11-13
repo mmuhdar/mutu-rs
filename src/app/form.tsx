@@ -51,6 +51,8 @@ export function Segmen(p: {
   disabled?: boolean;
   /** Label hanya untuk pembaca layar, bila judul baris di sampingnya sudah menamai pilihan ini. */
   labelTersembunyi?: boolean;
+  /** Dipanggil saat pilihan berubah (mis. pratinjau langsung); nilainya tetap dikirim lewat form. */
+  onChange?: (nilai: string) => void;
 }) {
   const id = `segmen-${p.nama}`;
   return (
@@ -62,6 +64,7 @@ export function Segmen(p: {
         aria-labelledby={id}
         name={p.nama}
         defaultValue={p.nilai ?? undefined}
+        onValueChange={p.onChange}
         required={p.wajib}
         disabled={p.disabled}
         className="flex flex-wrap gap-0.5 rounded-md border border-rule bg-paper-3 p-0.5"
@@ -71,7 +74,8 @@ export function Segmen(p: {
             key={o.nilai}
             className="flex min-h-9 flex-1 cursor-pointer items-center justify-center rounded-[4px] px-3 text-center text-sm font-medium whitespace-nowrap text-ink-3 transition-colors hover:text-ink has-focus-visible:ring-2 has-focus-visible:ring-ring has-disabled:cursor-not-allowed has-disabled:opacity-55 has-data-[state=checked]:bg-card has-data-[state=checked]:text-ink has-data-[state=checked]:shadow-[inset_0_-2px_0_var(--color-signal)]"
           >
-            <RadioGroupItem value={o.nilai} className="sr-only" />
+            {/* `absolute` mengalahkan `relative` bawaan item (twMerge), supaya radio tak terlihat tidak memakan lebar. */}
+            <RadioGroupItem value={o.nilai} className="sr-only absolute" />
             {o.label}
           </label>
         ))}

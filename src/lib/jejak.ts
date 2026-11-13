@@ -10,6 +10,7 @@ export const LABEL_ENTITAS_JEJAK = {
   laporan: "Laporan Triwulan",
   validasi: "Validasi Data",
   insiden: "Insiden",
+  risiko: "Register Risiko",
 } as const;
 export type EntitasJejak = keyof typeof LABEL_ENTITAS_JEJAK;
 export const ENTITAS_JEJAK = Object.keys(LABEL_ENTITAS_JEJAK) as EntitasJejak[];

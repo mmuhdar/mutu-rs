@@ -34,6 +34,7 @@ import { simpanRekomendasi, simpanTindakLanjutUmpanBalik, simpanUmpanBalik } fro
 import { daftarPengguna, tambahPengguna } from "@/modules/pengguna/service";
 import { ajukanPengukuran, kembalikanPengukuran, simpanPengukuran, verifikasiPengukuran } from "@/modules/pengukuran/service";
 import { buatPdsa, daftarPdsa, simpanAnalisis, simpanEfisiensiPdsa, simpanTahapPdsa, tambahTindakLanjut, ubahTindakLanjut } from "@/modules/perbaikan/service";
+import { simpanRisiko, tahunBerjalan, type IsianRisiko } from "@/modules/risiko/service";
 import { daftarValidasi, simpanValidasi, type IsianValidasi } from "@/modules/validasi/service";
 import { daftarUnit, tambahUnit } from "@/modules/unit/service";
 
@@ -527,6 +528,39 @@ async function contohRilis5(unitId: Record<KodeUnit, string>) {
   }
 }
 
+/** Register Risiko tahun berjalan: IGD (sudah dipantau), Farmasi, ICU, Humas. */
+async function contohRisiko(unitId: Record<KodeUnit, string>) {
+  const tahun = tahunBerjalan();
+  const kosong = { perlakuan: "", jadwal: "", probabilitasPemantauan: Number.NaN, dampakPemantauan: Number.NaN, efektivitas: "" };
+  const isi = async (kode: KodeUnit, x: Partial<IsianRisiko> & Pick<IsianRisiko, "uraian" | "kategori" | "probabilitas" | "dampak">) =>
+    simpanRisiko(await sesi(`kepala.${kode}`, SANDI), { unitId: unitId[kode], tahun, ...kosong, ...x });
+  await isi("igd", {
+    uraian: "Pasien jatuh saat dipindahkan dari brankar ke tempat tidur",
+    kategori: "operasional",
+    probabilitas: 3,
+    dampak: 4,
+    perlakuan: "Brankar dengan pengaman samping\nPemindahan oleh dua petugas\nEdukasi keluarga pasien",
+    jadwal: `${tahun}-03-01`,
+    probabilitasPemantauan: 2,
+    dampakPemantauan: 3,
+    efektivitas: "efektif",
+  });
+  await isi("igd", { uraian: "Tenaga triase kurang pada jam sibuk sore", kategori: "operasional", probabilitas: 4, dampak: 3, perlakuan: "Dokter triase sore" });
+  await isi("farmasi", {
+    uraian: "Obat high alert tertukar karena kemasan mirip (LASA)",
+    kategori: "operasional",
+    probabilitas: 2,
+    dampak: 5,
+    perlakuan: "Label LASA di rak\nDouble check sebelum penyerahan",
+    jadwal: `${tahun}-05-15`,
+    probabilitasPemantauan: 2,
+    dampakPemantauan: 5,
+    efektivitas: "tidakEfektif",
+  });
+  await isi("icu", { uraian: "Alat ventilator tidak dikalibrasi sesuai jadwal", kategori: "kepatuhan", probabilitas: 2, dampak: 4 });
+  await isi("humas", { uraian: "Keluhan pasien viral di media sosial", kategori: "reputasi", probabilitas: 3, dampak: 3, perlakuan: "SPO tanggapan keluhan 1×24 jam" });
+}
+
 async function main() {
   const admin = await sesi(config.adminAwal.username, config.adminAwal.sandi);
   if ((await daftarPengguna(admin)).some((p) => p.username === "komite")) {
@@ -759,10 +793,11 @@ async function main() {
 
   await insidenContoh(unitId);
   await contohRilis5(unitId);
+  await contohRisiko(unitId);
 
   console.log(
     `Selesai: ${Object.keys(UNIT).length} Unit, ${2 + 2 * Object.keys(UNIT).length} Pengguna, ${IMP.length} IMP, ` +
-      `${jumlah} Pengukuran (${BULAN[0]} s.d. ${akhir}), 5 Analisis, 5 PDSA, 9 Insiden. Sandi semua Pengguna dummy: ${SANDI}`,
+      `${jumlah} Pengukuran (${BULAN[0]} s.d. ${akhir}), 5 Analisis, 5 PDSA, 9 Insiden, 5 Risiko. Sandi semua Pengguna dummy: ${SANDI}`,
   );
 }
 

@@ -60,6 +60,14 @@ import {
   type TahapPdsa,
 } from "../lib/perbaikan";
 import { PERAN, type Peran } from "../lib/peran";
+import {
+  EFEKTIVITAS,
+  JENIS_DOKUMEN_RISIKO,
+  KATEGORI_RISIKO,
+  type Efektivitas,
+  type JenisDokumenRisiko,
+  type KategoriRisiko,
+} from "../lib/risiko";
 
 const id = () => uuid("id").primaryKey().defaultRandom();
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -653,5 +661,72 @@ export const validasiData = pgTable(
       sql`${t.penyebab} <@ array[${sql.raw(PENYEBAB_TIDAK_VALID.map((f) => `'${f}'`).join(", "))}]::text[]`,
     ),
     check("validasi_data_sampel_check", sql`${t.populasi} >= 1 and ${t.sampel} between 1 and ${t.populasi} and ${t.sesuai} between 0 and ${t.sampel}`),
+  ],
+);
+
+/**
+ * Risiko: satu baris Register Risiko satu Unit untuk satu tahun. Bobot, Nilai Risiko, Tingkat Risiko, dan Prioritas
+ * Risiko tidak disimpan; semuanya dihitung dari Probabilitas + Dampak (`nilaiRisiko`, `src/lib/risiko.ts`). Hasil
+ * Pemantauan diisi kemudian (keduanya atau tidak sama sekali); Efektivitas hanya setelah dipantau. Boleh dihapus untuk
+ * koreksi salah input (Dokumen Review ikut terhapus).
+ */
+export const risiko = pgTable(
+  "risiko",
+  {
+    id: id(),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => unit.id),
+    tahun: integer("tahun").notNull(),
+    uraian: text("uraian").notNull(),
+    kategori: varchar("kategori", { length: 16 }).$type<KategoriRisiko>().notNull(),
+    probabilitas: integer("probabilitas").notNull(),
+    dampak: integer("dampak").notNull(),
+    /** Satu langkah per baris. */
+    perlakuan: text("perlakuan").notNull().default(""),
+    jadwal: date("jadwal", { mode: "string" }),
+    probabilitasPemantauan: integer("probabilitas_pemantauan"),
+    dampakPemantauan: integer("dampak_pemantauan"),
+    efektivitas: varchar("efektivitas", { length: 16 }).$type<Efektivitas>(),
+    diubahOlehId: uuid("diubah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diubahPada: timestamp("diubah_pada", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("risiko_unit_tahun_idx").on(t.unitId, t.tahun),
+    check("risiko_tahun_check", sql`${t.tahun} between 2000 and 2100`),
+    check("risiko_kategori_check", salahSatu(t.kategori, KATEGORI_RISIKO)),
+    check("risiko_skala_check", sql`${t.probabilitas} between 1 and 5 and ${t.dampak} between 1 and 5`),
+    check(
+      "risiko_pemantauan_check",
+      sql`(${t.probabilitasPemantauan} is null and ${t.dampakPemantauan} is null and ${t.efektivitas} is null) or (${t.probabilitasPemantauan} between 1 and 5 and ${t.dampakPemantauan} between 1 and 5)`,
+    ),
+    check("risiko_efektivitas_check", salahSatu(t.efektivitas, EFEKTIVITAS)),
+  ],
+);
+
+/** Dokumen Review: PDF/DOC/DOCX hasil review satu Risiko, disimpan di database seperti Bukti Pengukuran. */
+export const dokumenRisiko = pgTable(
+  "dokumen_risiko",
+  {
+    id: id(),
+    risikoId: uuid("risiko_id")
+      .notNull()
+      .references(() => risiko.id, { onDelete: "cascade" }),
+    nama: varchar("nama", { length: 200 }).notNull(),
+    jenis: varchar("jenis", { length: 80 }).$type<JenisDokumenRisiko>().notNull(),
+    ukuran: integer("ukuran").notNull(),
+    isi: bytea("isi").notNull(),
+    diunggahOlehId: uuid("diunggah_oleh_id")
+      .notNull()
+      .references(() => pengguna.id),
+    diunggahPada: timestamp("diunggah_pada", { withTimezone: true }).notNull().default(sql`clock_timestamp()`),
+  },
+  (t) => [
+    index("dokumen_risiko_risiko_idx").on(t.risikoId),
+    check("dokumen_risiko_jenis_check", salahSatu(t.jenis, JENIS_DOKUMEN_RISIKO)),
+    check("dokumen_risiko_ukuran_check", sql`${t.ukuran} = octet_length(${t.isi}) and ${t.ukuran} between 1 and ${sql.raw(String(MAKS_UKURAN_BUKTI))}`),
   ],
 );

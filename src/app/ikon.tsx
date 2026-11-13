@@ -27,6 +27,7 @@ import {
   Menu,
   Moon,
   Plus,
+  TriangleAlert,
   Printer,
   RefreshCw,
   Search,
@@ -84,6 +85,7 @@ const BENTUK = {
   insiden: ShieldAlert,
   jejak: History,
   validasi: BadgeCheck,
+  risiko: TriangleAlert,
 } as const;
 
 export type NamaIkon = keyof typeof BENTUK;
