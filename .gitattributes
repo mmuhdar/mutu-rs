@@ -1,0 +1,2 @@
+# Skrip batch Windows harus CRLF: cmd.exe salah membaca label goto pada berkas LF.
+scripts/windows/*.cmd text eol=crlf
