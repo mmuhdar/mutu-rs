@@ -1,6 +1,6 @@
 # Laporan: Register Risiko
 
-Branch `risiko`, dibuat dari `rilis-5` karena membutuhkan Jejak Audit. Perubahan belum di-commit. Keputusan lengkap ada di `spec.md`.
+Branch `risiko`, dibuat dari `rilis-5` karena membutuhkan Jejak Audit; di-merge fast-forward ke `main` 2026-11-13 bersama Rilis 5. Keputusan lengkap ada di `spec.md`.
 
 ## Hasil
 
