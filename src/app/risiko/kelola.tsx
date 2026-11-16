@@ -8,9 +8,7 @@ import { labelUkuran, MAKS_UKURAN_BUKTI } from "@/lib/bukti";
 import { ACCEPT_DOKUMEN_RISIKO, MAKS_DOKUMEN_RISIKO } from "@/lib/risiko";
 
 import { Kolom, PesanError } from "../form";
-import { hapusDokumenRisikoAction, hapusRisikoAction, unggahDokumenRisikoAction } from "./actions";
-
-const KELAS_HAPUS = "text-danger-ink hover:border-danger-border hover:bg-danger-soft hover:text-danger-ink";
+import { hapusDokumenRisikoAction, unggahDokumenRisikoAction } from "./actions";
 
 /** Pilihan yang pasti ditolak diperiksa di browser supaya kiriman tidak melewati batas body server; aturannya tetap di service. */
 function periksaPilihan(berkas: FileList | null) {
@@ -59,28 +57,6 @@ export function TombolHapusDokumen({ dokumenId, nama }: { dokumenId: string; nam
         <PesanError pesan={state.error} />
       </div>
       <Button type="submit" variant="ghost" size="sm" disabled={pending} aria-label={`Hapus ${nama}`}>
-        Hapus
-      </Button>
-    </form>
-  );
-}
-
-/** Hapus Risiko (koreksi salah input), dengan konfirmasi browser. */
-export function TombolHapusRisiko(p: { id: string; unitId: string; tahun: number }) {
-  const [state, action, pending] = useActionState(hapusRisikoAction, {});
-  return (
-    <form
-      action={action}
-      onSubmit={(e) => {
-        if (!confirm("Hapus Risiko ini beserta Dokumen Review-nya? Hapus hanya untuk koreksi salah input.")) e.preventDefault();
-      }}
-      className="grid w-full gap-2 sm:w-auto"
-    >
-      <input type="hidden" name="id" value={p.id} />
-      <input type="hidden" name="unitId" value={p.unitId} />
-      <input type="hidden" name="tahun" value={p.tahun} />
-      <PesanError pesan={state.error} />
-      <Button type="submit" variant="outline" disabled={pending} className={`w-full sm:w-auto ${KELAS_HAPUS}`}>
         Hapus
       </Button>
     </form>

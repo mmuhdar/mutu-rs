@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { labelTanggal } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
 import { LABEL_JENIS_INSIDEN, LABEL_STATUS_INSIDEN, perluEreport, STATUS_BERTENGGAT, STATUS_INSIDEN_TERBUKA } from "@/lib/insiden";
-import { daftarInsiden, type SaringanStatusInsiden } from "@/modules/insiden/service";
+import { bolehHapusData } from "@/lib/peran";
+import { bolehBacaInsiden, daftarInsiden, type SaringanStatusInsiden } from "@/modules/insiden/service";
 import { requireUser } from "@/server/sesi";
 
 import { Ikon } from "../ikon";
 import { formatWaktu, Pesan, pesanAtau } from "../pengukuran/status";
 import { Halaman, Kartu, KELAS_SEGMEN_TAUTAN, KepalaHalaman, Pil, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow, TautanIkon } from "../ui";
+import { TombolHapus } from "../tombol-hapus";
+import { hapusInsidenAction } from "./actions";
 import { LabelStatusInsiden, LabelWarna } from "./label";
 
 export const metadata: Metadata = { title: "Insiden" };
@@ -32,6 +35,9 @@ export default async function HalamanInsiden({ searchParams }: PageProps<"/insid
   const terbuka = await daftarInsiden(pengguna);
   const daftar = status === "terbuka" ? terbuka : await pesanAtau(daftarInsiden(pengguna, { status }));
   const lewat = terbuka.filter((i) => i.lewatTenggat).length;
+  // Admin Sistem melihat semua baris untuk menghapus, tetapi detail hanya yang boleh dibacanya.
+  const hapus = bolehHapusData(pengguna);
+  const baca = (i: (typeof terbuka)[number]) => bolehBacaInsiden(pengguna, { unitId: i.unit.id, dilaporkanOlehId: i.dilaporkanOlehId });
   const judul =
     status === "terbuka" ? "Insiden terbuka" : status === "semua" ? "Semua Insiden" : `Insiden ${LABEL_STATUS_INSIDEN[status] ?? ""}`.trim();
 
@@ -108,9 +114,13 @@ export default async function HalamanInsiden({ searchParams }: PageProps<"/insid
                 {daftar.map((i) => (
                   <TableRow key={i.id}>
                     <TableCell className="py-3.5 whitespace-normal">
-                      <Link href={`/insiden/${i.id}`} className="text-primary-ink text-[15px] font-medium">
-                        {i.judul}
-                      </Link>
+                      {baca(i) ? (
+                        <Link href={`/insiden/${i.id}`} className="text-primary-ink text-[15px] font-medium">
+                          {i.judul}
+                        </Link>
+                      ) : (
+                        <span className="text-[15px] font-medium">{i.judul}</span>
+                      )}
                       <span className="terukur mt-0.5 block text-[12px] text-cool">{formatWaktu(i.waktuInsiden)}</span>
                     </TableCell>
                     <TableCell className="text-[14px] whitespace-nowrap">
@@ -140,7 +150,18 @@ export default async function HalamanInsiden({ searchParams }: PageProps<"/insid
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <TautanIkon href={`/insiden/${i.id}`} ikon="lihat" label={`Buka Insiden ${i.judul}`} />
+                      <span className="inline-flex items-start justify-end gap-2">
+                        {baca(i) && <TautanIkon href={`/insiden/${i.id}`} ikon="lihat" label={`Buka Insiden ${i.judul}`} />}
+                        {hapus && (
+                          <TombolHapus
+                            kecil
+                            action={hapusInsidenAction}
+                            data={{ id: i.id }}
+                            label={`Hapus Insiden ${i.judul}`}
+                            konfirmasi={`Hapus Insiden "${i.judul}" beserta Riwayat Status-nya? Hapus hanya untuk laporan yang salah dimasukkan, misalnya ganda atau uji coba.`}
+                          />
+                        )}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}

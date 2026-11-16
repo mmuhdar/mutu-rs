@@ -16,6 +16,7 @@ import {
   TAHAP_ISIAN_PDSA,
   type TahapIsianPdsa,
 } from "@/lib/perbaikan";
+import { bolehHapusData } from "@/lib/peran";
 import { ambilPdsa } from "@/modules/perbaikan/service";
 import { requireUser } from "@/server/sesi";
 
@@ -23,6 +24,8 @@ import { Ikon } from "../../ikon";
 import { keteranganRs, keteranganUnit, Tren } from "../../monitoring/grafik";
 import { formatWaktu, Pesan, pesanAtau } from "../../pengukuran/status";
 import { Halaman, Kartu, KepalaHalaman, Tabel, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui";
+import { TombolHapus } from "../../tombol-hapus";
+import { hapusPdsaAction } from "../actions";
 import { FormEfisiensi, FormTahap } from "../form-pdsa";
 import { keadaan, LabelTahap, WARNA_KEADAAN } from "../tahap";
 
@@ -113,6 +116,30 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
     ],
   };
 
+  // Siklus yang sudah punya siklus berikutnya ditolak service; tombol hapusnya disembunyikan.
+  const hapus = bolehHapusData(pengguna) && !p.berikutnya && (
+    <TombolHapus
+      action={hapusPdsaAction}
+      data={{ id: p.id }}
+      konfirmasi="Hapus PDSA ini beserta semua isian tahap dan Analisis Efisiensi-nya? Hapus hanya untuk koreksi salah input."
+    />
+  );
+  const siklus = p.berikutnya ? (
+    <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+      <Link href={`/pdsa/${p.berikutnya.id}`}>Siklus ke-{p.berikutnya.siklus}</Link>
+    </Button>
+  ) : (
+    p.tahap === "selesai" &&
+    p.bolehTulis && (
+      <Button asChild size="lg" className="w-full sm:w-auto">
+        <Link href={`/pdsa/baru?sebelumnya=${p.id}`}>
+          <Ikon nama="tambah" className="size-[18px]" />
+          Mulai siklus berikutnya
+        </Link>
+      </Button>
+    )
+  );
+
   return (
     <Halaman>
       <KepalaHalaman
@@ -137,20 +164,11 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
           </>
         }
         aksi={
-          p.berikutnya ? (
-            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-              <Link href={`/pdsa/${p.berikutnya.id}`}>Siklus ke-{p.berikutnya.siklus}</Link>
-            </Button>
-          ) : (
-            p.tahap === "selesai" &&
-            p.bolehTulis && (
-              <Button asChild size="lg" className="w-full sm:w-auto">
-                <Link href={`/pdsa/baru?sebelumnya=${p.id}`}>
-                  <Ikon nama="tambah" className="size-[18px]" />
-                  Mulai siklus berikutnya
-                </Link>
-              </Button>
-            )
+          (hapus || siklus) && (
+            <>
+              {hapus}
+              {siklus}
+            </>
           )
         }
       />

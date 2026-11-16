@@ -17,6 +17,7 @@ import {
   catatEreport,
   daftarInsiden,
   gradingInsiden,
+  hapusInsiden,
   laporkanInsiden,
   rekapInsiden,
   ringkasanInsiden,
@@ -28,6 +29,7 @@ import {
   type IsianInvestigasi,
   type IsianLaporan,
 } from "@/modules/insiden/service";
+import { daftarJejak } from "@/modules/jejak/service";
 import { laporanTriwulan } from "@/modules/laporan/service";
 import { aturAktifUnit } from "@/modules/unit/service";
 
@@ -438,5 +440,22 @@ describe("rekap Insiden Triwulan", () => {
     assert.equal((await rekapInsiden(direktur, "2013-1", april)).jumlah, 3);
     assert.equal((await laporanTriwulan(admin, "2013-1", april)).insiden, null);
     assert.equal((await laporanTriwulan(komite, "2013-1", april)).insiden?.jumlah, 3);
+  });
+});
+
+describe("menghapus Insiden", () => {
+  it("Admin Sistem melihat baris daftar tanpa membaca detail, lalu menghapus beserta Riwayat Status; peran lain ditolak", async () => {
+    const id = await lapor({ judul: "Laporan ganda" });
+    await gradingInsiden(kepalaA, id, { dampak: 1, probabilitas: 1 });
+    assert.equal((await daftarInsiden(admin, { status: "semua" }, SEKARANG)).some((i) => i.id === id), true);
+    await assert.rejects(ambilInsiden(admin, id, SEKARANG), ditolak(403));
+    for (const aktor of [petugasA, kepalaA, komite, direktur]) await assert.rejects(hapusInsiden(aktor, id), ditolak(403));
+
+    await hapusInsiden(admin, id);
+    await assert.rejects(ambilInsiden(komite, id, SEKARANG), ditolak(404));
+    await assert.rejects(hapusInsiden(admin, id), ditolak(404));
+    const jejak = (await daftarJejak(komite, { entitas: "insiden" })).find((j) => j.entitasId === id && j.ringkasan.startsWith("Menghapus"));
+    // Tanpa isi laporan.
+    assert.equal(jejak?.ringkasan, "Menghapus Insiden (KNC, Investigasi Sederhana) yang dilaporkan 15 Jun 2026");
   });
 });

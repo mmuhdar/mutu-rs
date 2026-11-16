@@ -8,6 +8,7 @@ import { bilanganBulat, ditolak, teks, type StateForm } from "@/lib/form";
 import {
   catatEreport,
   gradingInsiden,
+  hapusInsiden,
   laporkanInsiden,
   selesaikanRca,
   simpanInvestigasi,
@@ -120,4 +121,12 @@ export async function bukanInsidenAction(_prev: StateForm, formData: FormData): 
 
 export async function ereportAction(_prev: StateForm, formData: FormData): Promise<StateForm> {
   return aksi(formData, catatEreport(await getSessionUser(), teks(formData, "id"), teks(formData, "tanggal")));
+}
+
+/** Menghapus Insiden yang salah dimasukkan (Admin Sistem); daftar dimuat ulang. */
+export async function hapusInsidenAction(_prev: StateForm, formData: FormData): Promise<StateForm> {
+  const hasil = await hasilAtauError(hapusInsiden(await getSessionUser(), teks(formData, "id")));
+  if ("error" in hasil) return { error: hasil.error };
+  revalidatePath("/", "layout");
+  return {};
 }

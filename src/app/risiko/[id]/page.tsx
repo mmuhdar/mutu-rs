@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { labelUkuran } from "@/lib/bukti";
+import { bolehHapusData } from "@/lib/peran";
 import { LABEL_EFEKTIVITAS, LABEL_JENIS_DOKUMEN_RISIKO, LABEL_KATEGORI_RISIKO } from "@/lib/risiko";
 import { ambilRisiko } from "@/modules/risiko/service";
 import { requireUser } from "@/server/sesi";
@@ -10,7 +11,9 @@ import { requireUser } from "@/server/sesi";
 import { Ikon } from "../../ikon";
 import { formatWaktu, Pesan, pesanAtau } from "../../pengukuran/status";
 import { Halaman, Kartu, KepalaHalaman } from "../../ui";
-import { FormUnggahDokumen, TombolHapusDokumen, TombolHapusRisiko } from "../kelola";
+import { TombolHapus } from "../../tombol-hapus";
+import { hapusRisikoAction } from "../actions";
+import { FormUnggahDokumen, TombolHapusDokumen } from "../kelola";
 import { LabelTurun, Penilaian } from "../label";
 
 export const metadata: Metadata = { title: "Detail Risiko" };
@@ -24,6 +27,7 @@ export default async function HalamanDetailRisiko({ params }: PageProps<"/risiko
   // Versi data untuk `key` form hapus: setelah satu form berhasil, pesan penolakan form lain hilang. Form unggah
   // sengaja tanpa key supaya penolakan sebagian berkas tetap tampil walau berkas lain masuk daftar.
   const versi = JSON.stringify([r.diubahPada, r.dokumen.map((d) => d.id)]);
+  const hapus = bolehHapusData(pengguna);
   const baris: [string, React.ReactNode][] = [
     ["Kategori Risiko", LABEL_KATEGORI_RISIKO[r.kategori]],
     ["Penilaian Awal", <Penilaian key="a" n={r.awal} />],
@@ -58,15 +62,24 @@ export default async function HalamanDetailRisiko({ params }: PageProps<"/risiko
           </>
         }
         aksi={
-          r.bolehTulis && (
+          (hapus || r.bolehTulis) && (
             <>
-              <TombolHapusRisiko key={versi} id={r.id} unitId={r.unit.id} tahun={r.tahun} />
-              <Button asChild size="lg" className="w-full sm:w-auto">
-                <Link href={`/risiko/${r.id}/ubah`}>
-                  <Ikon nama="isi" className="size-[18px]" />
-                  Ubah
-                </Link>
-              </Button>
+              {hapus && (
+                <TombolHapus
+                  key={versi}
+                  action={hapusRisikoAction}
+                  data={{ id: r.id, unitId: r.unit.id, tahun: String(r.tahun) }}
+                  konfirmasi="Hapus Risiko ini beserta Dokumen Review-nya? Hapus hanya untuk koreksi salah input."
+                />
+              )}
+              {r.bolehTulis && (
+                <Button asChild size="lg" className="w-full sm:w-auto">
+                  <Link href={`/risiko/${r.id}/ubah`}>
+                    <Ikon nama="isi" className="size-[18px]" />
+                    Ubah
+                  </Link>
+                </Button>
+              )}
             </>
           )
         }

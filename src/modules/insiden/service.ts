@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 
 import { db } from "@/db";
 import { insiden, pengguna, riwayatStatusInsiden, unit } from "@/db/schema";
-import { bulanTriwulan, dariWaktuSetempat, geserBulan, hariIni, tambahHari, tanggalValid, wajibTriwulanSelesai } from "@/lib/bulan";
+import { bulanTriwulan, dariWaktuSetempat, geserBulan, hariIni, labelTanggal, tambahHari, tanggalValid, wajibTriwulanSelesai } from "@/lib/bulan";
 import { ServiceError } from "@/lib/errors";
 import { salahSatuDari, teksOpsional, wajibTeks } from "@/lib/form";
 import {
@@ -38,7 +38,7 @@ import {
   type StatusInsiden,
   type WarnaGrading,
 } from "@/lib/insiden";
-import type { Peran } from "@/lib/peran";
+import { bolehHapusData, PENGHAPUS_DATA, type Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
 import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
 import { catatJejak } from "@/modules/jejak/catat";
@@ -428,6 +428,25 @@ export async function catatEreport(aktor: Pengguna | null, id: string, tanggal: 
   });
 }
 
+/**
+ * Menghapus laporan Insiden yang salah dimasukkan (mis. ganda atau uji coba) beserta Riwayat Status-nya. Hanya Admin
+ * Sistem; Jejak Audit tanpa isi laporan.
+ */
+export async function hapusInsiden(aktor: Pengguna | null, id: string) {
+  wajibPeran(aktor, PENGHAPUS_DATA, "Insiden hanya bisa dihapus Admin Sistem.");
+  await ubahTerkunci(id, async (tx, i) => {
+    await tx.delete(riwayatStatusInsiden).where(eq(riwayatStatusInsiden.insidenId, i.id));
+    await tx.delete(insiden).where(eq(insiden.id, i.id));
+    await catatJejak(
+      tx,
+      aktor,
+      "insiden",
+      i.id,
+      `Menghapus Insiden (${LABEL_JENIS_INSIDEN[i.jenis]}, ${LABEL_STATUS_INSIDEN[i.status]}) yang dilaporkan ${labelTanggal(hariIni(i.dilaporkanPada))}`,
+    );
+  });
+}
+
 const unitPenyebab = alias(unit, "unit_penyebab");
 
 /** Kolom daftar Insiden beserta Unit tempat insiden. */
@@ -470,7 +489,11 @@ const denganTurunan =
 /** Saringan status daftar Insiden: satu status, "terbuka" (bawaan), atau "semua". */
 export type SaringanStatusInsiden = StatusInsiden | "terbuka" | "semua";
 
-/** Daftar Insiden yang boleh dibaca aktor, disaring status (bawaan terbuka). Yang lewat tenggat di atas, lalu yang terbaru. */
+/**
+ * Daftar Insiden yang boleh dibaca aktor, disaring status (bawaan terbuka). Yang lewat tenggat di atas, lalu yang
+ * terbaru. Admin Sistem melihat semua baris daftar (tanpa isi laporan) supaya bisa menghapus yang salah dimasukkan;
+ * detailnya tetap mengikuti `bolehBacaInsiden`.
+ */
 export async function daftarInsiden(aktor: Pengguna | null, saringan: { status?: SaringanStatusInsiden } = {}, sekarang = new Date()) {
   wajibPengguna(aktor);
   const status = saringan.status ?? "terbuka";
@@ -484,7 +507,7 @@ export async function daftarInsiden(aktor: Pengguna | null, saringan: { status?:
     .where(
       and(
         status === "semua" ? undefined : inArray(insiden.status, status === "terbuka" ? [...STATUS_INSIDEN_TERBUKA] : [status]),
-        saringBaca(aktor),
+        bolehHapusData(aktor) ? undefined : saringBaca(aktor),
       ),
     )
     .orderBy(desc(insiden.dilaporkanPada));

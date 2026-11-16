@@ -6,7 +6,7 @@ import { bulanBerjalan, labelTanggal, tanggalValid } from "@/lib/bulan";
 import { labelUkuran, MAKS_UKURAN_BUKTI, namaBerkas } from "@/lib/bukti";
 import { ServiceError } from "@/lib/errors";
 import { salahSatuDari, teksOpsional, wajibTeks } from "@/lib/form";
-import { PERAN_BER_UNIT, type Peran } from "@/lib/peran";
+import { PENGHAPUS_DATA, PERAN_BER_UNIT, type Peran } from "@/lib/peran";
 import {
   daftarPerlakuan,
   EFEKTIVITAS,
@@ -20,7 +20,7 @@ import {
   type Efektivitas,
 } from "@/lib/risiko";
 import { apakahUuid } from "@/lib/uuid";
-import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
+import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
 import { catatJejak, kutip } from "@/modules/jejak/catat";
 import { bolehBacaLingkup, saringLingkup } from "@/modules/perbaikan/service";
 
@@ -165,9 +165,9 @@ async function risikoUntukDitulis(tx: Parameters<Parameters<typeof db.transactio
   return { ...r, label: `Risiko ${kutip(r.uraian)} Unit ${r.namaUnit} ${r.tahun}` };
 }
 
-/** Menghapus Risiko yang salah dimasukkan, beserta Dokumen Review-nya. */
+/** Menghapus Risiko yang salah dimasukkan, beserta Dokumen Review-nya. Hanya Admin Sistem. */
 export async function hapusRisiko(aktor: Pengguna | null, id: string) {
-  wajibPengguna(aktor);
+  wajibPeran(aktor, PENGHAPUS_DATA, "Risiko hanya bisa dihapus Admin Sistem.");
   await db.transaction(async (tx) => {
     const r = await risikoUntukDitulis(tx, aktor, id);
     await tx.delete(risiko).where(eq(risiko.id, id));

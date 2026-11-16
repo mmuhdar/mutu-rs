@@ -160,7 +160,7 @@ describe("Register Risiko", () => {
     );
   });
 
-  it("Dokumen Review: PDF, DOC, DOCX menurut isinya, paling banyak 5; dihapus bersama Risiko", async () => {
+  it("Dokumen Review: PDF, DOC, DOCX menurut isinya, paling banyak 5; dihapus bersama Risiko oleh Admin Sistem", async () => {
     assert.equal(jenisDokumenRisiko(PDF), "application/pdf");
     assert.equal(jenisDokumenRisiko(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0])), "application/msword");
     assert.equal(jenisDokumenRisiko(DOCX), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
@@ -184,7 +184,8 @@ describe("Register Risiko", () => {
 
     await hapusDokumenRisiko(petugas, dokumenId);
     assert.equal((await ambilRisiko(petugas, id)).dokumen.length, 4);
-    await hapusRisiko(petugas, id);
+    for (const aktor of [petugas, await komiteMutu()]) await assert.rejects(hapusRisiko(aktor, id), tolak(403));
+    await hapusRisiko(await adminSistem(), id);
     await assert.rejects(ambilRisiko(petugas, id), tolak(404));
     const jejak = (await daftarJejak(await komiteMutu(), { entitas: "risiko" })).find((j) => j.entitasId === id);
     assert.match(jejak!.ringkasan, /^Menghapus Risiko "Pasien jatuh dari tempat tidur"/);

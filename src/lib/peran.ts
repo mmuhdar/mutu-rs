@@ -12,3 +12,7 @@ export const LABEL_PERAN: Record<Peran, string> = {
 
 /** Peran yang bekerja untuk Unit tertentu (satu atau lebih Unit aktif); peran lain tidak punya Unit. */
 export const PERAN_BER_UNIT: readonly Peran[] = ["petugasInputData", "kepalaUnit"];
+
+/** Menghapus data yang salah dimasukkan (Insiden, Risiko, PDSA): hanya Admin Sistem. `bolehHapusData` juga untuk tampilan. */
+export const PENGHAPUS_DATA: readonly Peran[] = ["adminSistem"];
+export const bolehHapusData = (aktor: { peran: Peran }) => PENGHAPUS_DATA.includes(aktor.peran);

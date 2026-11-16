@@ -26,9 +26,9 @@ import {
   type StatusTindakLanjut,
   type TahapIsianPdsa,
 } from "@/lib/perbaikan";
-import type { Peran } from "@/lib/peran";
+import { PENGHAPUS_DATA, type Peran } from "@/lib/peran";
 import { apakahUuid } from "@/lib/uuid";
-import { wajibPengguna, type Pengguna } from "@/modules/auth/service";
+import { wajibPengguna, wajibPeran, type Pengguna } from "@/modules/auth/service";
 import { melihatCapaianRs, trenCapaian, type TrenCapaian } from "@/modules/capaian/service";
 import { bersinggungan } from "@/modules/indikator/service";
 import { catatJejak, kutip } from "@/modules/jejak/catat";
@@ -580,6 +580,25 @@ export async function simpanTahapPdsa<T extends TahapIsianPdsa>(
       })
       .where(eq(pdsa.id, p.id));
     await catatJejak(tx, aktor, "perbaikan", p.id, `Menyimpan ${LABEL_TAHAP_PDSA[tahap]}${lanjut ? " dan melanjutkan" : ""} PDSA ${kutip(p.judul)}`);
+  });
+}
+
+/**
+ * Menghapus PDSA yang salah dimasukkan beserta Analisis Efisiensi-nya. Hanya Admin Sistem. PDSA yang sudah punya siklus
+ * berikutnya ditolak 409 supaya urutan siklus tidak putus; siklus berikutnya dihapus lebih dulu.
+ */
+export async function hapusPdsa(aktor: Pengguna | null, id: string) {
+  wajibPeran(aktor, PENGHAPUS_DATA, "PDSA hanya bisa dihapus Admin Sistem.");
+  await db.transaction(async (tx) => {
+    const [p] = apakahUuid(id)
+      ? await tx.select({ id: pdsa.id, judul: pdsa.judul, siklus: pdsa.siklus }).from(pdsa).where(eq(pdsa.id, id)).for("update")
+      : [];
+    if (!p) throw new ServiceError(404, "PDSA tidak ditemukan.");
+    const [berikutnya] = await tx.select({ siklus: pdsa.siklus }).from(pdsa).where(eq(pdsa.sebelumnyaId, p.id));
+    if (berikutnya) throw new ServiceError(409, `PDSA ini sudah punya siklus ke-${berikutnya.siklus}; hapus siklus itu lebih dulu.`);
+    await tx.delete(efisiensiPdsa).where(eq(efisiensiPdsa.pdsaId, p.id));
+    await tx.delete(pdsa).where(eq(pdsa.id, p.id));
+    await catatJejak(tx, aktor, "perbaikan", p.id, `Menghapus PDSA ${kutip(p.judul)} siklus ke-${p.siklus}`);
   });
 }
 

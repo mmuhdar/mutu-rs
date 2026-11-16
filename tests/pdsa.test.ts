@@ -3,6 +3,7 @@ import { before, describe, it } from "node:test";
 
 import { ServiceError } from "@/lib/errors";
 import { ringkasEfisiensi, type KeputusanPdsa } from "@/lib/perbaikan";
+import { daftarJejak } from "@/modules/jejak/service";
 import type { Pengguna } from "@/modules/auth/service";
 import { aturAktifIndikator, tambahUnitPelapor } from "@/modules/indikator/service";
 import {
@@ -10,6 +11,7 @@ import {
   ambilPdsa,
   buatPdsa,
   daftarPdsa,
+  hapusPdsa,
   simpanAnalisis,
   simpanEfisiensiPdsa,
   simpanTahapPdsa,
@@ -300,5 +302,27 @@ describe("Analisis Efisiensi PDSA (PMKP 4 g)", () => {
       ditolak(403, /Lingkup Unit/),
     );
     await simpanEfisiensiPdsa(await adminSistem(), id, { baris: [baris("tenaga", 1, 1)], kesimpulan });
+  });
+});
+
+describe("menghapus PDSA", () => {
+  it("hanya Admin Sistem, beserta Analisis Efisiensi; siklus yang punya siklus berikutnya dihapus belakangan", async () => {
+    const { indikatorId, unit } = await siapkan();
+    const kepala = await sebagai("kepalaUnit", [unit.id]);
+    const { id } = await buatPdsa(kepala, { indikatorId, unitId: unit.id, ...plan({ judul: "Salah input" }) });
+    await simpanEfisiensiPdsa(kepala, id, { baris: [{ jenis: "tenaga", sebelum: 10, sesudah: 5, keterangan: "" }], kesimpulan: "Per bulan." });
+    await selesaikan(kepala, id);
+    const kedua = await buatPdsa(kepala, { indikatorId, unitId: unit.id, sebelumnyaId: id, ...plan() });
+    for (const aktor of [kepala, komite]) await assert.rejects(hapusPdsa(aktor, id), { status: 403 });
+
+    const admin = await adminSistem();
+    await assert.rejects(hapusPdsa(admin, id), { status: 409, message: /siklus ke-2/ });
+    await hapusPdsa(admin, kedua.id);
+    await hapusPdsa(admin, id);
+    await assert.rejects(ambilPdsa(komite, id), { status: 404 });
+    await assert.rejects(hapusPdsa(admin, id), { status: 404 });
+    await assert.rejects(hapusPdsa(admin, "bukan-uuid"), { status: 404 });
+    const jejak = (await daftarJejak(komite, { entitas: "perbaikan" })).find((j) => j.entitasId === id && j.ringkasan.startsWith("Menghapus"));
+    assert.equal(jejak?.ringkasan, 'Menghapus PDSA "Salah input" siklus ke-1');
   });
 });

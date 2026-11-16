@@ -124,7 +124,7 @@ Di banyak rumah sakit, data mutu masih hidup di lembar Excel dan kertas per ruan
 | Kepala Unit | Memverifikasi Pengukuran; menulis Analisis, Tindak Lanjut, dan PDSA untuk Unit-nya; grading dan Investigasi Sederhana Insiden Unit-nya. |
 | Komite Mutu | Mengelola Indikator, Target, dan Unit Pelapor; memantau seluruh RS; menyusun Laporan Triwulan dan Rekap SIMAR; bertindak sebagai Tim Keselamatan Pasien (tinjauan, RCA). |
 | Direktur | Membaca Capaian, laporan, dan insiden seluruh RS; mencatat umpan balik Dewan Pengawas. |
-| Admin Sistem | Mengelola Pengguna dan Unit; membaca Jejak Audit. |
+| Admin Sistem | Mengelola Pengguna dan Unit; membaca Jejak Audit; menghapus Insiden, Risiko, dan PDSA yang salah dimasukkan. |
 
 ## Rujukan regulasi
 

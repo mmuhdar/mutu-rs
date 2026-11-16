@@ -481,8 +481,8 @@ const tingkat = (kolom: AnyPgColumn) => sql`${kolom} between 1 and 5`;
 
 /**
  * Insiden Keselamatan Pasien: satu laporan internal (isian Formulir 1 PMK 11/2017) beserta grading, investigasi, dan
- * statusnya. Data pasien wajib kecuali untuk KPC. Tidak pernah dihapus; laporan yang ternyata bukan insiden berstatus
- * Bukan Insiden. Aturan alur, hak akses, dan isian diperiksa di service.
+ * statusnya. Data pasien wajib kecuali untuk KPC. Laporan yang ternyata bukan insiden berstatus Bukan Insiden; hanya
+ * laporan yang salah dimasukkan (ganda, uji coba) yang dihapus Admin Sistem. Aturan alur, hak akses, dan isian di service.
  */
 export const insiden = pgTable(
   "insiden",

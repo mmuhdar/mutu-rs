@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { hasilAtauError } from "@/lib/errors";
 import { bilanganBulat, ditolak, teks, type StateForm } from "@/lib/form";
 import { JENIS_SUMBER_DAYA, type KeputusanPdsa, type TahapIsianPdsa } from "@/lib/perbaikan";
-import { buatPdsa, simpanEfisiensiPdsa, simpanTahapPdsa, type IsianTahapPdsa } from "@/modules/perbaikan/service";
+import { buatPdsa, hapusPdsa, simpanEfisiensiPdsa, simpanTahapPdsa, type IsianTahapPdsa } from "@/modules/perbaikan/service";
 import { getSessionUser } from "@/server/sesi";
 
 const isianPlan = (formData: FormData) => ({
@@ -71,4 +71,12 @@ export async function simpanEfisiensiAction(_prev: StateForm, formData: FormData
   if ("error" in hasil) return ditolak(formData, hasil.error);
   revalidatePath("/", "layout");
   return {};
+}
+
+/** Menghapus PDSA yang salah dimasukkan (Admin Sistem); sukses kembali ke daftar PDSA. */
+export async function hapusPdsaAction(_prev: StateForm, formData: FormData): Promise<StateForm> {
+  const hasil = await hasilAtauError(hapusPdsa(await getSessionUser(), teks(formData, "id")));
+  if ("error" in hasil) return { error: hasil.error };
+  revalidatePath("/", "layout");
+  redirect("/pdsa");
 }
