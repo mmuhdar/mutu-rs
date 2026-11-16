@@ -46,13 +46,26 @@ export default async function HalamanRisiko({ searchParams }: PageProps<"/risiko
         judul="Register Risiko"
         sub="Risiko setiap Unit per tahun: Penilaian Awal, Perlakuan, Hasil Pemantauan, dan simpulannya."
         aksi={
-          bolehTambahRisiko(pengguna) && (
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href={baru}>
-                <Ikon nama="tambah" className="size-[18px]" />
-                Tambah Risiko
-              </Link>
-            </Button>
+          (daftar.length > 0 || bolehTambahRisiko(pengguna)) && (
+            <>
+              {daftar.length > 0 && (
+                // Tautan biasa, bukan `Link`: tujuannya route handler yang mengunduh berkas.
+                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+                  <a href={`/risiko/unduh?${new URLSearchParams({ tahun: String(tahun), ...(unitId && { unit: unitId }) })}`} download>
+                    <Ikon nama="unduh" className="size-[18px]" />
+                    Unduh Excel
+                  </a>
+                </Button>
+              )}
+              {bolehTambahRisiko(pengguna) && (
+                <Button asChild size="lg" className="w-full sm:w-auto">
+                  <Link href={baru}>
+                    <Ikon nama="tambah" className="size-[18px]" />
+                    Tambah Risiko
+                  </Link>
+                </Button>
+              )}
+            </>
           )
         }
       >

@@ -52,6 +52,12 @@ export default async function HalamanPdsa({ searchParams }: PageProps<"/pdsa">) 
                 </Link>
               </Button>
             </nav>
+            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+              <Link href="/pdsa/pedoman">
+                <Ikon nama="dokumen" className="size-[18px]" />
+                Pedoman pengisian
+              </Link>
+            </Button>
             {bolehMulaiPdsa(pengguna) && (
               <Button asChild size="lg" className="w-full sm:w-auto">
                 <Link href="/pdsa/baru">

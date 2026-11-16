@@ -75,6 +75,9 @@ export const nilaiRisikoAtauNull = (probabilitas: number | null, dampak: number 
 export const tingkatTurun = (awal: PenilaianRisiko, pemantauan: PenilaianRisiko | null) =>
   pemantauan ? pemantauan.prioritas > awal.prioritas : null;
 
+/** Simpulan Tingkat Risiko sebagai teks (tampilan dan unduhan). */
+export const labelSimpulan = (turun: boolean | null) => (turun === null ? "belum dipantau" : turun ? "Ada penurunan" : "Tidak ada penurunan");
+
 /** Bobot untuk tampilan: "1,83". */
 export const formatBobot = (bobot: number) => bobot.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 

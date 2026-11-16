@@ -161,6 +161,16 @@ export default async function HalamanDetailPdsa({ params, searchParams }: PagePr
           <>
             Terakhir diubah oleh <span className="text-signal">{p.diubahOleh}</span>,{" "}
             <span className="terukur text-[14px] text-cool">{formatWaktu(p.diubahPada)}</span>.
+            {p.bolehTulis && p.tahap !== "selesai" && (
+              <>
+                {" "}
+                Bingung mengisi? Baca{" "}
+                <Link href="/pdsa/pedoman" className="text-primary-ink">
+                  Pedoman pengisian PDSA
+                </Link>
+                .
+              </>
+            )}
           </>
         }
         aksi={

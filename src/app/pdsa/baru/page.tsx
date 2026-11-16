@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { bulanBerjalan, geserBulan } from "@/lib/bulan";
 import { teksAlamat } from "@/lib/form";
@@ -44,10 +45,20 @@ export default async function HalamanPdsaBaru({ searchParams }: PageProps<"/pdsa
           sebelumnya ? (
             <>
               <span className="terukur text-[14px] text-ink-2">{sebelumnya.indikator.kode}</span>, {labelLingkup(sebelumnya.unit)}. Isi Plan
-              siklus ini berdasarkan Act siklus sebelumnya.
+              siklus ini berdasarkan Act siklus sebelumnya (lihat{" "}
+              <Link href="/pdsa/pedoman" className="text-primary-ink">
+                Pedoman pengisian PDSA
+              </Link>
+              ).
             </>
           ) : (
-            "Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do."
+            <>
+              Isi Plan uji coba perbaikan. Setelah disimpan, PDSA langsung berada di tahap Do. Penjelasan dan contoh setiap isian ada di{" "}
+              <Link href="/pdsa/pedoman" className="text-primary-ink">
+                Pedoman pengisian PDSA
+              </Link>
+              .
+            </>
           )
         }
       />

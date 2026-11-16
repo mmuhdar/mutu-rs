@@ -203,14 +203,23 @@ export default async function HalamanDetailInsiden({ params }: PageProps<"/insid
           </>
         }
         aksi={
-          i.boleh.ubah && (
+          <>
+            {/* Tautan biasa, bukan `Link`: tujuannya route handler yang mengunduh berkas. */}
             <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-              <Link href={`/insiden/${i.id}/ubah`}>
-                <Ikon nama="isi" className="size-[18px]" />
-                Ubah laporan
-              </Link>
+              <a href={`/insiden/${i.id}/unduh`} download>
+                <Ikon nama="unduh" className="size-[18px]" />
+                Unduh PDF
+              </a>
             </Button>
-          )
+            {i.boleh.ubah && (
+              <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
+                <Link href={`/insiden/${i.id}/ubah`}>
+                  <Ikon nama="isi" className="size-[18px]" />
+                  Ubah laporan
+                </Link>
+              </Button>
+            )}
+          </>
         }
       />
 

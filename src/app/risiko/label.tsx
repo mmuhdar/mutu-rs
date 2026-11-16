@@ -1,4 +1,4 @@
-import { formatBobot, LABEL_TINGKAT_RISIKO, type PenilaianRisiko, type TingkatRisiko } from "@/lib/risiko";
+import { formatBobot, LABEL_TINGKAT_RISIKO, labelSimpulan, type PenilaianRisiko, type TingkatRisiko } from "@/lib/risiko";
 
 import { Pil, type Nada } from "../ui";
 
@@ -37,6 +37,6 @@ export function Penilaian({ n }: { n: PenilaianRisiko | null }) {
 
 /** Simpulan Tingkat Risiko: turun / tidak turun; null = belum dipantau. */
 export function LabelTurun({ turun }: { turun: boolean | null }) {
-  if (turun === null) return <span className="text-[13px] whitespace-nowrap text-ink-3">belum dipantau</span>;
-  return <Pil nada={turun ? "pos" : "neg"}>{turun ? "Ada penurunan" : "Tidak ada penurunan"}</Pil>;
+  if (turun === null) return <span className="text-[13px] whitespace-nowrap text-ink-3">{labelSimpulan(turun)}</span>;
+  return <Pil nada={turun ? "pos" : "neg"}>{labelSimpulan(turun)}</Pil>;
 }

@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   turbopack: { root: path.resolve(__dirname) },
   outputFileTracingRoot: path.resolve(__dirname),
+  // pdfkit (PDF laporan Insiden) memuat data font standarnya saat berjalan; dibiarkan di node_modules, tidak di-bundle.
+  serverExternalPackages: ["pdfkit"],
   // Unggah Bukti: sampai 5 berkas × 10 MB (MAKS_BUKTI, MAKS_UKURAN_BUKTI) sekali kirim, ditambah overhead multipart.
   // Bawaan: server action 1 MB; proxy hanya menyimpan 10 MB body (sisanya terpotong).
   experimental: {

@@ -53,7 +53,7 @@ Di banyak rumah sakit, data mutu masih hidup di lembar Excel dan kertas per ruan
 
 - **Analisis** per Indikator, per bulan, untuk Lingkup RS atau Lingkup Unit.
 - **Tindak Lanjut** dengan penanggung jawab dan tenggat. Yang lewat atau mendekati tenggat (7 hari) ditandai.
-- **PDSA** (Plan, Do, Study, Act) dengan siklus berikutnya. Grafik tahap Study diambil langsung dari data Capaian, bukan dari tempelan gambar.
+- **PDSA** (Plan, Do, Study, Act) dengan siklus berikutnya. Grafik tahap Study diambil langsung dari data Capaian, bukan dari tempelan gambar. Pedoman pengisian berbahasa sehari-hari (dengan contoh per isian, bisa dicetak) tersedia di dalam aplikasi untuk pengisi di ruangan.
 - **Analisis Efisiensi** (PMKP 4 g) mencatat biaya per jenis sumber daya sebelum dan sesudah perbaikan.
 
 ![Detail PDSA](docs/gambar/pdsa.png)
@@ -84,6 +84,7 @@ Di banyak rumah sakit, data mutu masih hidup di lembar Excel dan kertas per ruan
   - Investigasi Sederhana: 7 hari untuk Biru, 14 hari untuk Hijau;
   - RCA: 45 hari untuk Kuning, Merah, dan semua Kejadian Sentinel.
 - Tanggal e-report ke Kemenkes dicatat untuk KTD dan Sentinel.
+- **Unduh PDF** laporan per Insiden (A4, susunan Formulir 1, hasil investigasi, Riwayat Status, dan kolom paraf Pembuat serta Penerima Laporan).
 - **Akses dibatasi.** Identitas pasien hanya dibaca Pembuat Laporan, Kepala Unit tempat insiden, Komite Mutu, dan Direktur. Rekap di Laporan Triwulan tanpa identitas.
 
 ![Grading Insiden](docs/gambar/insiden.png)
@@ -100,6 +101,7 @@ Di banyak rumah sakit, data mutu masih hidup di lembar Excel dan kertas per ruan
   - Simpulan;
   - Dokumen Review (PDF, DOC, DOCX).
 - Simpulan penurunan Tingkat Risiko dihitung dari angkanya. Efektivitas Perlakuan dinilai setelah pemantauan.
+- Register per tahun dan Unit bisa diunduh sebagai berkas Excel (.xlsx) yang rapi dan berwarna menurut Tingkat Risiko, siap dicetak.
 
 ### Akuntabilitas dan keamanan
 
