@@ -13,7 +13,7 @@ import { kelasPetunjuk, Kolom, PesanError, Segmen } from "../form";
 import { PilihCari } from "../pilih-cari";
 
 import { INPUT_BULAN } from "@/lib/bulan";
-import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, KELOMPOK_BISA_DITAMBAH, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
+import { ARAH, FIELD_CARA_HITUNG, FREKUENSI, KELOMPOK, LABEL_ARAH, LABEL_FREKUENSI } from "@/lib/indikator";
 import type { Indikator } from "@/modules/indikator/service";
 
 import {
@@ -97,7 +97,7 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
           <Link href="/indikator/baru" className="text-primary-ink">
             buat Indikator baru
           </Link>{" "}
-          lalu nonaktifkan Indikator ini. Nama, definisi operasional, Sumber Data, dan PIC tetap bisa diubah.
+          dengan kelompok yang sama (termasuk INM) lalu nonaktifkan Indikator ini. Nama, definisi operasional, Sumber Data, dan PIC tetap bisa diubah.
         </p>
       )}
       <div className="grid min-w-0 gap-5">
@@ -105,14 +105,14 @@ export function FormIndikator({ indikator, bulanIni, terkunci = false }: { indik
           <input type="hidden" name="id" value={indikator.id} />
         ) : (
           <>
-            <Kolom label="Kode" htmlFor="kode" petunjuk="Unik, mis. IMP-RS-01. Tidak bisa diubah setelah disimpan.">
+            <Kolom label="Kode" htmlFor="kode" petunjuk="Unik, mis. IMP-RS-01. Tidak bisa diubah setelah disimpan. 13 INM sudah tersedia; INM baru hanya untuk mengganti INM yang cara hitungnya berubah, mis. INM-01B.">
               <Input id="kode" name="kode" required maxLength={32} defaultValue={state.nilai?.kode} className="terukur sm:max-w-[16rem]" />
             </Kolom>
             <Segmen
               key={state.nilai?.kelompok}
               nama="kelompok"
-              label="Kelompok (INM sudah tersedia sesuai PMK 30/2022)"
-              pilihan={KELOMPOK_BISA_DITAMBAH.map((k) => ({ nilai: k, label: k }))}
+              label="Kelompok"
+              pilihan={KELOMPOK.map((k) => ({ nilai: k, label: k }))}
               nilai={state.nilai?.kelompok ?? "IMP-RS"}
               wajib
             />

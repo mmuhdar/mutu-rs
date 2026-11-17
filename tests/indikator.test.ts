@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { bootstrapDatabase } from "@/db/bootstrap";
 import { LABEL_PERAN } from "@/lib/peran";
+import { rekapSimar } from "@/modules/laporan/service";
 import {
   aturAktifIndikator,
   ambilIndikator,
@@ -109,14 +110,26 @@ describe("kelola IMP", () => {
     await assert.rejects(tambahIndikator(komite, impBaru({ kode: "inm-01", kelompok: "IMP-RS" })), duplikat);
   });
 
-  it("isian yang tidak sah ditolak: kelompok INM, faktor bukan bilangan bulat positif, field wajib kosong", async () => {
+  it("isian yang tidak sah ditolak: kelompok tak dikenal, faktor bukan bilangan bulat positif, field wajib kosong", async () => {
     const admin = await adminSistem();
     const ditolak = { status: 400 };
-    await assert.rejects(tambahIndikator(admin, { ...impBaru(), kelompok: "INM" as "IMP-RS" }), ditolak);
+    await assert.rejects(tambahIndikator(admin, { ...impBaru(), kelompok: "IMP" as "IMP-RS" }), ditolak);
     await assert.rejects(tambahIndikator(admin, impBaru({ faktor: 0 })), ditolak);
     await assert.rejects(tambahIndikator(admin, impBaru({ faktor: 2.5 })), ditolak);
     await assert.rejects(tambahIndikator(admin, impBaru({ sumberData: "  " })), ditolak);
     await assert.rejects(tambahIndikator(admin, impBaru({ target: { nilai: Number.NaN, berlakuMulai: "2026-11" } })), ditolak);
+  });
+
+  it("INM pengganti bisa ditambah untuk mengganti cara hitung INM yang terkunci, dan masuk Rekap SIMAR", async () => {
+    const komite = await komiteMutu();
+    const id = await tambahIndikator(komite, impBaru({ kelompok: "INM" }));
+    try {
+      assert.equal((await ambilIndikator(komite, id)).kelompok, "INM");
+      assert.ok((await rekapSimar(komite, "2015-03")).baris.some((b) => b.indikator.id === id));
+    } finally {
+      // Rekap SIMAR tes lain menghitung INM aktif.
+      await aturAktifIndikator(komite, id, false);
+    }
   });
 
   it("Admin Sistem mengubah, menonaktifkan, dan mengaktifkan kembali; Indikator nonaktif tetap di daftar", async () => {
